@@ -8,8 +8,8 @@
 |--------|-------|
 | Draft | 0 |
 | In Progress | 0 |
-| Complete | 23 |
-| **Total** | **23** |
+| Complete | 27 |
+| **Total** | **27** |
 
 ## Plans
 
@@ -38,6 +38,10 @@
 | [PL0021](PL0021-full-text-search-api.md) | [US0021](../stories/US0021-full-text-search-api.md) | [EP0005](../epics/EP0005-search.md) | Complete | 2026-02-17 |
 | [PL0022](PL0022-search-results-page.md) | [US0022](../stories/US0022-search-results-page.md) | [EP0005](../epics/EP0005-search.md) | Complete | 2026-02-17 |
 | [PL0023](PL0023-global-search-bar.md) | [US0023](../stories/US0023-global-search-bar.md) | [EP0005](../epics/EP0005-search.md) | Complete | 2026-02-17 |
+| [PL0024](PL0024-backend-dockerfile.md) | [US0024](../stories/US0024-backend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
+| [PL0025](PL0025-frontend-dockerfile.md) | [US0025](../stories/US0025-frontend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
+| [PL0026](PL0026-docker-compose-orchestration.md) | [US0026](../stories/US0026-docker-compose-orchestration.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
+| [PL0027](PL0027-nginx-reverse-proxy-config.md) | [US0027](../stories/US0027-nginx-reverse-proxy-config.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
 
 ## Notes
 

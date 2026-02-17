@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend
+    volumes:
+      - db-data:/data/db
+      # Mount project sdlc-studio directories (read-only)
+      # Uncomment and adjust paths for each project:
+      # - /path/to/project1/sdlc-studio:/data/projects/project1:ro
+      # - /path/to/project2/sdlc-studio:/data/projects/project2:ro
+    environment:
+      - SDLC_LENS_HOST=${SDLC_LENS_HOST:-0.0.0.0}
+      - SDLC_LENS_PORT=${SDLC_LENS_PORT:-8000}
+      - SDLC_LENS_DATABASE_URL=${SDLC_LENS_DATABASE_URL:-sqlite+aiosqlite:////data/db/sdlc_lens.db}
+      - SDLC_LENS_LOG_LEVEL=${SDLC_LENS_LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/system/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db-data:

@@ -7,12 +7,12 @@
 
 | Status | Count |
 |--------|-------|
-| Draft | 4 |
+| Draft | 0 |
 | Ready | 0 |
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 23 |
+| Done | 27 |
 | **Total** | **27** |
 
 ## Stories by Epic
@@ -69,10 +69,10 @@
 
 | ID | Title | Status | Points | Owner |
 |----|-------|--------|--------|-------|
-| [US0024](US0024-backend-dockerfile.md) | Backend Dockerfile | Draft | TBD | Darren |
-| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | Draft | TBD | Darren |
-| [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | Draft | TBD | Darren |
-| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Draft | TBD | Darren |
+| [US0024](US0024-backend-dockerfile.md) | Backend Dockerfile | Done | TBD | Darren |
+| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | Done | TBD | Darren |
+| [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | Done | TBD | Darren |
+| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Done | TBD | Darren |
 
 ## All Stories
 
@@ -101,10 +101,10 @@
 | [US0021](US0021-full-text-search-api.md) | Full-Text Search API | [EP0005](../epics/EP0005-search.md) | Done | TBD | Darren |
 | [US0022](US0022-search-results-page.md) | Search Results Page | [EP0005](../epics/EP0005-search.md) | Done | TBD | Darren |
 | [US0023](US0023-global-search-bar.md) | Global Search Bar Component | [EP0005](../epics/EP0005-search.md) | Done | TBD | Darren |
-| [US0024](US0024-backend-dockerfile.md) | Backend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Draft | TBD | Darren |
-| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Draft | TBD | Darren |
-| [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | [EP0006](../epics/EP0006-docker-deployment.md) | Draft | TBD | Darren |
-| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | [EP0006](../epics/EP0006-docker-deployment.md) | Draft | TBD | Darren |
+| [US0024](US0024-backend-dockerfile.md) | Backend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
+| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
+| [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
+| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
 
 ## Notes
 

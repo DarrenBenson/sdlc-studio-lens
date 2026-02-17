@@ -149,7 +149,7 @@ export function ProjectDetail() {
               data={typeData}
               onClick={(state) => {
                 if (state?.activeTooltipIndex != null) {
-                  const entry = typeData[state.activeTooltipIndex];
+                  const entry = typeData[Number(state.activeTooltipIndex)];
                   if (entry) void navigate(`/projects/${slug}/documents?type=${entry.name}`);
                 }
               }}
@@ -173,7 +173,7 @@ export function ProjectDetail() {
               data={statusData}
               onClick={(state) => {
                 if (state?.activeTooltipIndex != null) {
-                  const entry = statusData[state.activeTooltipIndex];
+                  const entry = statusData[Number(state.activeTooltipIndex)];
                   if (entry && entry.name !== "null")
                     void navigate(`/projects/${slug}/documents?status=${entry.name}`);
                 }

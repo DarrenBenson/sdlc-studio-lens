@@ -1,6 +1,6 @@
 # US0027: Nginx Reverse Proxy Configuration
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Owner:** Darren
 > **Reviewer:** -

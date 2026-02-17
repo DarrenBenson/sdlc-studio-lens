@@ -1,6 +1,6 @@
 # US0026: Docker Compose Orchestration
 
-> **Status:** Draft
+> **Status:** Done
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Owner:** Darren
 > **Reviewer:** -

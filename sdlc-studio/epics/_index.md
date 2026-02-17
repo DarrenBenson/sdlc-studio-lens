@@ -7,23 +7,23 @@
 
 | Status | Count |
 |--------|-------|
-| Draft | 3 |
+| Draft | 0 |
 | Ready | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Done | 3 |
+| Done | 6 |
 | **Total** | **6** |
 
 ## Epics
 
 | ID | Title | Status | Owner | Stories | Points | Target |
 |----|-------|--------|-------|---------|--------|--------|
-| [EP0001](EP0001-project-management.md) | Project Management | Done | Darren | 5 | 16 | Phase 1 (Foundation) |
-| [EP0002](EP0002-document-sync-and-parsing.md) | Document Sync & Parsing | Done | Darren | 6 | 24 | Phase 1 (Foundation) |
-| [EP0003](EP0003-document-browsing.md) | Document Browsing | Done | Darren | 5 | 20 | Phase 2 (Browsing & Dashboard) |
-| [EP0004](EP0004-dashboard-and-statistics.md) | Dashboard & Statistics | Draft | Darren | ~4 | 15 | Phase 2 (Browsing & Dashboard) |
-| [EP0005](EP0005-search.md) | Search | Draft | Darren | ~3 | 12 | Phase 3 (Search & Deployment) |
-| [EP0006](EP0006-docker-deployment.md) | Docker Deployment | Draft | Darren | ~4 | 13 | Phase 3 (Search & Deployment) |
+| [EP0001](EP0001-project-management.md) | Project Management | Done | Darren | 5 | 16 | Phase 1 |
+| [EP0002](EP0002-document-sync-and-parsing.md) | Document Sync & Parsing | Done | Darren | 6 | 24 | Phase 1 |
+| [EP0003](EP0003-document-browsing.md) | Document Browsing | Done | Darren | 5 | 20 | Phase 2 |
+| [EP0004](EP0004-dashboard-and-statistics.md) | Dashboard & Statistics | Done | Darren | 4 | 15 | Phase 2 |
+| [EP0005](EP0005-search.md) | Search | Done | Darren | 3 | 12 | Phase 3 |
+| [EP0006](EP0006-docker-deployment.md) | Docker Deployment | Done | Darren | 4 | 13 | Phase 3 |
 
 ## By Phase
 

@@ -8,8 +8,8 @@
 |--------|-------|
 | Draft | 0 |
 | Ready | 0 |
-| Complete | 23 |
-| **Total** | **23** |
+| Complete | 27 |
+| **Total** | **27** |
 
 ## Test Specs
 
@@ -38,6 +38,10 @@
 | [TS0021](TS0021-full-text-search-api.md) | [EP0005](../epics/EP0005-search.md) | US0021 | 11 | Complete | 2026-02-17 |
 | [TS0022](TS0022-search-results-page.md) | [EP0005](../epics/EP0005-search.md) | US0022 | 8 | Complete | 2026-02-17 |
 | [TS0023](TS0023-global-search-bar.md) | [EP0005](../epics/EP0005-search.md) | US0023 | 6 | Complete | 2026-02-17 |
+| [TS0024](TS0024-backend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0024 | 9 | Complete | 2026-02-17 |
+| [TS0025](TS0025-frontend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0025 | 8 | Complete | 2026-02-17 |
+| [TS0026](TS0026-docker-compose-orchestration.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0026 | 9 | Complete | 2026-02-17 |
+| [TS0027](TS0027-nginx-reverse-proxy-config.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0027 | 8 | Complete | 2026-02-17 |
 
 ## Notes
 

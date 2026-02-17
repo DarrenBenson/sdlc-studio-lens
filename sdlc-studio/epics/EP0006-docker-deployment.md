@@ -1,6 +1,6 @@
 # EP0006: Docker Deployment
 
-> **Status:** Draft
+> **Status:** Done
 > **Owner:** Darren
 > **Created:** 2026-02-17
 > **Target Release:** Phase 3 (Search & Deployment)
@@ -115,11 +115,11 @@ Without containerised deployment, the dashboard requires manual setup of Python,
 
 | Dependency | Type | Status | Owner | Notes |
 |------------|------|--------|-------|-------|
-| EP0001: Project Management | Epic | Draft | Darren | Need working backend API |
-| EP0002: Document Sync & Parsing | Epic | Draft | Darren | Need sync service |
-| EP0003: Document Browsing | Epic | Draft | Darren | Need frontend pages |
-| EP0004: Dashboard & Statistics | Epic | Draft | Darren | Need dashboard page |
-| EP0005: Search | Epic | Draft | Darren | Need search functionality |
+| EP0001: Project Management | Epic | Done | Darren | Working backend API |
+| EP0002: Document Sync & Parsing | Epic | Done | Darren | Sync service complete |
+| EP0003: Document Browsing | Epic | Done | Darren | Frontend pages complete |
+| EP0004: Dashboard & Statistics | Epic | Done | Darren | Dashboard complete |
+| EP0005: Search | Epic | Done | Darren | Search complete |
 
 ### Blocking
 
@@ -195,10 +195,10 @@ Without containerised deployment, the dashboard requires manual setup of Python,
 
 | ID | Title | Complexity | Status |
 |----|-------|------------|--------|
-| [US0024](../stories/US0024-backend-dockerfile.md) | Backend Dockerfile | Medium | Draft |
-| [US0025](../stories/US0025-frontend-dockerfile.md) | Frontend Dockerfile | Low | Draft |
-| [US0026](../stories/US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | Medium | Draft |
-| [US0027](../stories/US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Low | Draft |
+| [US0024](../stories/US0024-backend-dockerfile.md) | Backend Dockerfile | Medium | Done |
+| [US0025](../stories/US0025-frontend-dockerfile.md) | Frontend Dockerfile | Low | Done |
+| [US0026](../stories/US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | Medium | Done |
+| [US0027](../stories/US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Low | Done |
 
 ## Test Plan
 
