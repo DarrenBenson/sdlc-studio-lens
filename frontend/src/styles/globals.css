@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  /* Backgrounds */
+  --color-bg-base: #0b0f0d;
+  --color-bg-surface: #111916;
+  --color-bg-elevated: #1c2520;
+  --color-bg-overlay: #243029;
+
+  /* Borders */
+  --color-border-default: #2a3631;
+  --color-border-subtle: #1e2b24;
+  --color-border-strong: #3d4f46;
+
+  /* Text */
+  --color-text-primary: #f0f6f0;
+  --color-text-secondary: #b0bec5;
+  --color-text-tertiary: #78909c;
+  --color-text-muted: #4a5b53;
+
+  /* Accent */
+  --color-accent: #a3e635;
+  --color-accent-hover: #bef264;
+  --color-accent-pressed: #84cc16;
+  --color-accent-muted: rgba(163, 230, 53, 0.15);
+
+  /* Status (sync badges) */
+  --color-status-done: #a3e635;
+  --color-status-progress: #3b82f6;
+  --color-status-draft: #78909c;
+  --color-status-blocked: #ef4444;
+  --color-status-warning: #f59e0b;
+
+  /* Badge colours (document status) */
+  --color-badge-done: #a3e635;
+  --color-badge-progress: #3b82f6;
+  --color-badge-draft: #78909c;
+  --color-badge-blocked: #ef4444;
+  --color-badge-review: #f59e0b;
+  --color-badge-ready: #86efac;
+  --color-badge-planned: #93c5fd;
+  --color-badge-default: #78909c;
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
