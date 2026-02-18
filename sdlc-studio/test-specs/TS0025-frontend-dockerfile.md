@@ -1,9 +1,12 @@
-# TS0025: Frontend Dockerfile
+# TS0025: Frontend Dockerfile [SUPERSEDED]
 
-> **Status:** Draft
+> **Status:** Superseded
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17
-> **Last Updated:** 2026-02-17
+> **Last Updated:** 2026-02-18
+> **Superseded By:** [TS0024: Combined Dockerfile](TS0024-backend-dockerfile.md)
+
+> **Supersession Note:** The frontend build is now a stage in the combined Dockerfile. Relevant test cases (SPA routing, static asset serving) have been incorporated into TS0024. Original spec preserved below for reference.
 
 ## Overview
 
@@ -240,3 +243,4 @@ docker rmi sdlc-lens-frontend 2>/dev/null
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-17 | Claude | Initial spec |
+| 2026-02-18 | Claude | Marked as superseded - tests merged into TS0024 for combined image |

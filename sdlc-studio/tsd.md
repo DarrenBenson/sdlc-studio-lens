@@ -1,17 +1,17 @@
 # Test Strategy Document
 
 > **Project:** SDLC Studio Lens
-> **Version:** 1.0.0
-> **Last Updated:** 2026-02-17
+> **Version:** 1.1.0
+> **Last Updated:** 2026-02-18
 > **Owner:** Darren
 
 ---
 
 ## Overview
 
-This test strategy defines the approach for validating SDLC Studio Lens, a read-only web dashboard for browsing and searching sdlc-studio documents. The architecture consists of a FastAPI backend with SQLite/FTS5 storage and a React SPA frontend served via nginx.
+This test strategy defines the approach for validating SDLC Studio Lens, a read-only web dashboard for browsing and searching sdlc-studio documents. The architecture consists of a FastAPI backend with SQLite/FTS5 storage that also serves the built React SPA frontend. Documents can be synced from local filesystem paths or from GitHub repositories via the GitHub API.
 
-Given the project's two main concerns - document parsing/sync and web dashboard presentation - the strategy emphasises thorough unit testing of the parser and sync services, API integration tests with a real SQLite database, and E2E tests for critical user flows.
+Given the project's three main concerns - document parsing/sync, GitHub repository integration, and web dashboard presentation - the strategy emphasises thorough unit testing of the parser and sync services, mocked HTTP tests for GitHub API interactions, API integration tests with a real SQLite database, and E2E tests for critical user flows.
 
 The testing approach follows the **test pyramid** principle: many fast unit tests, fewer integration tests, and selective E2E tests for critical paths.
 
@@ -23,7 +23,9 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 - Confirm FTS5 search returns relevant results with correct ranking
 - Validate statistics calculations match actual document data
 - Ensure the frontend renders documents, charts, and navigation correctly
-- Verify Docker deployment serves both frontend and API correctly
+- Validate GitHub API integration (mocked httpx) correctly fetches repository contents and handles errors
+- Verify source type dispatch routes sync to the correct provider (filesystem or GitHub)
+- Verify Docker deployment serves frontend and API correctly from a single container
 
 ## Scope
 
@@ -32,6 +34,8 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 - SQLAlchemy models and Alembic migrations
 - Blockquote frontmatter parser (all document types)
 - Filesystem sync service (add, update, delete, skip behaviour)
+- GitHub repository sync service (mocked httpx for API calls, content fetching, error handling)
+- Source type dispatch (routing sync to filesystem or GitHub provider)
 - FTS5 search functionality
 - Statistics aggregation
 - React frontend (components, pages, API client)
@@ -97,6 +101,18 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 - Sync populates FTS5 index for new documents
 - Sync updates FTS5 index for changed documents
 - Sync removes FTS5 entries for deleted documents
+
+#### GitHub Sync Tests (`tests/test_github_sync.py`)
+- Fetch repository tree from GitHub API (mocked httpx)
+- Download file content from GitHub API (mocked httpx)
+- Handle GitHub API rate limiting with appropriate error
+- Handle invalid repository or missing path with 404
+- Handle authentication failure (invalid/missing token)
+- Sync adds new documents fetched from GitHub
+- Sync updates documents with changed content hash
+- Sync removes documents deleted from remote repository
+- Source type dispatch routes to filesystem provider
+- Source type dispatch routes to GitHub provider
 
 #### Statistics Tests
 - Calculate document counts by type
@@ -333,6 +349,7 @@ No sensitive data in test fixtures. All document content is synthetic.
 |-------|------|----------|
 | E2E/UI | Playwright | TypeScript |
 | API Integration | pytest + httpx | Python |
+| GitHub API (mocked) | pytest + httpx + respx/mock | Python |
 | Backend Unit | pytest + pytest-asyncio | Python |
 | Frontend Unit | Vitest + React Testing Library | TypeScript |
 
@@ -387,6 +404,16 @@ No sensitive data in test fixtures. All document content is synthetic.
 
 ---
 
+## Test Counts
+
+| Suite | Count |
+|-------|-------|
+| Backend | 309 |
+| Frontend | 136 |
+| **Total** | **445** |
+
+---
+
 ## Test Organisation
 
 ### Backend
@@ -396,6 +423,7 @@ backend/tests/
 ├── conftest.py                # Shared fixtures (test client, DB, sample docs)
 ├── test_parser.py             # Parser unit tests (~15 tests)
 ├── test_sync.py               # Sync service tests (~12 tests)
+├── test_github_sync.py        # GitHub sync tests (~10 tests, mocked httpx)
 ├── test_api_projects.py       # Project endpoint tests (~9 tests)
 ├── test_api_documents.py      # Document endpoint tests (~8 tests)
 ├── test_api_stats.py          # Statistics endpoint tests (~4 tests)
@@ -477,6 +505,7 @@ e2e/
 | E2E tests with mocked API responses | Doesn't catch backend bugs | Add contract tests verifying backend responses match frontend types |
 | Hardcoded file paths in sync tests | Tests break on different machines | Use tmp_path fixture for test directories |
 | Testing only happy paths for sync | Misses deletion and error handling | Test all four sync behaviours: add, update, delete, skip |
+| Calling real GitHub API in tests | Flaky, rate-limited, requires auth | Mock httpx responses for all GitHub API interactions |
 
 ---
 
@@ -490,3 +519,5 @@ e2e/
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-17 | Darren | Initial TSD created |
+| 2026-02-18 | Claude | Updated for single-container Docker architecture |
+| 2026-02-18 | Claude | Updated for EP0007 GitHub Repository Sync |

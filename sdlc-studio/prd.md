@@ -1,8 +1,8 @@
 # Product Requirements Document
 
 **Project:** SDLC Studio Lens
-**Version:** 1.0.2
-**Last Updated:** 2026-02-17
+**Version:** 1.1.0
+**Last Updated:** 2026-02-18
 **Status:** Draft
 **TRD Reference:** [TRD](trd.md)
 
@@ -20,14 +20,14 @@ A self-hosted, read-only web dashboard for browsing, searching, and visualising 
 - **Backend:** Python 3.12+, FastAPI, Uvicorn, Pydantic v2
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS
 - **Database:** SQLite with FTS5 for full-text search
-- **Deployment:** Docker (two containers: backend API, frontend via nginx)
+- **Deployment:** Docker (single container: FastAPI serves both API and frontend)
 
 ### Architecture Pattern
-**Two-Container SPA + API**
+**Single-Container SPA + API**
 
-- **Backend container:** FastAPI REST API serving parsed document data from SQLite
-- **Frontend container:** React SPA built with Vite, served via nginx with API reverse proxy
-- **Communication:** Frontend calls backend API via `/api/v1/*` proxied through nginx
+- **Container:** FastAPI serves the REST API and the built React SPA from a single process
+- **Frontend delivery:** Vite-built static files served by FastAPI with SPA fallback routing
+- **Communication:** Frontend calls backend API via `/api/v1/*` on the same origin
 - **Storage:** SQLite database with volume mount for persistence
 - **Document source:** Project directories mounted as Docker volumes (read-only)
 
@@ -82,7 +82,7 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 | **G3** | Full-text search | Search returns results from any document across all registered projects in <1s |
 | **G4** | Rendered document viewing | Markdown documents render with proper formatting, syntax highlighting, and frontmatter extraction |
 | **G5** | Manual sync workflow | User can trigger sync per project, see sync status and last-synced timestamp |
-| **G6** | Docker deployment | Single `docker-compose up` brings up both containers with project volumes |
+| **G6** | Docker deployment | Single `docker-compose up` brings up the container with project volumes |
 
 ### Key Performance Indicators (KPIs)
 
@@ -92,7 +92,7 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 | Document list load | < 500ms | API response time for filtered document list |
 | Search response time | < 1s | API response time for FTS5 query |
 | Sync duration (100 docs) | < 10s | Time from sync trigger to completion |
-| Docker build time | < 3 min | Total build for both containers |
+| Docker build time | < 3 min | Total build for single container |
 
 ---
 
@@ -147,12 +147,14 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 | Full-Text Search | Search across all document content using SQLite FTS5 | Not Started | P0 | EP0005 |
 | Search Filters | Filter search results by project, document type, status | Not Started | P1 | EP0005 |
 | Search Highlighting | Highlight matching terms in search results | Not Started | P2 | EP0005 |
-| Backend Dockerfile | Multi-stage Python build (python:3.12-slim) | Not Started | P0 | EP0006 |
-| Frontend Dockerfile | Multi-stage Node build (node:22-slim build, nginx:alpine serve) | Not Started | P0 | EP0006 |
-| Docker Compose | Orchestration with volume mounts for projects and database | Not Started | P0 | EP0006 |
-| Nginx Config | Reverse proxy to backend API, SPA routing | Not Started | P0 | EP0006 |
+| Combined Dockerfile | Multi-stage build: frontend (node:22-slim), backend (python:3.12-slim), single runtime | Not Started | P0 | EP0006 |
+| Docker Compose | Single-service orchestration with volume mounts for projects and database | Not Started | P0 | EP0006 |
+| Static File Serving | FastAPI serves built frontend with SPA fallback routing | Not Started | P0 | EP0006 |
+| GitHub Source Type | Sync documents from a GitHub repository via REST API | Not Started | P1 | EP0007 |
+| Repository Configuration | Configure repo URL, branch, subdirectory path, and access token | Not Started | P1 | EP0007 |
+| Source Type Selection | Choose between local filesystem and GitHub when registering a project | Not Started | P1 | EP0007 |
 
-**Estimated Total:** 6 Epics, ~30 Stories
+**Estimated Total:** 7 Epics, ~33 Stories
 
 ### Feature Details
 
@@ -280,15 +282,34 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 **User Story:** As a developer, I want to deploy the dashboard with a single `docker-compose up` command so that setup requires no manual configuration beyond volume paths.
 
 **Acceptance Criteria:**
-- [ ] Multi-stage backend Dockerfile (python:3.12-slim) produces minimal image
-- [ ] Multi-stage frontend Dockerfile (node:22-slim build, nginx:alpine serve) produces minimal image
-- [ ] docker-compose.yml orchestrates both containers with shared network
-- [ ] nginx proxies `/api/*` to backend container and serves SPA for all other routes
+- [ ] Multi-stage Dockerfile builds frontend (node:22-slim) and backend (python:3.12-slim) into a single runtime image
+- [ ] FastAPI serves the built frontend static files with SPA fallback routing
+- [ ] docker-compose.yml runs a single service with port mapping
 - [ ] Project directories configurable as bind-mount volumes
 - [ ] Database persists via named volume
-- [ ] Both containers start successfully with default configuration
+- [ ] Container starts successfully with default configuration
 
 **Dependencies:** All other features (deployment is final phase)
+**Status:** Not Started
+**Confidence:** [HIGH]
+
+---
+
+#### Git Repository Sync (FR9)
+
+**User Story:** As a developer, I want to sync SDLC documents from a GitHub repository so that the deployed container can pull documents from remote repos without needing local filesystem access.
+
+**Acceptance Criteria:**
+- [ ] Choose between "local" and "github" source type when registering a project
+- [ ] Configure GitHub projects with repository URL, branch, and subdirectory path
+- [ ] Support both public and private repositories via optional access token (PAT)
+- [ ] Fetch `.md` files from the repository using GitHub REST API (Trees + Blobs)
+- [ ] Produce the same sync result format as local filesystem sync
+- [ ] Mask access tokens in API responses (show only last 4 characters)
+- [ ] Local filesystem sync continues to work unchanged
+- [ ] Design extensibly so future providers (GitLab, Bitbucket) can be added
+
+**Dependencies:** Filesystem Sync (FR2), Docker Deployment (FR8)
 **Status:** Not Started
 **Confidence:** [HIGH]
 
@@ -307,7 +328,8 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 | FR5 | Rendered markdown document viewer | P0 |
 | FR6 | Multi-project dashboard with statistics | P0 |
 | FR7 | Full-text search via FTS5 | P0 |
-| FR8 | Docker deployment (two containers) | P0 |
+| FR8 | Docker deployment (single container) | P0 |
+| FR9 | Git repository sync (GitHub REST API) | P1 |
 
 ### Input/Output Specifications
 
@@ -321,6 +343,8 @@ See [TRD §5: API Contracts](trd.md#5-api-contracts) for complete request/respon
 4. **Deleted file handling:** Files present in DB but missing from filesystem are removed on sync
 5. **Document type inference:** Determined from filename pattern (e.g., `EP0001.md` = epic, `US0001.md` = story, `prd.md` = prd)
 6. **Slug generation:** Project slug derived from name (lowercase, hyphens, no special characters)
+7. **Source type dispatch:** Sync uses local filesystem walker for "local" projects and GitHub REST API for "github" projects
+8. **Token security:** Access tokens are stored encrypted at rest (future) and masked in API responses, showing only the last 4 characters
 
 ---
 
@@ -415,8 +439,14 @@ Update project sync status and timestamp
 | Integration | Purpose |
 |-------------|---------|
 | Filesystem (read-only) | Read sdlc-studio documents from Docker volume mounts |
+| GitHub REST API | Fetch repository tree and blob content for GitHub-sourced projects |
 
-No external service integrations required for v1.0.
+GitHub API integration details:
+- **Trees endpoint:** `GET /repos/{owner}/{repo}/git/trees/{branch}?recursive=1`
+- **Blobs endpoint:** `GET /repos/{owner}/{repo}/git/blobs/{sha}`
+- **Authentication:** Optional Bearer token (PAT) for private repositories
+- **Rate limits:** 60 req/hr unauthenticated, 5000 req/hr authenticated
+- **HTTP client:** httpx (async)
 
 ---
 
@@ -431,6 +461,7 @@ No external service integrations required for v1.0.
 | `SDLC_LENS_DATABASE_URL` | SQLite database path | No | `sqlite:///./data/sdlc_lens.db` |
 | `SDLC_LENS_LOG_LEVEL` | Logging level | No | `info` |
 | `SDLC_LENS_CORS_ORIGINS` | Allowed CORS origins (comma-separated) | No | `http://localhost:5173` |
+| `SDLC_LENS_GITHUB_TIMEOUT` | HTTP timeout for GitHub API calls (seconds) | No | `30` |
 
 ### Feature Flags
 
@@ -494,7 +525,7 @@ None for v1.0.
 ### Critical Gaps
 1. **Authentication** - No auth in v1.0; add API key or session auth before exposing to WAN
 2. **Auto-sync** - Manual-only sync may become tedious; consider filesystem watcher in v2.0
-3. **Git integration** - Could detect document changes from git history for richer activity tracking
+3. **Git integration** - Partially addressed by EP0007 (GitHub sync); git history tracking deferred to future work
 
 ### Suggested Improvements
 1. Configurable sync ignore patterns (e.g., skip draft documents)
@@ -561,12 +592,22 @@ None for v1.0.
   - Result highlighting
 
 - **EP0006:** Docker Deployment (~13 pts)
-  - Backend Dockerfile (multi-stage)
-  - Frontend Dockerfile (multi-stage)
-  - docker-compose.yml
-  - nginx configuration
+  - Combined Dockerfile (multi-stage: frontend build, backend deps, runtime)
+  - docker-compose.yml (single service)
+  - FastAPI static file serving with SPA fallback
 
-**Estimated Total:** ~100 story points
+#### Phase 4: Remote Sources
+**Story Points:** ~18
+
+**Epics:**
+- **EP0007:** Git Repository Sync (~18 pts)
+  - Database schema for source type configuration
+  - GitHub API source module (Trees + Blobs)
+  - Sync engine refactoring for pluggable sources
+  - API schema updates with conditional validation
+  - Frontend source type selection UI
+
+**Estimated Total:** ~118 story points
 
 ---
 
@@ -579,7 +620,7 @@ None for v1.0.
 - [ ] All document types visible and filterable
 - [ ] Rendered markdown displays correctly with syntax highlighting
 - [ ] Search returns relevant results in < 1 second
-- [ ] `docker-compose up` deploys both containers successfully
+- [ ] `docker-compose up` deploys the container successfully
 - [ ] Data persists across container restarts
 - [ ] Sync correctly detects new, changed, and deleted documents
 
@@ -691,6 +732,8 @@ Status breakdown chart shows distribution
 | 2026-02-17 | 1.0.0 | Initial PRD created |
 | 2026-02-17 | 1.0.1 | Review fixes: renumbered sections §1-§19 (was duplicating §4/§5), added FR8 Docker Deployment feature detail, resolved Q1 (infer relationships from metadata), Q2 (unknown types as "other"), Q4 (auto-refresh after sync), Q5 (hard delete on sync) |
 | 2026-02-17 | 1.0.2 | Updated Design System to reference brand-guide.md; colour palette changed from emerald (#10B981) to lime green (#A3E635) per reference design |
+| 2026-02-18 | 1.0.3 | Architecture changed from two-container (backend + frontend/nginx) to single-container (FastAPI serves both API and frontend); updated FR8, feature inventory, KPIs, and EP0006 references |
+| 2026-02-18 | 1.1.0 | Added FR9 (Git Repository Sync) for EP0007; GitHub REST API integration, source type selection, token support; updated feature inventory, functional requirements, integrations, release plan |
 
 ---
 

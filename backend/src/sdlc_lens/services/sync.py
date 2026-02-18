@@ -56,9 +56,7 @@ async def run_sync_task(slug: str, session_factory: async_sessionmaker[AsyncSess
             logger.warning("Project '%s' deleted during sync", slug)
             return
 
-        sync_result = await sync_project(
-            project.id, project.sdlc_path, session
-        )
+        sync_result = await sync_project(project, session)
         logger.info(
             "Sync completed for '%s': added=%d updated=%d skipped=%d deleted=%d errors=%d",
             slug,

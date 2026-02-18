@@ -1,11 +1,19 @@
 /** Sync status state machine values. */
 export type SyncStatus = "never_synced" | "syncing" | "synced" | "error";
 
+/** Source type for project document origin. */
+export type SourceType = "local" | "github";
+
 /** Project as returned by GET /api/v1/projects. */
 export interface Project {
   slug: string;
   name: string;
-  sdlc_path: string;
+  sdlc_path: string | null;
+  source_type: SourceType;
+  repo_url: string | null;
+  repo_branch: string;
+  repo_path: string;
+  masked_token: string | null;
   sync_status: SyncStatus;
   sync_error: string | null;
   last_synced_at: string | null;
@@ -16,13 +24,23 @@ export interface Project {
 /** Request body for POST /api/v1/projects. */
 export interface ProjectCreate {
   name: string;
-  sdlc_path: string;
+  source_type: SourceType;
+  sdlc_path?: string;
+  repo_url?: string;
+  repo_branch?: string;
+  repo_path?: string;
+  access_token?: string;
 }
 
 /** Request body for PUT /api/v1/projects/{slug}. */
 export interface ProjectUpdate {
   name?: string;
   sdlc_path?: string;
+  source_type?: SourceType;
+  repo_url?: string;
+  repo_branch?: string;
+  repo_path?: string;
+  access_token?: string;
 }
 
 /** Response from POST /api/v1/projects/{slug}/sync. */

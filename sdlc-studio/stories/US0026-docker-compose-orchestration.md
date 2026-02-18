@@ -9,7 +9,7 @@
 ## User Story
 
 **As a** SDLC Developer (Darren)
-**I want** a docker-compose.yml that starts both containers with database persistence and project volumes
+**I want** a docker-compose.yml that starts the application container with database persistence and project volumes
 **So that** I can deploy the full dashboard with a single command
 
 ## Context
@@ -19,7 +19,7 @@
 [Full persona details](../personas.md#darren)
 
 ### Background
-The docker-compose.yml orchestrates both the backend and frontend containers with a shared Docker network, a named volume for the SQLite database, and configurable bind mounts for project sdlc-studio directories. Environment variables are passed to the backend for configuration.
+The docker-compose.yml orchestrates a single application container where FastAPI serves both the API and the pre-built frontend static files. Configuration includes a named volume for the SQLite database and configurable bind mounts for project sdlc-studio directories. Environment variables are passed to the container for configuration.
 
 ---
 
@@ -27,7 +27,7 @@ The docker-compose.yml orchestrates both the backend and frontend containers wit
 
 | Source | Type | Constraint | AC Implication |
 |--------|------|------------|----------------|
-| TRD | Architecture | Two containers (backend + frontend/nginx) | Two services in compose |
+| TRD | Architecture | Single container (FastAPI serves API + frontend) | One service in compose |
 | PRD | Architecture | Data persists across container restarts | Named volume for database |
 | PRD | Architecture | Project directories as Docker volumes (read-only) | Bind mounts |
 
@@ -38,41 +38,38 @@ The docker-compose.yml orchestrates both the backend and frontend containers wit
 ### AC1: Single command deployment
 - **Given** a docker-compose.yml in the project root
 - **When** I run `docker-compose up`
-- **Then** both backend and frontend containers start and the dashboard is accessible at http://localhost:80
+- **Then** the container starts and the dashboard is accessible at http://localhost:80
 
 ### AC2: Database persistence
-- **Given** both containers are running and data has been synced
+- **Given** the container is running and data has been synced
 - **When** I run `docker-compose down` and then `docker-compose up`
 - **Then** previously synced data is still available (SQLite database persisted via named volume)
 
 ### AC3: Project volume mounts
 - **Given** a docker-compose.yml with project volume configuration
-- **When** the backend container starts
+- **When** the container starts
 - **Then** the project sdlc-studio directories are accessible at the configured mount paths (read-only)
 
 ### AC4: Environment variable pass-through
 - **Given** environment variables defined in docker-compose.yml or .env file
-- **When** the backend container starts
+- **When** the container starts
 - **Then** SDLC_LENS_HOST, SDLC_LENS_PORT, SDLC_LENS_DATABASE_URL, and SDLC_LENS_LOG_LEVEL are available to the application
 
-### AC5: Health checks
-- **Given** both containers are running
+### AC5: Health check
+- **Given** the container is running
 - **When** I run `docker-compose ps`
-- **Then** both services show as healthy (backend health check at /api/v1/system/health, frontend health check via nginx)
+- **Then** the service shows as healthy (health check at /api/v1/system/health)
 
 ---
 
 ## Scope
 
 ### In Scope
-- docker-compose.yml with backend and frontend services
-- Shared Docker network
+- docker-compose.yml with a single application service
 - Named volume for SQLite database (/data/db)
 - Bind mount configuration for project directories
 - Environment variable configuration
-- Health checks for both services
-- depends_on with health condition for startup ordering
-- .env file template for configuration
+- Health check for the application service
 
 ### Out of Scope
 - Docker Swarm or Kubernetes
@@ -87,8 +84,10 @@ The docker-compose.yml orchestrates both the backend and frontend containers wit
 ### docker-compose.yml Structure
 ```yaml
 services:
-  backend:
-    build: ./backend
+  app:
+    build: .
+    ports:
+      - "80:8000"
     volumes:
       - db-data:/data/db
       - /path/to/project1/sdlc-studio:/data/projects/project1/sdlc-studio:ro
@@ -100,14 +99,6 @@ services:
       timeout: 5s
       retries: 3
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:80"
-    depends_on:
-      backend:
-        condition: service_healthy
-
 volumes:
   db-data:
 ```
@@ -118,26 +109,25 @@ volumes:
 
 | Scenario | Expected Behaviour |
 |----------|-------------------|
-| Backend health check fails | Frontend waits; docker-compose reports unhealthy |
+| Health check fails | docker-compose reports unhealthy |
 | Volume mount path does not exist on host | Container starts but sync will fail for that project |
 | Port 80 already in use | docker-compose up fails with port conflict error |
 | .env file missing | Defaults used from application config |
 | Database volume deleted | Fresh database created on next startup; Alembic migrations run |
-| Containers restarted individually | Data persists; services reconnect |
+| Container restarted | Data persists via named volume |
 
 ---
 
 ## Test Scenarios
 
-- [ ] docker-compose up starts both containers
+- [ ] docker-compose up starts the container
 - [ ] Dashboard accessible at http://localhost:80
-- [ ] Backend health check passes
+- [ ] Health check passes at /api/v1/system/health
 - [ ] Database persists across docker-compose down/up cycle
-- [ ] Project volumes mounted read-only in backend
+- [ ] Project volumes mounted read-only in the container
 - [ ] Environment variables configurable
-- [ ] Frontend depends_on backend health
-- [ ] docker-compose down stops both containers cleanly
-- [ ] Containers start within 10 seconds
+- [ ] docker-compose down stops the container cleanly
+- [ ] Container starts within 10 seconds
 
 ---
 
@@ -147,9 +137,7 @@ volumes:
 
 | Story | Type | What's Needed | Status |
 |-------|------|---------------|--------|
-| [US0024](US0024-backend-dockerfile.md) | Config | Backend Dockerfile | Draft |
-| [US0025](US0025-frontend-dockerfile.md) | Config | Frontend Dockerfile | Draft |
-| [US0027](US0027-nginx-reverse-proxy-config.md) | Config | nginx configuration | Draft |
+| [US0024](US0024-backend-dockerfile.md) | Config | Combined Dockerfile (API + frontend) | Draft |
 
 ### External Dependencies
 
@@ -177,3 +165,4 @@ None.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-17 | Claude | Initial story creation from EP0006 |
+| 2026-02-18 | Claude | Updated for single-container architecture (FastAPI serves API + frontend) |

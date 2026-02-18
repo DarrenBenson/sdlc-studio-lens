@@ -1,4 +1,4 @@
-"""Sync engine - walks filesystem, parses documents, manages DB records."""
+"""Sync engine - collects files from sources, parses documents, manages DB records."""
 
 from __future__ import annotations
 
@@ -61,6 +61,66 @@ def _walk_md_files(root: Path) -> list[Path]:
     return results
 
 
+def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], int]:
+    """Collect .md files from the local filesystem.
+
+    Walks the directory tree, computes SHA-256 hashes, and returns
+    a dict of {relative_path: (hash, raw_bytes)} plus an error count.
+
+    Args:
+        sdlc_path: Absolute path to the sdlc-studio directory.
+
+    Returns:
+        Tuple of (files_dict, error_count).
+    """
+    root = Path(sdlc_path)
+    fs_files: dict[str, tuple[str, bytes]] = {}
+    errors = 0
+
+    for md_file in sorted(_walk_md_files(root)):
+        rel_path = str(md_file.relative_to(root))
+        filename = md_file.name
+
+        # Skip _index.md files
+        inference = infer_type_and_id(filename, rel_path)
+        if inference is None:
+            continue
+
+        try:
+            raw = md_file.read_bytes()
+        except (PermissionError, OSError) as exc:
+            logger.warning("Cannot read %s: %s", md_file, exc)
+            errors += 1
+            continue
+
+        file_hash = compute_hash(raw)
+        fs_files[rel_path] = (file_hash, raw)
+
+    return fs_files, errors
+
+
+async def collect_github_files(project: Project) -> dict[str, tuple[str, bytes]]:
+    """Collect .md files from a GitHub repository.
+
+    Delegates to the github_source module which uses the GitHub REST API
+    (Trees + Blobs) to fetch files.
+
+    Args:
+        project: Project with source_type="github" and repo fields set.
+
+    Returns:
+        Dict mapping relative file paths to (hash, content) tuples.
+    """
+    from sdlc_lens.services.github_source import fetch_github_files
+
+    return await fetch_github_files(
+        repo_url=project.repo_url,
+        branch=project.repo_branch,
+        repo_path=project.repo_path,
+        access_token=project.access_token,
+    )
+
+
 def _build_doc_attrs(
     parsed_meta: dict,
     parsed_title: str | None,
@@ -116,63 +176,62 @@ async def _rebuild_fts_if_exists(session: AsyncSession) -> None:
 
 
 async def sync_project(
-    project_id: int,
-    sdlc_path: str,
+    project: Project,
     session: AsyncSession,
 ) -> SyncResult:
-    """Sync documents from a project's sdlc-studio directory.
+    """Sync documents from a project's configured source.
 
-    Walks the filesystem, hashes files, parses new/changed documents,
-    and manages database records (add/update/skip/delete).
+    Dispatches to the appropriate file collector based on source_type,
+    then processes the collected files: compare hashes, parse new/changed
+    documents, delete removed documents, and rebuild the FTS index.
 
     Args:
-        project_id: The project's database ID.
-        sdlc_path: Absolute path to the sdlc-studio directory.
+        project: The Project ORM instance.
         session: Async database session.
 
     Returns:
         SyncResult with counts for each operation.
     """
     result = SyncResult()
-    root = Path(sdlc_path)
+    project_id = project.id
 
-    # Validate path exists
-    if not root.is_dir():
-        # Set project to error state
-        proj = await session.get(Project, project_id)
-        if proj:
-            proj.sync_status = "error"
-            proj.sync_error = f"Path not found: {sdlc_path}"
+    # Validate source configuration
+    if project.source_type == "local":
+        if not project.sdlc_path:
+            project.sync_status = "error"
+            project.sync_error = "No sdlc_path configured for local project"
             await session.commit()
-        return result
+            return result
+
+        root = Path(project.sdlc_path)
+        if not root.is_dir():
+            project.sync_status = "error"
+            project.sync_error = f"Path not found: {project.sdlc_path}"
+            await session.commit()
+            return result
+    elif project.source_type == "github":
+        if not project.repo_url:
+            project.sync_status = "error"
+            project.sync_error = "No repo_url configured for GitHub project"
+            await session.commit()
+            return result
 
     # Set project to syncing
-    proj = await session.get(Project, project_id)
-    if proj:
-        proj.sync_status = "syncing"
-        await session.flush()
+    project.sync_status = "syncing"
+    await session.flush()
 
     try:
-        # Step 1: Walk filesystem, build {rel_path: (hash, raw_bytes)}
-        fs_files: dict[str, tuple[str, bytes]] = {}
-        for md_file in sorted(_walk_md_files(root)):
-            rel_path = str(md_file.relative_to(root))
-            filename = md_file.name
-
-            # Skip _index.md files
-            inference = infer_type_and_id(filename, rel_path)
-            if inference is None:
-                continue
-
-            try:
-                raw = md_file.read_bytes()
-            except (PermissionError, OSError) as exc:
-                logger.warning("Cannot read %s: %s", md_file, exc)
-                result.errors += 1
-                continue
-
-            file_hash = compute_hash(raw)
-            fs_files[rel_path] = (file_hash, raw)
+        # Step 1: Collect files from configured source
+        if project.source_type == "local":
+            fs_files, collect_errors = collect_local_files(project.sdlc_path)
+            result.errors += collect_errors
+        elif project.source_type == "github":
+            fs_files = await collect_github_files(project)
+        else:
+            project.sync_status = "error"
+            project.sync_error = f"Unknown source_type: {project.source_type}"
+            await session.commit()
+            return result
 
         # Step 2: Load existing documents from DB
         db_result = await session.execute(
@@ -184,7 +243,7 @@ async def sync_project(
             doc.file_path: doc for doc in db_result.scalars().all()
         }
 
-        # Step 3: Process filesystem files
+        # Step 3: Process collected files
         for rel_path, (file_hash, raw) in fs_files.items():
             doc = existing_docs.get(rel_path)
 
@@ -232,17 +291,16 @@ async def sync_project(
                 session.add(new_doc)
                 result.added += 1
 
-        # Step 4: Delete documents no longer on filesystem
+        # Step 4: Delete documents no longer in source
         for rel_path, doc in existing_docs.items():
             if rel_path not in fs_files:
                 await session.delete(doc)
                 result.deleted += 1
 
         # Step 5: Update project status
-        if proj:
-            proj.sync_status = "synced"
-            proj.last_synced_at = datetime.datetime.now(datetime.UTC)
-            proj.sync_error = None
+        project.sync_status = "synced"
+        project.last_synced_at = datetime.datetime.now(datetime.UTC)
+        project.sync_error = None
 
         await session.commit()
 

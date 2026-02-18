@@ -1,9 +1,9 @@
 # Technical Requirements Document
 
 **Project:** SDLC Studio Lens
-**Version:** 1.0.4
+**Version:** 1.1.0
 **Status:** Draft
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-18
 **PRD Reference:** [PRD](prd.md)
 
 ---
@@ -16,23 +16,24 @@ This Technical Requirements Document describes the architecture, technology stac
 ### Scope
 
 **v1.0:**
-- React SPA frontend served via nginx
+- React SPA frontend served by FastAPI
 - FastAPI REST API backend with SQLite storage
 - Blockquote frontmatter markdown parser
 - Filesystem sync service with change detection
+- GitHub repository sync via REST API (Trees + Blobs)
 - Full-text search via SQLite FTS5
-- Two-container Docker deployment
+- Single-container Docker deployment
 - Multi-project support
 
 **Not Covered:**
 - Document editing or creation (read-only dashboard)
-- Git integration or webhook triggers
+- Webhook triggers
 - Authentication or multi-user support
 - Filesystem watching or auto-sync
 - Mobile native applications
 
 ### Key Decisions
-- **Two-container deployment** - separate frontend (nginx) and backend (FastAPI) containers
+- **Single-container deployment** - FastAPI serves both API and built frontend static files
 - **SQLite with FTS5** - simple, self-contained, sufficient for 1-10 projects
 - **Manual sync only** - user-triggered, no filesystem watcher or polling
 - **Blockquote frontmatter parser** - matches sdlc-studio's `> **Key:** Value` format
@@ -52,8 +53,8 @@ This Technical Requirements Document describes the architecture, technology stac
 | Aspect | Decision | Rationale |
 |--------|----------|-----------|
 | Default Pattern | Layered monolith | Per reference-architecture.md for web applications |
-| Pattern Used | Two-container SPA + API | Frontend and backend deployed separately for flexibility |
-| Deviation Rationale | Nginx serves static assets and proxies API calls; cleaner separation of concerns |
+| Pattern Used | Single-container SPA + API | FastAPI serves both API and frontend static files |
+| Deviation Rationale | Single container simplifies deployment; FastAPI handles SPA routing via catch-all |
 | Frontend | React SPA | Single-page application with client-side routing |
 | Backend | FastAPI REST API | Async Python with Pydantic validation |
 | Database | SQLite + FTS5 | Self-contained, suitable for document-scale data |
@@ -71,19 +72,10 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 │                        Docker Compose Stack                              │
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐  │
-│  │                     Frontend Container                              │  │
-│  │                     (nginx:alpine)                                  │  │
-│  │                                                                     │  │
-│  │  Browser ──▶ :80                                                    │  │
-│  │               ├── /* ──▶ React SPA (static files)                   │  │
-│  │               └── /api/* ──▶ proxy_pass backend:8000                │  │
-│  └──────────────────────────────┬─────────────────────────────────────┘  │
-│                                 │                                        │
-│                          /api/v1/*                                       │
-│                                 │                                        │
-│  ┌──────────────────────────────▼─────────────────────────────────────┐  │
-│  │                     Backend Container                               │  │
+│  │                     Application Container                           │  │
 │  │                     (python:3.12-slim)                              │  │
+│  │                                                                     │  │
+│  │  Browser ──▶ :8000 (mapped to host :80)                            │  │
 │  │                                                                     │  │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │  │
 │  │  │                    FastAPI Application                       │   │  │
@@ -91,12 +83,17 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 │  │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │   │  │
 │  │  │  │ API Routes   │  │ Services     │  │ Database         │  │   │  │
 │  │  │  │              │  │              │  │                  │  │   │  │
-│  │  │  │ /projects    │  │ sync.py      │  │ SQLite + FTS5   │  │   │  │
-│  │  │  │ /documents   │  │ parser.py    │  │ projects table  │  │   │  │
-│  │  │  │ /stats       │  │              │  │ documents table │  │   │  │
-│  │  │  │ /search      │  │              │  │ documents_fts   │  │   │  │
-│  │  │  │ /system      │  │              │  │                  │  │   │  │
-│  │  │  └──────────────┘  └──────────────┘  └──────────────────┘  │   │  │
+│  │  │  │ /api/v1/*    │  │ sync.py      │  │ SQLite + FTS5   │  │   │  │
+│  │  │  │  /projects   │  │ parser.py    │  │ projects table  │  │   │  │
+│  │  │  │  /documents  │  │              │  │ documents table │  │   │  │
+│  │  │  │  /stats      │  │              │  │ documents_fts   │  │   │  │
+│  │  │  │  /search     │  │              │  │                  │  │   │  │
+│  │  │  │  /system     │  │              │  │                  │  │   │  │
+│  │  │  ├──────────────┤  └──────────────┘  └──────────────────┘  │   │  │
+│  │  │  │ Static Files │                                           │   │  │
+│  │  │  │ /assets/*    │  React SPA (Vite build output)            │   │  │
+│  │  │  │ /*  fallback │  index.html (SPA routing)                 │   │  │
+│  │  │  └──────────────┘                                           │   │  │
 │  │  └─────────────────────────────────────────────────────────────┘   │  │
 │  │                                                                     │  │
 │  │  Volume Mounts:                                                     │  │
@@ -109,27 +106,28 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 
 ### Architecture Pattern
 
-**Two-Container SPA + API**
+**Single-Container SPA + API**
 
-- Frontend container: nginx serves React build and proxies `/api/*` to backend
-- Backend container: FastAPI with SQLite, reads document directories from volume mounts
+- Single container: FastAPI serves the REST API and built React SPA static files
+- Vite-built frontend assets served via `StaticFiles` mount and SPA fallback route
+- API routes registered first, taking priority over the catch-all static file handler
 
 **Rationale:**
-- Clean separation between static file serving and API logic
-- nginx handles SPA routing (all non-API paths return index.html)
-- Backend can be restarted independently of frontend
-- Matches HomelabCmd deployment patterns
+- Simpler deployment with a single container and process
+- No nginx configuration or inter-container networking required
+- FastAPI's `StaticFiles` efficiently serves hashed Vite build assets
+- Catch-all route returns `index.html` for SPA client-side routing
 
 ### Component Overview
 
 | Component | Responsibility | Technology |
 |-----------|---------------|------------|
 | Dashboard SPA | Document browsing, search, statistics visualisation | React 19 + Vite + Tailwind CSS |
-| API Server | REST endpoints, sync orchestration, search | FastAPI + Uvicorn |
+| API Server | REST endpoints, sync orchestration, search, static file serving | FastAPI + Uvicorn |
 | Sync Service | Walk filesystem, detect changes, parse documents | Python (pathlib, hashlib) |
+| GitHub Source | Fetch .md files from GitHub repos via REST API (Trees + Blobs) | Python (httpx AsyncClient) |
 | Parser | Extract blockquote frontmatter from markdown | Python (regex-based) |
 | Database | Document storage, metadata, full-text search | SQLite + FTS5 |
-| Reverse Proxy | Static file serving, API proxying, SPA routing | nginx |
 
 ---
 
@@ -155,6 +153,7 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 | Async SQLite | aiosqlite | >=0.20.0 | Async SQLite driver |
 | Database | SQLite | 3.40+ | FTS5 support, zero config |
 | Migrations | Alembic | >=1.14.0 | Version-controlled schema changes |
+| HTTP Client (Backend) | httpx | >=0.27.0 | Async HTTP client for GitHub REST API |
 | HTTP Client (Frontend) | fetch (built-in) | N/A | Native browser API, no dependency needed |
 
 ### Build & Development
@@ -177,7 +176,6 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 
 | Service | Provider | Purpose |
 |---------|----------|---------|
-| nginx | Docker (nginx:alpine) | Reverse proxy, static serving |
 | SQLite | Embedded | Data storage, FTS5 search |
 
 ---
@@ -280,11 +278,26 @@ Standard error codes:
 
 #### Create Project
 
-**Request:**
+`ProjectCreate` and `ProjectResponse` include `source_type`, `repo_url`, `repo_branch`, `repo_path`, and masked `access_token` fields. Validation is conditional on `source_type`: local projects require `sdlc_path`; github projects require `repo_url`.
+
+**Request (local):**
 ```json
 {
   "name": "HomelabCmd",
+  "source_type": "local",
   "sdlc_path": "/data/projects/HomelabCmd/sdlc-studio"
+}
+```
+
+**Request (github):**
+```json
+{
+  "name": "HomelabCmd",
+  "source_type": "github",
+  "repo_url": "https://github.com/DarrenBenson/homelabcmd",
+  "repo_branch": "main",
+  "repo_path": "sdlc-studio",
+  "access_token": "ghp_xxxxxxxxxxxx"
 }
 ```
 
@@ -293,13 +306,20 @@ Standard error codes:
 {
   "slug": "homelabcmd",
   "name": "HomelabCmd",
+  "source_type": "local",
   "sdlc_path": "/data/projects/HomelabCmd/sdlc-studio",
+  "repo_url": null,
+  "repo_branch": "main",
+  "repo_path": "sdlc-studio",
+  "access_token": null,
   "sync_status": "never_synced",
   "last_synced_at": null,
   "document_count": 0,
   "created_at": "2026-02-17T10:00:00Z"
 }
 ```
+
+> **Note:** `access_token` is masked in responses (e.g., `"ghp_****xxxx"`) and never returned in full.
 
 #### List Documents
 
@@ -427,7 +447,12 @@ Standard error codes:
 | id | INTEGER | PRIMARY KEY, AUTOINCREMENT | Internal ID |
 | slug | TEXT | UNIQUE, NOT NULL | URL-friendly identifier (e.g., "homelabcmd") |
 | name | TEXT | NOT NULL | Display name (e.g., "HomelabCmd") |
-| sdlc_path | TEXT | NOT NULL | Absolute path to sdlc-studio directory |
+| source_type | VARCHAR(20) | NOT NULL, DEFAULT 'local' | Source type: "local" or "github" |
+| sdlc_path | TEXT | NULLABLE | Absolute path to sdlc-studio directory (required for local projects) |
+| repo_url | TEXT | NULLABLE | GitHub repository URL (required for github projects) |
+| repo_branch | VARCHAR(255) | NOT NULL, DEFAULT 'main' | Git branch to sync from |
+| repo_path | VARCHAR(500) | NOT NULL, DEFAULT 'sdlc-studio' | Path within repository to sdlc-studio directory |
+| access_token | TEXT | NULLABLE | GitHub personal access token (for private repos) |
 | sync_status | TEXT | NOT NULL, DEFAULT 'never_synced' | never_synced, syncing, synced, error |
 | sync_error | TEXT | NULLABLE | Error message from last failed sync |
 | last_synced_at | TIMESTAMP | NULLABLE | Timestamp of last successful sync |
@@ -495,7 +520,11 @@ Alembic for version-controlled schema migrations. Initial migration creates both
 
 ### External Services
 
-No external service integrations. The only external dependency is the local filesystem containing sdlc-studio directories.
+| Service | Protocol | Purpose |
+|---------|----------|---------|
+| GitHub REST API | HTTPS | Fetch repository tree and file blobs for github-sourced projects |
+
+Local-sourced projects depend only on the local filesystem. GitHub-sourced projects call the GitHub REST API (Trees + Blobs endpoints) via httpx AsyncClient. An optional personal access token supports private repositories.
 
 ### Filesystem Access
 
@@ -513,25 +542,24 @@ No external service integrations. The only external dependency is the local file
 
 ### Deployment Topology
 
-Two Docker containers orchestrated via docker-compose:
+Single Docker container orchestrated via docker-compose:
 
-1. **sdlc-lens-backend** - FastAPI application
-2. **sdlc-lens-frontend** - nginx serving React build and proxying API
+1. **sdlc-lens-app** - FastAPI application serving both API and built React frontend
 
 ### Docker Images
 
-| Container | Base Image | Purpose |
-|-----------|-----------|---------|
-| backend | python:3.12-slim | FastAPI API server |
-| frontend (build) | node:22-slim | Vite build step |
-| frontend (serve) | nginx:alpine | Static serving + reverse proxy |
+| Stage | Base Image | Purpose |
+|-------|-----------|---------|
+| frontend-builder | node:22-slim | Vite build step |
+| backend-builder | python:3.12-slim | Python dependency installation |
+| runtime | python:3.12-slim | FastAPI serving API + frontend static files |
 
 ### Environment Strategy
 
 | Environment | Purpose | Characteristics |
 |-------------|---------|-----------------|
 | Development | Local development | Vite dev server + uvicorn with reload |
-| Docker | Production-like | Two containers via docker-compose |
+| Docker | Production-like | Single container via docker-compose |
 
 ### Scaling Strategy
 
@@ -549,6 +577,7 @@ Vertical only. Single instance of each container. SQLite does not support concur
 | Path traversal | Medium | High | Validate paths stay within configured directories |
 | XSS via markdown | Medium | Medium | Sanitise rendered markdown; React auto-escaping |
 | SQL injection | Low | High | Parameterised queries via SQLAlchemy |
+| Token leakage | Medium | High | Mask access_token in API responses; store encrypted at rest in future |
 | Denial of service | Low | Low | LAN-only; rate limiting deferred |
 
 ### Security Controls
@@ -646,20 +675,21 @@ Vertical only. Single instance of each container. SQLite does not support concur
 
 ---
 
-### ADR-005: Two-Container Deployment
+### ADR-005: Single-Container Deployment
 
-**Status:** Accepted
+**Status:** Accepted (revised)
 
-**Context:** Could serve React build from FastAPI (single container) or use separate nginx container. HomelabCmd uses single container.
+**Context:** Could serve React build from FastAPI (single container) or use separate nginx container.
 
-**Decision:** Two containers - nginx for frontend, uvicorn for backend.
+**Decision:** Single container - FastAPI serves both API and built frontend static files via `StaticFiles` mount and SPA fallback route.
 
 **Consequences:**
-- Positive: nginx handles static files efficiently and SPA routing
-- Positive: Backend container is smaller without Node build artifacts
-- Positive: Can restart backend without affecting frontend availability
-- Negative: Slightly more complex docker-compose configuration
-- Negative: Need nginx configuration for API proxy
+- Positive: Simpler deployment with one container and one process
+- Positive: No nginx configuration or inter-container networking needed
+- Positive: Smaller operational footprint (one image, one health check)
+- Positive: Same-origin requests eliminate CORS complexity
+- Negative: Cannot restart API independently of frontend serving
+- Negative: Uvicorn handles static files (less optimised than nginx, but acceptable for LAN use)
 
 ---
 
@@ -689,7 +719,7 @@ Vertical only. Single instance of each container. SQLite does not support concur
 ### Won't Have (This Version)
 - Authentication or authorisation
 - Document editing or creation
-- Git integration
+- Webhook triggers or push-based sync
 - Filesystem watching or auto-sync
 - WebSocket real-time updates
 - Multi-user support
@@ -797,6 +827,7 @@ backend/
 │       │       └── document.py        # Document model
 │       └── services/
 │           ├── __init__.py
+│           ├── github_source.py       # GitHub repo sync via REST API (Trees + Blobs), httpx AsyncClient
 │           ├── parser.py              # Blockquote frontmatter parser
 │           └── sync.py                # Filesystem sync service
 ├── tests/
@@ -864,3 +895,5 @@ frontend/
 | 2026-02-17 | 1.0.2 | Review fixes: updated stale fetch/axios comment in frontend structure, resolved open question Q3 (content stored in SQLite), added test_api_contracts.py and fixtures/ to backend test structure |
 | 2026-02-17 | 1.0.3 | Resolved FTS5 tokeniser question: unicode61 with tokenchars '_'; updated FTS5 virtual table DDL |
 | 2026-02-17 | 1.0.4 | Updated §14 UI/UX to reference brand-guide.md as authoritative source; updated colour tokens to match brand guide (lime green palette) |
+| 2026-02-18 | 1.0.5 | Architecture changed from two-container to single-container deployment; updated diagram, component overview, deployment topology, Docker images, ADR-005; removed nginx from infrastructure services |
+| 2026-02-18 | 1.1.0 | EP0007 Git Repository Sync: added GitHub REST API source (Trees + Blobs); new Project columns (source_type, repo_url, repo_branch, repo_path, access_token); sdlc_path now nullable; new services/github_source.py module; httpx runtime dependency; updated API schemas with conditional validation |

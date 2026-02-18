@@ -1,9 +1,12 @@
-# TS0027: Nginx Reverse Proxy Configuration
+# TS0027: Nginx Reverse Proxy Configuration [SUPERSEDED]
 
-> **Status:** Draft
+> **Status:** Superseded
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17
-> **Last Updated:** 2026-02-17
+> **Last Updated:** 2026-02-18
+> **Superseded By:** [TS0024: Combined Dockerfile](TS0024-backend-dockerfile.md)
+
+> **Supersession Note:** The single-container architecture eliminates nginx. SPA routing is now tested via FastAPI's catch-all route in TS0024. API proxying tests are no longer needed since API and frontend are served from the same process. Original spec preserved below for reference.
 
 ## Overview
 
@@ -248,3 +251,4 @@ docker compose down
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-17 | Claude | Initial spec |
+| 2026-02-18 | Claude | Marked as superseded - SPA routing now tested via FastAPI in TS0024 |

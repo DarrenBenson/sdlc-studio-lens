@@ -1,10 +1,14 @@
-# PL0027: Nginx Reverse Proxy Configuration - Implementation Plan
+# PL0027: Nginx Reverse Proxy Configuration - Implementation Plan [SUPERSEDED]
 
-> **Status:** Draft
+> **Status:** Superseded
 > **Story:** [US0027: Nginx Reverse Proxy Configuration](../stories/US0027-nginx-reverse-proxy-config.md)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17
+> **Superseded:** 2026-02-18
+> **Superseded By:** [PL0024: Combined Dockerfile](PL0024-backend-dockerfile.md)
 > **Language:** Nginx Configuration
+
+> **Supersession Note:** The single-container architecture eliminates nginx entirely. SPA routing is now handled by a FastAPI catch-all route in `main.py`. API routes take priority as they are registered before the catch-all. Static assets are served via FastAPI's `StaticFiles` mount. Original plan preserved below for reference.
 
 ## Overview
 

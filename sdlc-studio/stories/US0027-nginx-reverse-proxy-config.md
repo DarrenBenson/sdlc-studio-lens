@@ -1,10 +1,14 @@
-# US0027: Nginx Reverse Proxy Configuration
+# US0027: Nginx Reverse Proxy Configuration [SUPERSEDED]
 
-> **Status:** Done
+> **Status:** Superseded
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Owner:** Darren
 > **Reviewer:** -
 > **Created:** 2026-02-17
+> **Superseded:** 2026-02-18
+> **Superseded By:** [US0024: Combined Dockerfile](US0024-backend-dockerfile.md)
+
+> **Supersession Note:** The single-container architecture eliminates nginx entirely. SPA routing is now handled by a FastAPI catch-all route that serves index.html for non-API, non-file paths. API routes take priority as they are registered before the catch-all. Static assets are served via FastAPI's StaticFiles mount.
 
 ## User Story
 
@@ -180,3 +184,4 @@ None.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-17 | Claude | Initial story creation from EP0006 |
+| 2026-02-18 | Claude | Marked as superseded - SPA routing now handled by FastAPI catch-all route |

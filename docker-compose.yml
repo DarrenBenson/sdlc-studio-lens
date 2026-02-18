@@ -1,6 +1,8 @@
 services:
-  backend:
-    build: ./backend
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-80}:8000"
     volumes:
       - db-data:/data/db
       # Mount project sdlc-studio directories (read-only)
@@ -18,15 +20,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
     restart: unless-stopped
 
 volumes:

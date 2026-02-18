@@ -8,7 +8,7 @@
 
 ## Summary
 
-Package and deploy both backend and frontend as Docker containers orchestrated via docker-compose. This epic delivers multi-stage Dockerfiles for minimal images, an nginx configuration for SPA routing and API proxying, and a docker-compose.yml that brings up the full stack with configurable project volume mounts.
+Package and deploy the application as a single Docker container orchestrated via docker-compose. This epic delivers a multi-stage Dockerfile that builds the frontend (Vite) and backend (Python) into a single runtime image where FastAPI serves both the API and the built frontend static files. A docker-compose.yml brings up the container with configurable project volume mounts.
 
 ## Inherited Constraints
 
@@ -27,10 +27,9 @@ Constraints that flow from PRD and TRD to this Epic.
 
 | Type | Constraint | Impact on Epic |
 |------|------------|----------------|
-| Infrastructure | python:3.12-slim for backend | Base image locked |
-| Infrastructure | node:22-slim (build) + nginx:alpine (serve) for frontend | Two-stage frontend build |
-| Architecture | Two containers (backend + frontend/nginx) | Separate services in docker-compose |
-| Networking | nginx proxies /api/* to backend:8000 | Reverse proxy configuration required |
+| Infrastructure | python:3.12-slim for runtime | Base image locked |
+| Infrastructure | node:22-slim for frontend build stage | Build-only stage |
+| Architecture | Single container (FastAPI serves API + frontend) | One service in docker-compose |
 
 > **Note:** Inherited constraints MUST propagate to child Stories. Check Story templates include these constraints.
 
@@ -59,28 +58,23 @@ Without containerised deployment, the dashboard requires manual setup of Python,
 
 ### In Scope
 
-- Backend Dockerfile (multi-stage: build deps → runtime)
-  - python:3.12-slim base
-  - uv for dependency management
+- Combined Dockerfile (three-stage: frontend build, backend deps, runtime)
+  - node:22-slim for Vite build (produces dist/)
+  - python:3.12-slim for dependency installation and runtime
+  - Built frontend copied into /app/static/ in runtime image
   - Alembic migrations run on startup
   - Uvicorn as ASGI server
-- Frontend Dockerfile (multi-stage: build → serve)
-  - node:22-slim for Vite build
-  - nginx:alpine for static serving
-  - SPA routing (all non-API paths → index.html)
-- nginx configuration
-  - Serve React build as static files
-  - Proxy /api/* to backend container
-  - SPA fallback routing
-  - Gzip compression for static assets
+- FastAPI static file serving
+  - Mount /assets as StaticFiles (Vite hashed bundles)
+  - Catch-all route serves files from /app/static/ or falls back to index.html
+  - API routes registered first, taking priority
 - docker-compose.yml
-  - Two services (backend, frontend)
-  - Shared network
+  - Single service (app)
   - Named volume for SQLite database (/data/db)
   - Bind mounts for project sdlc-studio directories (read-only)
   - Environment variable configuration
-  - Health checks for both containers
-- .dockerignore files for both contexts
+  - Health check
+- .dockerignore files for build contexts
 
 ### Out of Scope
 
@@ -97,17 +91,16 @@ Without containerised deployment, the dashboard requires manual setup of Python,
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Backend Dockerfile builds successfully and produces a minimal image
-- [ ] Frontend Dockerfile builds successfully with Vite build and nginx serving
-- [ ] nginx proxies /api/* requests to the backend container
-- [ ] nginx serves React SPA for all non-API routes (SPA routing)
-- [ ] docker-compose up starts both containers with default configuration
+- [ ] Combined Dockerfile builds successfully and produces a minimal image
+- [ ] FastAPI serves both API endpoints and built frontend static files
+- [ ] SPA fallback routing returns index.html for client-side routes
+- [ ] docker-compose up starts the container with default configuration
 - [ ] Project directories configurable as bind-mount volumes (read-only)
 - [ ] SQLite database persists via named volume across container restarts
-- [ ] Both containers start successfully within 10 seconds
+- [ ] Container starts successfully within 10 seconds
 - [ ] Docker build completes in < 3 minutes
-- [ ] Environment variables configurable for backend (host, port, db path, log level)
-- [ ] Health check endpoint accessible from both containers
+- [ ] Environment variables configurable (host, port, db path, log level)
+- [ ] Health check endpoint accessible
 
 ## Dependencies
 
@@ -157,10 +150,10 @@ Without containerised deployment, the dashboard requires manual setup of Python,
 
 ### Integration Points
 
-- Frontend container (nginx:80) → Backend container (uvicorn:8000) via Docker network
-- Host filesystem → Backend container via bind mounts (read-only)
-- Named volume → Backend container at /data/db
-- docker-compose → both services with shared network
+- Host port 80 → Container port 8000 (FastAPI/Uvicorn)
+- Host filesystem → Container via bind mounts (read-only)
+- Named volume → Container at /data/db
+- docker-compose → single service
 
 ### Data Considerations
 
@@ -195,10 +188,12 @@ Without containerised deployment, the dashboard requires manual setup of Python,
 
 | ID | Title | Complexity | Status |
 |----|-------|------------|--------|
-| [US0024](../stories/US0024-backend-dockerfile.md) | Backend Dockerfile | Medium | Done |
-| [US0025](../stories/US0025-frontend-dockerfile.md) | Frontend Dockerfile | Low | Done |
+| [US0024](../stories/US0024-backend-dockerfile.md) | Combined Dockerfile | Medium | Done |
+| [US0025](../stories/US0025-frontend-dockerfile.md) | Frontend Dockerfile | Low | Superseded |
 | [US0026](../stories/US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | Medium | Done |
-| [US0027](../stories/US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Low | Done |
+| [US0027](../stories/US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Low | Superseded |
+
+> **Note:** US0025 and US0027 are superseded by the single-container architecture. Frontend build is now a stage in the combined Dockerfile (US0024), and SPA routing is handled by FastAPI instead of nginx.
 
 ## Test Plan
 
@@ -213,3 +208,4 @@ None.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-17 | Claude | Initial epic creation from PRD |
+| 2026-02-18 | Claude | Updated for single-container architecture; US0025 and US0027 marked as superseded |

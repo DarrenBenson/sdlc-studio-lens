@@ -1,10 +1,14 @@
-# PL0025: Frontend Dockerfile - Implementation Plan
+# PL0025: Frontend Dockerfile - Implementation Plan [SUPERSEDED]
 
-> **Status:** Draft
+> **Status:** Superseded
 > **Story:** [US0025: Frontend Dockerfile](../stories/US0025-frontend-dockerfile.md)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17
+> **Superseded:** 2026-02-18
+> **Superseded By:** [PL0024: Combined Dockerfile](PL0024-backend-dockerfile.md)
 > **Language:** Dockerfile
+
+> **Supersession Note:** The frontend build is now a stage in the combined Dockerfile (PL0024). The single-container architecture eliminates the need for a separate frontend image and nginx. Original plan preserved below for reference.
 
 ## Overview
 

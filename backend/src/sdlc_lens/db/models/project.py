@@ -18,7 +18,18 @@ class Project(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    sdlc_path: Mapped[str] = mapped_column(Text, nullable=False)
+    sdlc_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="local"
+    )
+    repo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    repo_branch: Mapped[str] = mapped_column(
+        String(255), nullable=False, server_default="main"
+    )
+    repo_path: Mapped[str] = mapped_column(
+        String(500), nullable=False, server_default="sdlc-studio"
+    )
+    access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     sync_status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="never_synced"
     )

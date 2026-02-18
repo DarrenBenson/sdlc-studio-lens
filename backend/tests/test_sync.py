@@ -117,7 +117,7 @@ class TestSyncAddsNewDocs:
         )
 
         project = await _create_project(session, str(sdlc))
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
 
         assert result.added == 5
         assert result.updated == 0
@@ -154,7 +154,7 @@ class TestSyncUpdatesChanged:
         project = await _create_project(session, str(sdlc))
 
         # First sync
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Change file content
         _write_md(
@@ -164,7 +164,7 @@ class TestSyncUpdatesChanged:
         )
 
         # Second sync
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
         assert result.updated == 1
         assert result.added == 0
 
@@ -195,10 +195,10 @@ class TestSyncSkipsUnchanged:
         project = await _create_project(session, str(sdlc))
 
         # First sync
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Second sync without changes
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
         assert result.skipped == 1
         assert result.updated == 0
         assert result.added == 0
@@ -225,7 +225,7 @@ class TestSyncDeletesRemoved:
         project = await _create_project(session, str(sdlc))
 
         # First sync
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
         docs = (
             await session.execute(
                 select(Document).where(
@@ -239,7 +239,7 @@ class TestSyncDeletesRemoved:
         (sdlc / "stories" / "US0099-temp.md").unlink()
 
         # Second sync
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
         assert result.deleted == 1
         assert result.skipped == 1
 
@@ -269,7 +269,7 @@ class TestSyncStatusSynced:
         project = await _create_project(session, str(sdlc))
         assert project.sync_status == "never_synced"
 
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         await session.refresh(project)
         assert project.sync_status == "synced"
@@ -290,7 +290,7 @@ class TestSyncTimestamp:
         project = await _create_project(session, str(sdlc))
         assert project.last_synced_at is None
 
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         await session.refresh(project)
         assert project.last_synced_at is not None
@@ -309,7 +309,7 @@ class TestSyncStatusError:
         bad_path = str(tmp_path / "nonexistent")
         project = await _create_project(session, bad_path)
 
-        await sync_project(project.id, bad_path, session)
+        await sync_project(project, session)
 
         await session.refresh(project)
         assert project.sync_status == "error"
@@ -330,7 +330,7 @@ class TestSyncEmptyDir:
         sdlc.mkdir()
         project = await _create_project(session, str(sdlc))
 
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
 
         assert result.added == 0
         assert result.deleted == 0
@@ -359,7 +359,7 @@ class TestSyncUnreadableFile:
         bad.chmod(0o000)
 
         project = await _create_project(session, str(sdlc))
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
 
         assert result.added == 2
         assert result.errors == 1
@@ -399,7 +399,7 @@ class TestSyncPopulatesFields:
         )
         project = await _create_project(session, str(sdlc))
 
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         doc = (
             await session.execute(
@@ -443,7 +443,7 @@ class TestSyncMixedOperations:
         project = await _create_project(session, str(sdlc))
 
         # First sync: 3 added
-        result1 = await sync_project(project.id, str(sdlc), session)
+        result1 = await sync_project(project, session)
         assert result1.added == 3
 
         # Change prd.md, delete US0099, add new file, keep trd.md
@@ -452,7 +452,7 @@ class TestSyncMixedOperations:
         _write_md(sdlc, "tsd.md", "# TSD\n\nNew.")
 
         # Second sync: 1 added, 1 updated, 1 skipped, 1 deleted
-        result2 = await sync_project(project.id, str(sdlc), session)
+        result2 = await sync_project(project, session)
         assert result2.added == 1
         assert result2.updated == 1
         assert result2.skipped == 1
@@ -475,7 +475,7 @@ class TestSyncEdgeCases:
         _write_md(sdlc, "stories/_index.md", "# Stories Index\n\nList.")
 
         project = await _create_project(session, str(sdlc))
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
 
         # _index.md should be skipped
         assert result.added == 1
@@ -490,7 +490,7 @@ class TestSyncEdgeCases:
         (sdlc / "prd.md").write_text(bom_content, encoding="utf-8")
 
         project = await _create_project(session, str(sdlc))
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         doc = (
             await session.execute(
@@ -521,8 +521,8 @@ class TestUnchangedSkipMultiple:
         _write_md(sdlc, "tsd.md", "# TSD\n\nContent.")
         project = await _create_project(session, str(sdlc))
 
-        await sync_project(project.id, str(sdlc), session)
-        result = await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
+        result = await sync_project(project, session)
 
         assert result.skipped == 3
         assert result.updated == 0
@@ -541,7 +541,7 @@ class TestHashStoredInDb:
         _write_md(sdlc, "prd.md", content)
         project = await _create_project(session, str(sdlc))
 
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         doc = (
             await session.execute(
@@ -575,11 +575,11 @@ class TestResyncPerformance:
         project = await _create_project(session, str(sdlc))
 
         # First sync: add all 100
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Re-sync with no changes
         start = time.monotonic()
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
         elapsed = time.monotonic() - start
 
         assert result.skipped == 100
@@ -627,11 +627,11 @@ class TestDeletionDetection:
             "# US0003: Sync\n\nBody.",
         )
         project = await _create_project(session, str(sdlc))
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Delete US0002
         (sdlc / "stories" / "US0002-list.md").unlink()
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
 
         assert result.deleted == 1
         docs = (
@@ -669,14 +669,14 @@ class TestBulkDeletion:
                 f"# EP{i:04d}: Epic {i}\n\nBody.",
             )
         project = await _create_project(session, str(sdlc))
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Delete all stories
         import shutil
 
         shutil.rmtree(sdlc / "stories")
 
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
         assert result.deleted == 10
         assert result.skipped == 5
 
@@ -702,7 +702,7 @@ class TestFileMoved:
         content = "# US0001: Register\n\nBody."
         _write_md(sdlc, "stories/US0001-register.md", content)
         project = await _create_project(session, str(sdlc))
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Move file to archive
         (sdlc / "archive" / "stories").mkdir(parents=True)
@@ -710,7 +710,7 @@ class TestFileMoved:
             sdlc / "archive" / "stories" / "US0001-register.md"
         )
 
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
         assert result.deleted >= 1
         assert result.added >= 1
 
@@ -730,14 +730,14 @@ class TestAllFilesDeleted:
                 f"# US{i:04d}: Story\n\nBody.",
             )
         project = await _create_project(session, str(sdlc))
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Delete all files
         import shutil
 
         shutil.rmtree(sdlc / "stories")
 
-        result = await sync_project(project.id, str(sdlc), session)
+        result = await sync_project(project, session)
         assert result.deleted == 5
 
         docs = (
@@ -764,7 +764,7 @@ class TestNoDeletionWithoutSync:
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
         _write_md(sdlc, "trd.md", "# TRD\n\nContent.")
         project = await _create_project(session, str(sdlc))
-        await sync_project(project.id, str(sdlc), session)
+        await sync_project(project, session)
 
         # Delete files from filesystem, but DON'T sync
         (sdlc / "prd.md").unlink()

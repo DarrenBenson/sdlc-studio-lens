@@ -49,9 +49,19 @@ export function ProjectCard({
           >
             {project.name}
           </h3>
-          <p className="mt-1 truncate font-mono text-xs text-text-tertiary">
-            {project.sdlc_path}
-          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium bg-bg-elevated text-text-tertiary"
+              data-testid="source-badge"
+            >
+              {project.source_type === "github" ? "GitHub" : "Local"}
+            </span>
+            <p className="truncate font-mono text-xs text-text-tertiary">
+              {project.source_type === "github"
+                ? project.repo_url
+                : project.sdlc_path}
+            </p>
+          </div>
         </div>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${STATUS_COLOURS[project.sync_status]}`}

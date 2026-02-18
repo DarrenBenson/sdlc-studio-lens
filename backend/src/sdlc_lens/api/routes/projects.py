@@ -14,15 +14,15 @@ from sdlc_lens.api.schemas.documents import (
     PaginatedDocuments,
     SortField,
 )
-from sdlc_lens.api.schemas.stats import ProjectStats
 from sdlc_lens.api.schemas.projects import (
     ProjectCreate,
     ProjectResponse,
     ProjectUpdate,
     SyncTriggerResponse,
+    mask_token,
 )
+from sdlc_lens.api.schemas.stats import ProjectStats
 from sdlc_lens.services.documents import DocumentNotFoundError, get_document, list_documents
-from sdlc_lens.services.stats import get_project_stats
 from sdlc_lens.services.project import (
     EmptySlugError,
     PathNotFoundError,
@@ -35,6 +35,7 @@ from sdlc_lens.services.project import (
     list_projects,
     update_project,
 )
+from sdlc_lens.services.stats import get_project_stats
 from sdlc_lens.services.sync import SyncInProgressError, run_sync_task, trigger_sync
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -43,12 +44,17 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
 async def _project_response(db: AsyncSession, project) -> ProjectResponse:
-    """Build a ProjectResponse with computed document_count."""
+    """Build a ProjectResponse with computed document_count and masked token."""
     doc_count = await get_document_count(db, project.id)
     return ProjectResponse(
         slug=project.slug,
         name=project.name,
         sdlc_path=project.sdlc_path,
+        source_type=project.source_type,
+        repo_url=project.repo_url,
+        repo_branch=project.repo_branch,
+        repo_path=project.repo_path,
+        masked_token=mask_token(project.access_token),
         sync_status=project.sync_status,
         sync_error=project.sync_error,
         last_synced_at=project.last_synced_at,
@@ -61,7 +67,16 @@ async def _project_response(db: AsyncSession, project) -> ProjectResponse:
 async def register_project(body: ProjectCreate, db: DbDep) -> ProjectResponse | JSONResponse:
     """Register a new sdlc-studio project."""
     try:
-        project = await create_project(db, body.name, body.sdlc_path)
+        project = await create_project(
+            db,
+            body.name,
+            body.sdlc_path,
+            source_type=body.source_type,
+            repo_url=body.repo_url,
+            repo_branch=body.repo_branch,
+            repo_path=body.repo_path,
+            access_token=body.access_token,
+        )
     except PathNotFoundError as exc:
         return JSONResponse(
             status_code=400,
@@ -102,9 +117,7 @@ async def get_project(slug: str, db: DbDep) -> ProjectResponse | JSONResponse:
 
 
 @router.get("/{slug}/stats", response_model=ProjectStats)
-async def get_project_stats_endpoint(
-    slug: str, db: DbDep
-) -> ProjectStats | JSONResponse:
+async def get_project_stats_endpoint(slug: str, db: DbDep) -> ProjectStats | JSONResponse:
     """Get statistics for a project."""
     try:
         project = await get_project_by_slug(db, slug)
@@ -229,7 +242,17 @@ async def update_project_endpoint(
 ) -> ProjectResponse | JSONResponse:
     """Update a project's name and/or path."""
     try:
-        project = await update_project(db, slug, name=body.name, sdlc_path=body.sdlc_path)
+        project = await update_project(
+            db,
+            slug,
+            name=body.name,
+            sdlc_path=body.sdlc_path,
+            source_type=body.source_type,
+            repo_url=body.repo_url,
+            repo_branch=body.repo_branch,
+            repo_path=body.repo_path,
+            access_token=body.access_token,
+        )
     except ProjectNotFoundError as exc:
         return JSONResponse(
             status_code=404,

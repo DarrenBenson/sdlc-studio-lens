@@ -1,10 +1,14 @@
-# US0025: Frontend Dockerfile
+# US0025: Frontend Dockerfile [SUPERSEDED]
 
-> **Status:** Done
+> **Status:** Superseded
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Owner:** Darren
 > **Reviewer:** -
 > **Created:** 2026-02-17
+> **Superseded:** 2026-02-18
+> **Superseded By:** [US0024: Combined Dockerfile](US0024-backend-dockerfile.md)
+
+> **Supersession Note:** The frontend build is now a stage in the combined Dockerfile (US0024). The single-container architecture eliminates the need for a separate frontend image and nginx. FastAPI serves the built frontend static files directly.
 
 ## User Story
 
@@ -161,3 +165,4 @@ None.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-17 | Claude | Initial story creation from EP0006 |
+| 2026-02-18 | Claude | Marked as superseded - frontend build now a stage in combined Dockerfile (US0024) |

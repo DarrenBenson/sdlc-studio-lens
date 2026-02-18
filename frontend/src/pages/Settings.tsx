@@ -163,7 +163,11 @@ export function Settings() {
           key={editingSlug ?? "add"}
           mode={editingSlug ? "edit" : "add"}
           initialName={editingProject?.name}
-          initialPath={editingProject?.sdlc_path}
+          initialPath={editingProject?.sdlc_path ?? ""}
+          initialSourceType={editingProject?.source_type}
+          initialRepoUrl={editingProject?.repo_url ?? ""}
+          initialRepoBranch={editingProject?.repo_branch}
+          initialRepoPath={editingProject?.repo_path}
           onSubmit={editingSlug ? handleEdit : handleAdd}
           onCancel={editingSlug ? () => { setEditingSlug(null); setFormError(null); } : undefined}
           error={formError}

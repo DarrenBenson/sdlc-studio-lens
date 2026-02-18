@@ -46,13 +46,24 @@ class ProjectNotFoundError(Exception):
         super().__init__(self.message)
 
 
-async def create_project(session: AsyncSession, name: str, sdlc_path: str) -> Project:
+async def create_project(
+    session: AsyncSession,
+    name: str,
+    sdlc_path: str | None = None,
+    *,
+    source_type: str = "local",
+    repo_url: str | None = None,
+    repo_branch: str = "main",
+    repo_path: str = "sdlc-studio",
+    access_token: str | None = None,
+) -> Project:
     """Register a new project.
 
-    Validates the path, generates a slug, and inserts into the database.
+    For local projects, validates the filesystem path.
+    For GitHub projects, skips path validation.
 
     Raises:
-        PathNotFoundError: If sdlc_path does not exist or is not a directory.
+        PathNotFoundError: If source_type is local and sdlc_path does not exist.
         SlugConflictError: If a project with the same slug already exists.
         EmptySlugError: If the generated slug is empty.
     """
@@ -60,9 +71,15 @@ async def create_project(session: AsyncSession, name: str, sdlc_path: str) -> Pr
     if not slug:
         raise EmptySlugError
 
-    resolved = Path(sdlc_path).resolve()
-    if not resolved.is_dir():
-        raise PathNotFoundError
+    # Validate local path only for local source type
+    resolved_path: str | None = None
+    if source_type == "local":
+        if not sdlc_path:
+            raise PathNotFoundError(message="sdlc_path is required for local projects")
+        resolved = Path(sdlc_path).resolve()
+        if not resolved.is_dir():
+            raise PathNotFoundError
+        resolved_path = str(resolved)
 
     # Check for existing slug
     existing = await session.execute(select(Project).where(Project.slug == slug))
@@ -72,7 +89,12 @@ async def create_project(session: AsyncSession, name: str, sdlc_path: str) -> Pr
     project = Project(
         slug=slug,
         name=name,
-        sdlc_path=str(resolved),
+        sdlc_path=resolved_path,
+        source_type=source_type,
+        repo_url=repo_url,
+        repo_branch=repo_branch,
+        repo_path=repo_path,
+        access_token=access_token,
     )
     session.add(project)
 
@@ -122,8 +144,14 @@ async def update_project(
     slug: str,
     name: str | None = None,
     sdlc_path: str | None = None,
+    *,
+    source_type: str | None = None,
+    repo_url: str | None = None,
+    repo_branch: str | None = None,
+    repo_path: str | None = None,
+    access_token: str | None = None,
 ) -> Project:
-    """Update a project's name and/or path.
+    """Update a project's fields.
 
     Raises:
         ProjectNotFoundError: If no project with the given slug exists.
@@ -131,14 +159,36 @@ async def update_project(
     """
     project = await get_project_by_slug(session, slug)
 
+    # Determine effective source type for validation
+    effective_source = source_type if source_type is not None else project.source_type
+
     if sdlc_path is not None:
-        resolved = Path(sdlc_path).resolve()
-        if not resolved.is_dir():
-            raise PathNotFoundError
-        project.sdlc_path = str(resolved)
+        if effective_source == "local":
+            resolved = Path(sdlc_path).resolve()
+            if not resolved.is_dir():
+                raise PathNotFoundError
+            project.sdlc_path = str(resolved)
+        else:
+            # For non-local, store as-is (no validation)
+            project.sdlc_path = sdlc_path
 
     if name is not None:
         project.name = name
+
+    if source_type is not None:
+        project.source_type = source_type
+
+    if repo_url is not None:
+        project.repo_url = repo_url
+
+    if repo_branch is not None:
+        project.repo_branch = repo_branch
+
+    if repo_path is not None:
+        project.repo_path = repo_path
+
+    if access_token is not None:
+        project.access_token = access_token
 
     await session.commit()
     await session.refresh(project)
