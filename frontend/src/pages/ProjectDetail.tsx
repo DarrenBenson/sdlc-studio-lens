@@ -15,6 +15,7 @@ import {
 import { fetchProjectStats } from "../api/client.ts";
 import { ProgressRing } from "../components/ProgressRing.tsx";
 import { StatsCard } from "../components/StatsCard.tsx";
+import { ChartTooltip } from "../components/ChartTooltip.tsx";
 import { CHART_THEME, STATUS_COLOURS } from "../lib/chartTheme.ts";
 import type { ProjectStats } from "../types/index.ts";
 
@@ -63,8 +64,18 @@ export function ProjectDetail() {
     "prd", "trd", "tsd", "personas", "epic", "story",
     "plan", "test-spec", "workflow", "bug", "other",
   ];
+  const TYPE_LABELS: Record<string, string> = {
+    prd: "PRD", trd: "TRD", tsd: "TSD",
+    personas: "Personas", epic: "Epics", story: "Stories",
+    plan: "Plans", "test-spec": "Test Specs", workflow: "Workflows",
+    bug: "Bugs", other: "Other",
+  };
   const typeData = Object.entries(stats.by_type)
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({
+      name,
+      label: TYPE_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+    }))
     .sort((a, b) => {
       const ai = TYPE_ORDER.indexOf(a.name);
       const bi = TYPE_ORDER.indexOf(b.name);
@@ -131,7 +142,7 @@ export function ProjectDetail() {
           >
             <StatsCard
               count={entry.value}
-              label={entry.name.charAt(0).toUpperCase() + entry.name.slice(1)}
+              label={entry.label}
             />
           </Link>
         ))}
@@ -155,9 +166,9 @@ export function ProjectDetail() {
               }}
             >
               <CartesianGrid stroke={CHART_THEME.grid} />
-              <XAxis dataKey="name" stroke={CHART_THEME.text} />
+              <XAxis dataKey="label" stroke={CHART_THEME.text} />
               <YAxis stroke={CHART_THEME.text} />
-              <Tooltip />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(163, 230, 53, 0.08)" }} />
               <Bar dataKey="value" fill={CHART_THEME.primary} name="Documents" />
             </BarChart>
           </ResponsiveContainer>
@@ -174,15 +185,15 @@ export function ProjectDetail() {
               onClick={(state) => {
                 if (state?.activeTooltipIndex != null) {
                   const entry = statusData[Number(state.activeTooltipIndex)];
-                  if (entry && entry.name !== "null")
-                    void navigate(`/projects/${slug}/documents?status=${entry.name}`);
+                  if (entry)
+                    void navigate(`/projects/${slug}/documents?status=${entry.name === "null" ? "none" : entry.name}`);
                 }
               }}
             >
               <CartesianGrid stroke={CHART_THEME.grid} />
               <XAxis dataKey="label" stroke={CHART_THEME.text} />
               <YAxis stroke={CHART_THEME.text} />
-              <Tooltip />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(163, 230, 53, 0.08)" }} />
               <Bar dataKey="value" name="Documents">
                 {statusData.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />

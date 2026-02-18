@@ -21,6 +21,7 @@ const TYPE_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
+  { value: "none", label: "No Status" },
   { value: "Done", label: "Done" },
   { value: "In Progress", label: "In Progress" },
   { value: "Draft", label: "Draft" },

@@ -19,7 +19,65 @@ A read-only dashboard for browsing and searching [sdlc-studio](https://github.co
 | Frontend | React 19, TypeScript, React Router 7, Tailwind CSS 4, Recharts 3 |
 | Testing | pytest + pytest-asyncio (backend), Vitest + Testing Library (frontend) |
 
-## Quick Start
+## Quick Start (Docker)
+
+The simplest way to run SDLC Studio Lens. Requires Docker and Docker Compose.
+
+```bash
+# Clone and start
+git clone https://github.com/DarrenBenson/sdlc-studio-lens.git
+cd sdlc-studio-lens
+docker compose up --build -d
+```
+
+The dashboard is available at **http://localhost:80**.
+
+### Mounting project directories
+
+Edit `docker-compose.yml` to mount your sdlc-studio directories as read-only volumes:
+
+```yaml
+services:
+  backend:
+    volumes:
+      - db-data:/data/db
+      - /path/to/your-project/sdlc-studio:/data/projects/your-project:ro
+```
+
+Then register the project via Settings, using `/data/projects/your-project` as the SDLC path.
+
+### Configuration
+
+Copy `.env.example` to `.env` to customise:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SDLC_LENS_HOST` | `0.0.0.0` | Backend bind address |
+| `SDLC_LENS_PORT` | `8000` | Backend port |
+| `SDLC_LENS_DATABASE_URL` | `sqlite+aiosqlite:////data/db/sdlc_lens.db` | Database URL |
+| `SDLC_LENS_LOG_LEVEL` | `INFO` | Log level (debug, info, warning, error) |
+| `FRONTEND_PORT` | `80` | Host port for the frontend |
+
+### Architecture
+
+```
+┌─────────────┐     ┌─────────────────┐
+│   Browser   │────▸│  nginx (:80)    │
+└─────────────┘     │  - static files │
+                    │  - /api/* proxy  │
+                    └────────┬────────┘
+                             │
+                    ┌────────▾────────┐
+                    │ uvicorn (:8000) │
+                    │  FastAPI + SQLite│
+                    └─────────────────┘
+```
+
+- **Frontend container**: nginx:alpine serving the React build, proxying `/api/*` to the backend
+- **Backend container**: python:3.12-slim running Uvicorn, with Alembic migrations on startup
+- **Data**: SQLite database in a named volume, project directories as read-only bind mounts
+
+## Development Setup
 
 ### Prerequisites
 
@@ -65,14 +123,20 @@ npx vitest run
 
 ```
 sdlc-studio-lens/
-├── backend/              # FastAPI application
+├── docker-compose.yml    # Full stack orchestration
+├── .env.example          # Environment variable template
+├── backend/
+│   ├── Dockerfile        # Multi-stage Python build
+│   ├── entrypoint.sh     # Alembic migrations + Uvicorn
 │   ├── src/sdlc_lens/    # Source code
 │   │   ├── api/          # Routes, schemas, dependencies
 │   │   ├── db/           # Models, session, migrations
 │   │   └── services/     # Business logic (sync, search, stats, FTS5)
 │   ├── tests/            # pytest test suite
 │   └── alembic/          # Database migrations
-├── frontend/             # React application
+├── frontend/
+│   ├── Dockerfile        # Node build + nginx serve
+│   ├── nginx.conf        # Reverse proxy + SPA fallback
 │   ├── src/
 │   │   ├── components/   # Sidebar, SearchBar, Layout, badges, charts
 │   │   ├── pages/        # Dashboard, ProjectDetail, DocumentList, DocumentView, SearchResults, Settings

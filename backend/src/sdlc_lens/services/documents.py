@@ -36,7 +36,10 @@ async def list_documents(
     if doc_type is not None:
         base = base.where(Document.doc_type == doc_type)
     if status is not None:
-        base = base.where(Document.status == status)
+        if status == "none":
+            base = base.where(Document.status.is_(None))
+        else:
+            base = base.where(Document.status == status)
 
     # Count query
     count_stmt = select(func.count()).select_from(base.subquery())

@@ -12,6 +12,9 @@ from sdlc_lens.db.models.project import Project
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+# Statuses that count as "complete" for percentage calculation
+_TERMINAL_STATUSES = {"Done", "Complete", "Won't Implement", "Closed"}
+
 
 async def get_project_stats(
     session: AsyncSession,
@@ -60,7 +63,10 @@ async def get_project_stats(
     done_stories = 0
     for status_val, count in story_rows:
         total_stories += count
-        if status_val == "Done":
+        # Strip parenthesised detail before matching, e.g.
+        # "Complete (81/88 ...)" → "Complete"
+        base = status_val.split("(")[0].strip() if status_val else ""
+        if base in _TERMINAL_STATUSES:
             done_stories += count
 
     completion = round(done_stories / total_stories * 100, 1) if total_stories > 0 else 0.0

@@ -8,6 +8,9 @@ from dataclasses import dataclass, field
 # Regex: matches "> **Key:** Value" - the colon may be inside or outside bold
 _KV_PATTERN = re.compile(r"^>\s+\*\*(.+?)\*\*:?\s*(.*?)\s*$")
 
+# Regex: matches "**Key:** Value" without blockquote prefix
+_PLAIN_KV_PATTERN = re.compile(r"^\*\*(.+?)\*\*:?\s*(.*?)\s*$")
+
 
 def _normalise_key(key: str) -> str:
     """Convert Title Case key to snake_case.
@@ -116,6 +119,24 @@ def parse_document(content: str) -> ParseResult:
                     metadata[current_key] = f"{existing} {continuation}"
                 else:
                     metadata[current_key] = continuation
+
+    # Fallback: if no blockquote frontmatter found, try plain bold key-value
+    # lines (e.g. "**Status:** Done" without ">" prefix).  Scan from the
+    # start of the document, stopping at the first non-matching, non-blank,
+    # non-heading line.
+    if not metadata:
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            plain_match = _PLAIN_KV_PATTERN.match(stripped)
+            if plain_match:
+                key = _normalise_key(plain_match.group(1))
+                metadata[key] = plain_match.group(2).strip()
+            elif stripped == "---":
+                continue
+            else:
+                break
 
     # Convert story_points to int if present
     if "story_points" in metadata:

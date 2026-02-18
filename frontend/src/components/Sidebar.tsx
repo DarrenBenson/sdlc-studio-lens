@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 
 import { fetchProjects } from "../api/client.ts";
 import type { Project, SyncStatus } from "../types/index.ts";
@@ -40,9 +40,9 @@ export function Sidebar() {
     >
       {/* Header */}
       <div className="px-4 py-5 border-b border-border-subtle">
-        <h1 className="font-display text-lg font-semibold text-accent">
+        <Link to="/" className="font-display text-lg font-semibold text-accent hover:text-accent-hover transition-colors">
           Studio Lens
-        </h1>
+        </Link>
       </div>
 
       {/* Project list */}
