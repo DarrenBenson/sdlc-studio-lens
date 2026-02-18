@@ -143,6 +143,7 @@ function TreeNodeRow({
 
         <Link
           to={`/projects/${slug}/documents/${node.type}/${node.doc_id}`}
+          state={{ from: "tree" }}
           className="min-w-0 flex-1 truncate text-sm text-text-primary hover:text-accent"
         >
           {node.title}

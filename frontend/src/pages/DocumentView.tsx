@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
@@ -16,13 +16,16 @@ import type {
 function RelatedDocLink({
   item,
   slug,
+  fromTree,
 }: {
   item: RelatedDocumentItem;
   slug: string;
+  fromTree?: boolean;
 }): React.JSX.Element {
   return (
     <Link
       to={`/projects/${slug}/documents/${item.type}/${item.doc_id}`}
+      state={fromTree ? { from: "tree" } : undefined}
       className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-bg-elevated"
     >
       <TypeBadge type={item.type} />
@@ -40,6 +43,9 @@ export function DocumentView(): React.JSX.Element {
     type: string;
     docId: string;
   }>();
+
+  const location = useLocation();
+  const fromTree = (location.state as { from?: string } | null)?.from === "tree";
 
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
   const [related, setRelated] = useState<DocumentRelationships | null>(null);
@@ -112,16 +118,17 @@ export function DocumentView(): React.JSX.Element {
           </Link>
           <span>/</span>
           <Link
-            to={`/projects/${slug}/documents`}
+            to={fromTree ? `/projects/${slug}/tree` : `/projects/${slug}/documents`}
             className="hover:text-accent"
           >
-            Documents
+            {fromTree ? "Tree View" : "Documents"}
           </Link>
           {ancestors.map((parent) => (
             <span key={parent.doc_id} className="flex items-center gap-1">
               <span>/</span>
               <Link
                 to={`/projects/${slug}/documents/${parent.type}/${parent.doc_id}`}
+                state={fromTree ? { from: "tree" } : undefined}
                 className="hover:text-accent"
               >
                 {parent.doc_id.split("-")[0]}
@@ -226,7 +233,7 @@ export function DocumentView(): React.JSX.Element {
                 </h4>
                 <div className="-mx-2 space-y-0.5">
                   {related!.parents.map((p) => (
-                    <RelatedDocLink key={p.doc_id} item={p} slug={slug!} />
+                    <RelatedDocLink key={p.doc_id} item={p} slug={slug!} fromTree={fromTree} />
                   ))}
                 </div>
               </div>
@@ -239,7 +246,7 @@ export function DocumentView(): React.JSX.Element {
                 </h4>
                 <div className="-mx-2 space-y-0.5">
                   {related!.children.map((c) => (
-                    <RelatedDocLink key={c.doc_id} item={c} slug={slug!} />
+                    <RelatedDocLink key={c.doc_id} item={c} slug={slug!} fromTree={fromTree} />
                   ))}
                 </div>
               </div>
