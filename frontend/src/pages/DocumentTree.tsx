@@ -188,19 +188,8 @@ export function DocumentTree(): React.JSX.Element {
       .then((items) => {
         const roots = buildTree(items);
         setTree(roots);
-        // Default expand: root nodes and epics (first two levels)
-        const defaultExpanded = new Set<string>();
-        for (const root of roots) {
-          if (root.children.length > 0) {
-            defaultExpanded.add(root.doc_id);
-            for (const child of root.children) {
-              if (child.children.length > 0) {
-                defaultExpanded.add(child.doc_id);
-              }
-            }
-          }
-        }
-        setExpanded(defaultExpanded);
+        // Start fully collapsed
+        setExpanded(new Set());
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Unknown error");

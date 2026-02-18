@@ -195,23 +195,25 @@ describe("TC0384: Document title links", () => {
 // ---------------------------------------------------------------------------
 
 describe("TC0385: Expand/collapse", () => {
-  it("collapses an expanded node on click", async () => {
+  it("expands a collapsed node then collapses it", async () => {
     mockFetchAllDocuments.mockResolvedValueOnce(hierarchyDocs);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("Project Management")).toBeInTheDocument();
     });
-    // EP0001 should be auto-expanded - stories visible
-    expect(screen.getByText("Register Project")).toBeInTheDocument();
+    // Starts collapsed - stories hidden
+    expect(screen.queryByText("Register Project")).not.toBeInTheDocument();
 
-    // Click collapse on EP0001
-    const collapseBtn = screen
+    // Expand EP0001
+    const expandBtn = screen
       .getByText("Project Management")
       .closest("div")!
       .querySelector("button")!;
-    await userEvent.click(collapseBtn);
+    await userEvent.click(expandBtn);
+    expect(screen.getByText("Register Project")).toBeInTheDocument();
 
-    // Stories should now be hidden
+    // Collapse EP0001
+    await userEvent.click(expandBtn);
     expect(screen.queryByText("Register Project")).not.toBeInTheDocument();
   });
 });
