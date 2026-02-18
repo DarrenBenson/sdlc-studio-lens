@@ -76,10 +76,27 @@ The tree is built client-side from the existing document list API (which now inc
 - **When** I click the document title
 - **Then** I navigate to `/projects/{slug}/documents/{type}/{docId}`
 
-### AC5: Nodes show type badge and status
-- **Given** a tree node
+### AC5: Nodes show type badge, status, and child count
+- **Given** a tree node that has children
 - **When** I inspect it
-- **Then** it shows the document title, a type badge, and a status badge
+- **Then** it shows the document title, a type badge, a status badge, and the number of direct children
+
+### AC9: Tree starts fully collapsed
+- **Given** a synced project with documents
+- **When** I navigate to the tree view
+- **Then** only root-level nodes are visible; all are collapsed
+
+### AC10: Expand all and collapse all controls
+- **Given** the tree view page
+- **When** I click "Expand all"
+- **Then** all parent nodes expand showing the full hierarchy
+- **When** I click "Collapse all"
+- **Then** only root-level nodes are visible
+
+### AC11: All documents fetched across pages
+- **Given** a project with more documents than the API page size (100)
+- **When** the tree view loads
+- **Then** all documents are fetched by paginating automatically, and the full hierarchy is built
 
 ### AC6: Navigation link from project detail
 - **Given** the project detail page
@@ -158,28 +175,32 @@ Documents within each level should be sorted by type, then by ID:
 6. bug
 
 ### Data Source
-Reuses the existing document list API (`GET /projects/{slug}/documents`) with the `epic` and `story` fields added by US0034. Fetch all documents (use a high `per_page` value or paginate).
+Reuses the existing document list API (`GET /projects/{slug}/documents`) with the `epic` and `story` fields added by US0034. The backend caps `per_page` at 100, so the tree must paginate to fetch all documents.
 
 ### API Client
-Use existing `fetchDocuments(slug, { per_page: 500 })` to get all documents. The list endpoint now includes `epic` and `story` fields per US0034 AC8.
+Uses `fetchAllDocuments(slug)` which auto-paginates through all pages of the document list API (`per_page=100`, incrementing `page` until all pages fetched). Returns a flat `DocumentListItem[]` array for tree building.
 
 ### Component Structure
 ```
 DocumentTree (page)
 ├── TreeBreadcrumb (Project / Tree View)
+├── Toolbar (Expand All / Collapse All buttons)
 ├── TreeNode (recursive component)
-│   ├── ExpandToggle
+│   ├── ExpandToggle (chevron, only on parents)
 │   ├── TypeBadge
 │   ├── DocumentTitle (Link)
-│   └── StatusBadge
+│   ├── StatusBadge
+│   └── ChildCount (only on parents)
 └── EmptyState
 ```
 
 ### Expand/Collapse State
 ```typescript
 const [expanded, setExpanded] = useState<Set<string>>(new Set());
-// Default: expand first two levels (root + epics)
+// Default: starts fully collapsed (empty set)
 // Toggle: add/remove doc_id from the set
+// Expand all: collect all parent doc_ids into the set
+// Collapse all: clear the set
 ```
 
 ---
@@ -192,7 +213,8 @@ const [expanded, setExpanded] = useState<Set<string>>(new Set());
 | Document list API fails | Shows error message with retry option |
 | Orphan documents (parent not found) | Placed at root level |
 | Single top-level document (just a PRD) | Tree shows one node, no expand toggle |
-| Large project (100+ documents) | All rendered; tree is naturally compact when collapsed |
+| Large project (100+ documents) | All fetched via auto-pagination; tree compact when collapsed |
+| Project with more than 100 documents | fetchAllDocuments paginates through all pages |
 | Document without a type (edge case) | Rendered at root with "unknown" type badge |
 | Clicking expand on leaf node | No toggle shown for leaf nodes |
 | Deep nesting (plan under story under epic) | 3 levels of indentation; consistent styling |
@@ -213,6 +235,11 @@ const [expanded, setExpanded] = useState<Set<string>>(new Set());
 - [ ] Clicking document title navigates to document view
 - [ ] Type badges shown on each node
 - [ ] Status badges shown on each node
+- [ ] Child count shown on parent nodes
+- [ ] Tree starts fully collapsed
+- [ ] Expand all button expands entire tree
+- [ ] Collapse all button collapses entire tree
+- [ ] All documents fetched across multiple pages for large projects
 - [ ] Empty project shows appropriate message
 - [ ] Loading state shown while fetching documents
 - [ ] Error state shown when API fails
@@ -255,3 +282,4 @@ None.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-18 | Claude | Initial story creation from EP0008 |
+| 2026-02-18 | Claude | Added AC9-AC11: collapsed default, expand/collapse all, auto-pagination, child count |

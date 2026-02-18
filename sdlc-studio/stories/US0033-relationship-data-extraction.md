@@ -79,6 +79,11 @@ This story adds a `story` column to the Document model via Alembic migration 006
 - **When** the sync engine processes it
 - **Then** the plain value is stored unchanged
 
+### AC9: Plain text with title extracts clean ID
+- **Given** a metadata value like `US0163: Container Service Status` (plain text, no markdown link)
+- **When** the sync engine processes the `story` field
+- **Then** it extracts and stores the clean ID `US0163`
+
 ### AC8: Null values handled
 - **Given** a document type that has no `epic` or `story` in its frontmatter (e.g., a PRD or epic)
 - **When** the document is synced
@@ -111,22 +116,28 @@ This story adds a `story` column to the Document model via Alembic migration 006
 ```python
 import re
 
-_MD_LINK_ID_PATTERN = re.compile(r"^\[([A-Z]{2}\d{4})")
+_MD_LINK_ID_RE = re.compile(r"^\[([A-Z]{2}\d{4})")
+_PLAIN_ID_RE = re.compile(r"^([A-Z]{2}\d{4})\b")
 
 def extract_doc_id(value: str | None) -> str | None:
     """Extract clean document ID from a markdown link or plain text.
 
     Examples:
         "[EP0007: Title](path)" -> "EP0007"
+        "US0163: Container Service Status" -> "US0163"
         "EP0007" -> "EP0007"
         None -> None
     """
     if not value:
         return None
-    match = _MD_LINK_ID_PATTERN.match(value.strip())
+    stripped = value.strip()
+    match = _MD_LINK_ID_RE.match(stripped)
     if match:
         return match.group(1)
-    return value.strip()
+    match = _PLAIN_ID_RE.match(stripped)
+    if match:
+        return match.group(1)
+    return stripped
 ```
 
 ### Document Model Change
@@ -160,7 +171,9 @@ op.create_index("ix_documents_epic", "documents", ["epic"])
 ```
 
 ### Data Requirements
-No Alembic data migration needed. Existing `epic` values will be cleaned on the next sync when the file hash comparison detects changes (or all documents if a force re-sync is triggered). Since the extraction function also handles plain IDs, documents synced after this change will always have clean values.
+No Alembic data migration needed. Existing `epic` values will be cleaned on the next sync when the file hash comparison detects changes, or by clearing stored hashes to force a full re-parse. Since the extraction function handles markdown links, plain text with titles, and bare IDs, documents synced after this change will always have clean values.
+
+**Note:** After deploying new extraction logic, existing documents with unchanged content are skipped by the hash-based change detection. To force re-parsing, clear the `file_hash` column for the project's documents, then re-sync.
 
 ---
 
@@ -173,6 +186,7 @@ No Alembic data migration needed. Existing `epic` values will be cleaned on the 
 | Multi-line value (continuation) | Extracts ID from first line |
 | Empty string | Stores NULL |
 | None/missing field | Stores NULL |
+| Plain text with title: `US0163: Container Status` | Extracts `US0163` |
 | Malformed link: `[No ID](path)` | Stores raw value as fallback |
 | Link with no colon: `[EP0007](path)` | Extracts `EP0007` |
 | Bug reference: `[BG0001: Title](path)` | Extracts `BG0001` |
@@ -234,3 +248,4 @@ None.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-18 | Claude | Initial story creation from EP0008 |
+| 2026-02-18 | Claude | Added AC9 for plain text ID extraction; updated regex and data notes |
