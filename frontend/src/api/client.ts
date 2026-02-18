@@ -4,6 +4,7 @@ import type {
   DocumentDetail,
   DocumentListItem,
   DocumentRelationships,
+  HealthCheckResponse,
   PaginatedDocuments,
   Project,
   ProjectCreate,
@@ -170,6 +171,17 @@ export async function triggerSync(
     throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<SyncTriggerResponse>;
+}
+
+/** Fetch health check for a project. */
+export async function fetchHealthCheck(
+  slug: string,
+): Promise<HealthCheckResponse> {
+  const res = await fetch(`${BASE}/projects/${slug}/health-check`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<HealthCheckResponse>;
 }
 
 /** Search documents by query. */

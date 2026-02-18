@@ -5,6 +5,7 @@ import { Dashboard } from "./pages/Dashboard.tsx";
 import { DocumentList } from "./pages/DocumentList.tsx";
 import { DocumentTree } from "./pages/DocumentTree.tsx";
 import { DocumentView } from "./pages/DocumentView.tsx";
+import { HealthCheck } from "./pages/HealthCheck.tsx";
 import { ProjectDetail } from "./pages/ProjectDetail.tsx";
 import { SearchResults } from "./pages/SearchResults.tsx";
 import { Settings } from "./pages/Settings.tsx";
@@ -26,6 +27,7 @@ export function App() {
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="projects/:slug" element={<ProjectDetail />} />
+        <Route path="projects/:slug/health-check" element={<HealthCheck />} />
         <Route path="projects/:slug/tree" element={<DocumentTree />} />
         <Route
           path="projects/:slug/documents"

@@ -4,12 +4,14 @@ interface ProgressRingProps {
   percentage: number;
   size?: number;
   strokeWidth?: number;
+  label?: string;
 }
 
 export function ProgressRing({
   percentage,
   size = 80,
   strokeWidth = 8,
+  label,
 }: ProgressRingProps) {
   const clamped = Math.min(100, Math.max(0, percentage));
   const radius = (size - strokeWidth) / 2;
@@ -21,12 +23,15 @@ export function ProgressRing({
       ? `${clamped}%`
       : `${Number(clamped.toFixed(1))}%`;
 
+  const ariaText = label ? `${label}: ${displayText}` : `${displayText} complete`;
+
   return (
+    <div className="flex flex-col items-center gap-1">
     <svg
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      aria-label={`${displayText} complete`}
+      aria-label={ariaText}
     >
       {/* Track */}
       <circle
@@ -64,5 +69,9 @@ export function ProgressRing({
         {displayText}
       </text>
     </svg>
+    {label && (
+      <span className="text-xs text-text-tertiary">{label}</span>
+    )}
+    </div>
   );
 }

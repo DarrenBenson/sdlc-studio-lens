@@ -41,6 +41,12 @@
   --color-badge-planned: #93c5fd;
   --color-badge-default: #78909c;
 
+  /* Severity colours (health check) */
+  --color-severity-critical: #ef4444;
+  --color-severity-high: #f97316;
+  --color-severity-medium: #eab308;
+  --color-severity-low: #3b82f6;
+
   /* Typography */
   --font-sans: "Inter", system-ui, sans-serif;
   --font-display: "Space Grotesk", system-ui, sans-serif;

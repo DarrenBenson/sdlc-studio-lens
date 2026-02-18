@@ -64,6 +64,16 @@ async def list_documents(
     return documents, total
 
 
+async def get_all_documents(
+    session: AsyncSession,
+    project_id: int,
+) -> list[Document]:
+    """Fetch all documents for a project (no pagination)."""
+    stmt = select(Document).where(Document.project_id == project_id)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 class DocumentNotFoundError(Exception):
     """Raised when a document is not found."""
 

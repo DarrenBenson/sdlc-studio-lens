@@ -65,14 +65,11 @@ export function Dashboard() {
       <div className="flex gap-6 items-center">
         <StatsCard count={stats.total_projects} label="Projects" />
         <StatsCard count={stats.total_documents} label="Documents" />
-        <div className="flex items-center gap-3">
-          <ProgressRing percentage={stats.completion_percentage} size={64} />
-          <span className="font-mono text-xl text-text-primary">
-            {stats.completion_percentage % 1 === 0
-              ? `${stats.completion_percentage}%`
-              : `${stats.completion_percentage}%`}
-          </span>
-        </div>
+        <ProgressRing
+          percentage={stats.completion_percentage}
+          size={64}
+          label="Story Completion"
+        />
       </div>
 
       {/* Project cards grid */}
@@ -91,6 +88,7 @@ export function Dashboard() {
                 percentage={proj.completion_percentage}
                 size={48}
                 strokeWidth={6}
+                label="Stories"
               />
             </div>
             <div className="flex gap-4 text-sm text-text-secondary">

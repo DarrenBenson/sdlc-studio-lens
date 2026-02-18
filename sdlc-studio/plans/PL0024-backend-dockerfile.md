@@ -1,6 +1,6 @@
 # PL0024: Combined Dockerfile - Implementation Plan
 
-> **Status:** Draft
+> **Status:** Done
 > **Story:** [US0024: Backend Dockerfile](../stories/US0024-backend-dockerfile.md)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17

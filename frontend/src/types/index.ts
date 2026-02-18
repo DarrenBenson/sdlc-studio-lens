@@ -146,6 +146,33 @@ export interface DocumentRelationships {
   children: RelatedDocumentItem[];
 }
 
+/** A document affected by a health check finding. */
+export interface AffectedDocument {
+  doc_id: string;
+  doc_type: string;
+  title: string;
+}
+
+/** A single health check finding. */
+export interface HealthFinding {
+  rule_id: string;
+  severity: "critical" | "high" | "medium" | "low";
+  category: string;
+  message: string;
+  affected_documents: AffectedDocument[];
+  suggested_fix: string;
+}
+
+/** Response from GET /api/v1/projects/{slug}/health-check. */
+export interface HealthCheckResponse {
+  project_slug: string;
+  checked_at: string;
+  total_documents: number;
+  findings: HealthFinding[];
+  summary: Record<string, number>;
+  score: number;
+}
+
 /** Single search result item. */
 export interface SearchResultItem {
   doc_id: string;

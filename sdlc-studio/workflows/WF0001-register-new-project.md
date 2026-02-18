@@ -1,6 +1,6 @@
 # WF0001: Register a New Project - Workflow State
 
-> **Status:** In Progress
+> **Status:** Done
 > **Story:** [US0001: Register a New Project](../stories/US0001-register-new-project.md)
 > **Plan:** [PL0001: Register a New Project](../plans/PL0001-register-new-project.md)
 > **Test Spec:** [TS0001: Register a New Project](../test-specs/TS0001-register-new-project.md)

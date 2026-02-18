@@ -16,6 +16,11 @@ from sdlc_lens.api.schemas.documents import (
     RelatedDocumentItem,
     SortField,
 )
+from sdlc_lens.api.schemas.health_check import (
+    AffectedDocumentSchema,
+    HealthCheckResponse,
+    HealthFindingSchema,
+)
 from sdlc_lens.api.schemas.projects import (
     ProjectCreate,
     ProjectResponse,
@@ -26,10 +31,12 @@ from sdlc_lens.api.schemas.projects import (
 from sdlc_lens.api.schemas.stats import ProjectStats
 from sdlc_lens.services.documents import (
     DocumentNotFoundError,
+    get_all_documents,
     get_document,
     get_related_documents,
     list_documents,
 )
+from sdlc_lens.services.health_check import run_health_check
 from sdlc_lens.services.project import (
     EmptySlugError,
     PathNotFoundError,
@@ -195,6 +202,47 @@ async def list_project_documents(
         page=page,
         per_page=actual_per_page,
         pages=pages,
+    )
+
+
+@router.get("/{slug}/health-check", response_model=HealthCheckResponse)
+async def get_health_check(
+    slug: str, db: DbDep
+) -> HealthCheckResponse | JSONResponse:
+    """Run a health check on a project's documentation."""
+    try:
+        project = await get_project_by_slug(db, slug)
+    except ProjectNotFoundError as exc:
+        return JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": exc.message}},
+        )
+
+    documents = await get_all_documents(db, project.id)
+    result = run_health_check(documents, project_slug=slug)
+
+    return HealthCheckResponse(
+        project_slug=result.project_slug,
+        checked_at=result.checked_at,
+        total_documents=result.total_documents,
+        findings=[
+            HealthFindingSchema(
+                rule_id=f.rule_id,
+                severity=f.severity,
+                category=f.category,
+                message=f.message,
+                affected_documents=[
+                    AffectedDocumentSchema(
+                        doc_id=ad.doc_id, doc_type=ad.doc_type, title=ad.title
+                    )
+                    for ad in f.affected_documents
+                ],
+                suggested_fix=f.suggested_fix,
+            )
+            for f in result.findings
+        ],
+        summary=result.summary,
+        score=result.score,
     )
 
 

@@ -116,6 +116,7 @@ export function ProjectDetail() {
           percentage={stats.completion_percentage}
           size={120}
           strokeWidth={10}
+          label="Story Completion"
         />
         <div>
           <h1 className="font-display text-2xl font-bold text-text-primary">
@@ -141,6 +142,12 @@ export function ProjectDetail() {
               className="text-sm text-accent hover:text-accent-hover"
             >
               Tree View
+            </Link>
+            <Link
+              to={`/projects/${slug}/health-check`}
+              className="text-sm text-accent hover:text-accent-hover"
+            >
+              Health Check
             </Link>
           </div>
         </div>
