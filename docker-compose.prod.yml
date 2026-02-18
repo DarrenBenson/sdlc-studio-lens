@@ -1,0 +1,17 @@
+services:
+  app:
+    image: ghcr.io/darrenbenson/sdlc-studio-lens:0.1.0-alpha.1
+    ports:
+      - "80:8000"
+    volumes:
+      - db-data:/data/db
+      # Mount project sdlc-studio directories (read-only)
+      # Uncomment and adjust paths for each project:
+      # - /path/to/project1/sdlc-studio:/data/projects/project1:ro
+      # - /path/to/project2/sdlc-studio:/data/projects/project2:ro
+    environment:
+      - SDLC_LENS_LOG_LEVEL=${SDLC_LENS_LOG_LEVEL:-INFO}
+    restart: unless-stopped
+
+volumes:
+  db-data:

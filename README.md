@@ -1,14 +1,17 @@
 # SDLC Studio Lens
 
-A read-only dashboard for browsing and searching [sdlc-studio](https://github.com/DarrenBenson/sdlc-studio) project documents. Syncs markdown specifications from the filesystem, indexes them with full-text search, and presents them through a modern web interface.
+A read-only dashboard for browsing and searching [sdlc-studio](https://github.com/DarrenBenson/sdlc-studio) project documents. Syncs markdown specifications from the filesystem or GitHub repositories, indexes them with full-text search, and presents them through a modern web interface.
 
 ## Features
 
-- **Project management** - register projects, trigger filesystem sync, track sync status
+- **Project management** - register local or GitHub-hosted projects, trigger sync, track status
 - **Document browsing** - list and filter documents by type, status, and project
 - **Document viewer** - rendered markdown with syntax highlighting and metadata sidebar
+- **Document relationships** - navigate parent/child and cross-reference links between documents
 - **Full-text search** - FTS5-powered search with BM25 ranking, snippet extraction, and project/type filters
 - **Dashboard** - aggregate statistics, completion tracking, and per-project breakdowns
+- **Project health check** - automated quality scoring across completeness, consistency, and integrity rules
+- **GitHub repository sync** - pull SDLC documents directly from GitHub repos (public or private)
 - **Dark theme** - lime green accent on dark background
 
 ## Tech Stack
@@ -18,27 +21,42 @@ A read-only dashboard for browsing and searching [sdlc-studio](https://github.co
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 (async), SQLite + FTS5 |
 | Frontend | React 19, TypeScript, React Router 7, Tailwind CSS 4, Recharts 3 |
 | Testing | pytest + pytest-asyncio (backend), Vitest + Testing Library (frontend) |
+| Deployment | Docker (single container), GitHub Actions CI/CD |
 
-## Quick Start (Docker)
+## Quick Start
 
-The simplest way to run SDLC Studio Lens. Requires Docker and Docker Compose.
+### Option A: Pre-built image
+
+Pull the image from GHCR - no clone required.
 
 ```bash
-# Clone and start
+# Pull the image
+docker pull ghcr.io/darrenbenson/sdlc-studio-lens:latest
+
+# Download the production compose file
+curl -O https://raw.githubusercontent.com/DarrenBenson/sdlc-studio-lens/main/docker-compose.prod.yml
+
+# Start
+docker compose -f docker-compose.prod.yml up -d
+```
+
+The dashboard is available at **http://localhost:80**.
+
+### Option B: Build from source
+
+```bash
 git clone https://github.com/DarrenBenson/sdlc-studio-lens.git
 cd sdlc-studio-lens
 docker compose up --build -d
 ```
 
-The dashboard is available at **http://localhost:80**.
-
 ### Mounting project directories
 
-Edit `docker-compose.yml` to mount your sdlc-studio directories as read-only volumes:
+Edit the compose file to mount your sdlc-studio directories as read-only volumes:
 
 ```yaml
 services:
-  backend:
+  app:
     volumes:
       - db-data:/data/db
       - /path/to/your-project/sdlc-studio:/data/projects/your-project:ro
@@ -56,26 +74,22 @@ Copy `.env.example` to `.env` to customise:
 | `SDLC_LENS_PORT` | `8000` | Backend port |
 | `SDLC_LENS_DATABASE_URL` | `sqlite+aiosqlite:////data/db/sdlc_lens.db` | Database URL |
 | `SDLC_LENS_LOG_LEVEL` | `INFO` | Log level (debug, info, warning, error) |
-| `FRONTEND_PORT` | `80` | Host port for the frontend |
+| `APP_PORT` | `80` | Host port for the application |
 
 ### Architecture
 
-```
-┌─────────────┐     ┌─────────────────┐
-│   Browser   │────▸│  nginx (:80)    │
-└─────────────┘     │  - static files │
-                    │  - /api/* proxy  │
-                    └────────┬────────┘
-                             │
-                    ┌────────▾────────┐
-                    │ uvicorn (:8000) │
-                    │  FastAPI + SQLite│
-                    └─────────────────┘
-```
+Single container: FastAPI serves the API and the built React frontend as static files. Alembic migrations run automatically on startup.
 
-- **Frontend container**: nginx:alpine serving the React build, proxying `/api/*` to the backend
-- **Backend container**: python:3.12-slim running Uvicorn, with Alembic migrations on startup
-- **Data**: SQLite database in a named volume, project directories as read-only bind mounts
+```
+┌─────────────┐     ┌──────────────────┐
+│   Browser   │────▸│ uvicorn (:8000)  │
+└─────────────┘     │  FastAPI         │
+                    │  - /api/*  REST  │
+                    │  - /assets static│
+                    │  - /*  SPA       │
+                    │  SQLite + FTS5   │
+                    └──────────────────┘
+```
 
 ## Development Setup
 
@@ -110,11 +124,11 @@ Frontend runs at http://localhost:5173.
 ## Testing
 
 ```bash
-# Backend (257 tests)
+# Backend (413 tests)
 cd backend
 PYTHONPATH=src python -m pytest -v
 
-# Frontend (121 tests)
+# Frontend (167 tests)
 cd frontend
 npx vitest run
 ```
@@ -123,23 +137,22 @@ npx vitest run
 
 ```
 sdlc-studio-lens/
-├── docker-compose.yml    # Full stack orchestration
+├── Dockerfile            # Multi-stage build (frontend + backend + runtime)
+├── docker-compose.yml    # Local development / build-from-source
+├── docker-compose.prod.yml  # Pre-built GHCR image for deployment
+├── entrypoint.sh         # Alembic migrations + Uvicorn
 ├── .env.example          # Environment variable template
 ├── backend/
-│   ├── Dockerfile        # Multi-stage Python build
-│   ├── entrypoint.sh     # Alembic migrations + Uvicorn
 │   ├── src/sdlc_lens/    # Source code
 │   │   ├── api/          # Routes, schemas, dependencies
 │   │   ├── db/           # Models, session, migrations
-│   │   └── services/     # Business logic (sync, search, stats, FTS5)
+│   │   └── services/     # Business logic (sync, search, stats, health check)
 │   ├── tests/            # pytest test suite
 │   └── alembic/          # Database migrations
 ├── frontend/
-│   ├── Dockerfile        # Node build + nginx serve
-│   ├── nginx.conf        # Reverse proxy + SPA fallback
 │   ├── src/
 │   │   ├── components/   # Sidebar, SearchBar, Layout, badges, charts
-│   │   ├── pages/        # Dashboard, ProjectDetail, DocumentList, DocumentView, SearchResults, Settings
+│   │   ├── pages/        # Dashboard, Projects, Documents, Search, Health Check
 │   │   ├── api/          # API client
 │   │   └── types/        # TypeScript interfaces
 │   └── test/             # Vitest test suite
