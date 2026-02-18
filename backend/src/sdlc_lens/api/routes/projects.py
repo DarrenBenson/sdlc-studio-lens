@@ -11,7 +11,9 @@ from sdlc_lens.api.deps import get_db
 from sdlc_lens.api.schemas.documents import (
     DocumentDetail,
     DocumentListItem,
+    DocumentRelationships,
     PaginatedDocuments,
+    RelatedDocumentItem,
     SortField,
 )
 from sdlc_lens.api.schemas.projects import (
@@ -22,7 +24,12 @@ from sdlc_lens.api.schemas.projects import (
     mask_token,
 )
 from sdlc_lens.api.schemas.stats import ProjectStats
-from sdlc_lens.services.documents import DocumentNotFoundError, get_document, list_documents
+from sdlc_lens.services.documents import (
+    DocumentNotFoundError,
+    get_document,
+    get_related_documents,
+    list_documents,
+)
 from sdlc_lens.services.project import (
     EmptySlugError,
     PathNotFoundError,
@@ -175,6 +182,8 @@ async def list_project_documents(
             owner=doc.owner,
             priority=doc.priority,
             story_points=doc.story_points,
+            epic=doc.epic,
+            story=doc.story,
             updated_at=doc.synced_at,
         )
         for doc in docs
@@ -186,6 +195,65 @@ async def list_project_documents(
         page=page,
         per_page=actual_per_page,
         pages=pages,
+    )
+
+
+@router.get(
+    "/{slug}/documents/{doc_type}/{doc_id}/related",
+    response_model=DocumentRelationships,
+)
+async def get_document_related(
+    slug: str,
+    doc_type: str,
+    doc_id: str,
+    db: DbDep,
+) -> DocumentRelationships | JSONResponse:
+    """Get parent chain and children for a document."""
+    try:
+        project = await get_project_by_slug(db, slug)
+    except ProjectNotFoundError as exc:
+        return JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": exc.message}},
+        )
+
+    try:
+        doc = await get_document(db, project.id, doc_type, doc_id)
+    except DocumentNotFoundError:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": f"Document not found: {doc_type}/{doc_id}",
+                }
+            },
+        )
+
+    parents, children = await get_related_documents(db, project.id, doc)
+
+    return DocumentRelationships(
+        doc_id=doc.doc_id,
+        type=doc.doc_type,
+        title=doc.title,
+        parents=[
+            RelatedDocumentItem(
+                doc_id=p.doc_id,
+                type=p.doc_type,
+                title=p.title,
+                status=p.status,
+            )
+            for p in parents
+        ],
+        children=[
+            RelatedDocumentItem(
+                doc_id=c.doc_id,
+                type=c.doc_type,
+                title=c.title,
+                status=c.status,
+            )
+            for c in children
+        ],
     )
 
 
@@ -228,6 +296,7 @@ async def get_document_detail(
         priority=doc.priority,
         story_points=doc.story_points,
         epic=doc.epic,
+        story=doc.story,
         metadata=metadata,
         content=doc.content,
         file_path=doc.file_path,

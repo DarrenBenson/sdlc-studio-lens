@@ -1,7 +1,7 @@
 # Product Requirements Document
 
 **Project:** SDLC Studio Lens
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Last Updated:** 2026-02-18
 **Status:** Draft
 **TRD Reference:** [TRD](trd.md)
@@ -153,8 +153,12 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 | GitHub Source Type | Sync documents from a GitHub repository via REST API | Not Started | P1 | EP0007 |
 | Repository Configuration | Configure repo URL, branch, subdirectory path, and access token | Not Started | P1 | EP0007 |
 | Source Type Selection | Choose between local filesystem and GitHub when registering a project | Not Started | P1 | EP0007 |
+| Relationship Extraction | Parse parent references from frontmatter links, store clean IDs | Not Started | P1 | EP0008 |
+| Breadcrumb Navigation | Show hierarchy path (Project → Epic → Story → Document) on document view | Not Started | P1 | EP0008 |
+| Related Documents | Display parent and child documents on document view page | Not Started | P1 | EP0008 |
+| Document Tree View | Expandable tree showing full project document hierarchy | Not Started | P2 | EP0008 |
 
-**Estimated Total:** 7 Epics, ~33 Stories
+**Estimated Total:** 8 Epics, ~37 Stories
 
 ### Feature Details
 
@@ -315,6 +319,25 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 
 ---
 
+#### Document Relationship Navigation (FR10)
+
+**User Story:** As a developer, I want to navigate between related documents so that I can traverse the SDLC hierarchy (PRD → Epics → Stories → Plans/Test Specs/Bugs) from any document without searching manually.
+
+**Acceptance Criteria:**
+- [ ] Extract clean document IDs from frontmatter markdown links (e.g., "EP0007" from `[EP0007: Title](path)`)
+- [ ] Store parent references (`epic`, `story`) as dedicated indexed columns
+- [ ] Provide an API endpoint returning parent chain and child documents for any document
+- [ ] Display breadcrumb navigation showing the hierarchy path on document view
+- [ ] Show related documents panel (parent and children) on document view
+- [ ] Provide a tree view page showing the full document hierarchy per project
+- [ ] Support the standard hierarchy: PRD → Epics → Stories → Plans/Test Specs/Bugs
+
+**Dependencies:** Document Browsing (FR4), Filesystem Sync (FR2)
+**Status:** Not Started
+**Confidence:** [HIGH]
+
+---
+
 ## 6. Functional Requirements
 
 ### Core Behaviours
@@ -330,6 +353,7 @@ sdlc-studio generates structured markdown documents (PRDs, TRDs, TSDs, epics, st
 | FR7 | Full-text search via FTS5 | P0 |
 | FR8 | Docker deployment (single container) | P0 |
 | FR9 | Git repository sync (GitHub REST API) | P1 |
+| FR10 | Document relationship navigation and tree view | P1 |
 
 ### Input/Output Specifications
 
@@ -345,6 +369,7 @@ See [TRD §5: API Contracts](trd.md#5-api-contracts) for complete request/respon
 6. **Slug generation:** Project slug derived from name (lowercase, hyphens, no special characters)
 7. **Source type dispatch:** Sync uses local filesystem walker for "local" projects and GitHub REST API for "github" projects
 8. **Token security:** Access tokens are stored encrypted at rest (future) and masked in API responses, showing only the last 4 characters
+9. **Relationship inference:** Document relationships are inferred from frontmatter metadata links (`> **Epic:** [ID](path)`, `> **Story:** [ID](path)`), not from explicit configuration
 
 ---
 
@@ -529,7 +554,7 @@ None for v1.0.
 
 ### Suggested Improvements
 1. Configurable sync ignore patterns (e.g., skip draft documents)
-2. Document relationship graph (epic → stories visualisation)
+2. ~~Document relationship graph~~ (addressed by EP0008)
 3. Export statistics as JSON/CSV
 4. Webhook on sync completion for CI integration
 5. Light theme option
@@ -607,7 +632,17 @@ None for v1.0.
   - API schema updates with conditional validation
   - Frontend source type selection UI
 
-**Estimated Total:** ~118 story points
+#### Phase 5: Navigation
+**Story Points:** ~16
+
+**Epics:**
+- **EP0008:** Document Relationship Navigation (~16 pts)
+  - Relationship data extraction from frontmatter links
+  - Relationships API endpoint (parent chain and children)
+  - Breadcrumb navigation and related documents panel
+  - Document tree view
+
+**Estimated Total:** ~134 story points
 
 ---
 
@@ -734,6 +769,7 @@ Status breakdown chart shows distribution
 | 2026-02-17 | 1.0.2 | Updated Design System to reference brand-guide.md; colour palette changed from emerald (#10B981) to lime green (#A3E635) per reference design |
 | 2026-02-18 | 1.0.3 | Architecture changed from two-container (backend + frontend/nginx) to single-container (FastAPI serves both API and frontend); updated FR8, feature inventory, KPIs, and EP0006 references |
 | 2026-02-18 | 1.1.0 | Added FR9 (Git Repository Sync) for EP0007; GitHub REST API integration, source type selection, token support; updated feature inventory, functional requirements, integrations, release plan |
+| 2026-02-18 | 1.2.0 | Added FR10 (Document Relationship Navigation) for EP0008; hierarchy extraction, relationships API, breadcrumbs, related documents panel, tree view; updated feature inventory, functional requirements, release plan |
 
 ---
 

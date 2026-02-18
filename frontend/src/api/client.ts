@@ -2,6 +2,7 @@ import type {
   AggregateStats,
   ApiError,
   DocumentDetail,
+  DocumentRelationships,
   PaginatedDocuments,
   Project,
   ProjectCreate,
@@ -101,6 +102,21 @@ export async function fetchDocument(
     throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<DocumentDetail>;
+}
+
+/** Fetch related documents (parents and children) for a document. */
+export async function fetchRelatedDocuments(
+  slug: string,
+  type: string,
+  docId: string,
+): Promise<DocumentRelationships> {
+  const res = await fetch(
+    `${BASE}/projects/${slug}/documents/${type}/${docId}/related`,
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to fetch relationships: ${res.status}`);
+  }
+  return res.json() as Promise<DocumentRelationships>;
 }
 
 /** Fetch aggregate stats across all projects. */

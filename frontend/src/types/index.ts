@@ -67,6 +67,8 @@ export interface DocumentListItem {
   owner: string | null;
   priority: string | null;
   story_points: number | null;
+  epic: string | null;
+  story: string | null;
   updated_at: string;
 }
 
@@ -119,11 +121,29 @@ export interface DocumentDetail {
   priority: string | null;
   story_points: number | null;
   epic: string | null;
+  story: string | null;
   metadata: Record<string, string> | null;
   content: string;
   file_path: string;
   file_hash: string;
   synced_at: string;
+}
+
+/** A related document item (parent or child). */
+export interface RelatedDocumentItem {
+  doc_id: string;
+  type: string;
+  title: string;
+  status: string | null;
+}
+
+/** Response from GET /projects/{slug}/documents/{type}/{docId}/related. */
+export interface DocumentRelationships {
+  doc_id: string;
+  type: string;
+  title: string;
+  parents: RelatedDocumentItem[];
+  children: RelatedDocumentItem[];
 }
 
 /** Single search result item. */

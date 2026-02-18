@@ -20,10 +20,17 @@ vi.mock("../api/client.ts", () => ({
   triggerSync: vi.fn(),
   fetchDocuments: vi.fn(),
   fetchDocument: vi.fn(),
+  fetchRelatedDocuments: vi.fn(),
+  fetchAggregateStats: vi.fn(),
+  fetchProjectStats: vi.fn(),
+  fetchSearchResults: vi.fn(),
 }));
 
-const { fetchDocument } = await import("../api/client.ts");
+const { fetchDocument, fetchRelatedDocuments } = await import(
+  "../api/client.ts"
+);
 const mockFetchDocument = vi.mocked(fetchDocument);
+const mockFetchRelated = vi.mocked(fetchRelatedDocuments);
 
 const sampleDocument: DocumentDetail = {
   doc_id: "US0001-register-project",
@@ -34,6 +41,7 @@ const sampleDocument: DocumentDetail = {
   priority: "P0",
   story_points: 5,
   epic: "EP0001",
+  story: null,
   metadata: { sprint: "Sprint 1", created: "2026-02-17" },
   content:
     "# US0001: Register a New Project\n\n> **Status:** Done\n\n## Description\n\nAs a developer, I want to register a project.\n\n- Item one\n- Item two\n",
@@ -42,7 +50,19 @@ const sampleDocument: DocumentDetail = {
   synced_at: "2026-02-17T10:30:00Z",
 };
 
+/** Default: related documents returns empty to avoid breaking existing tests. */
+function setupDefaultRelatedMock() {
+  mockFetchRelated.mockResolvedValue({
+    doc_id: "US0001-register-project",
+    type: "story",
+    title: "Register a New Project",
+    parents: [],
+    children: [],
+  });
+}
+
 function renderDocumentView(path = "/projects/testproject/documents/story/US0001-register-project") {
+  setupDefaultRelatedMock();
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -178,5 +198,166 @@ describe("TC0186: Loading state", () => {
     mockFetchDocument.mockReturnValue(new Promise(() => {})); // never resolves
     renderDocumentView();
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TC0372-TC0378: Relationship navigation (US0035)
+// ---------------------------------------------------------------------------
+
+const planDocument: DocumentDetail = {
+  doc_id: "PL0028-database-plan",
+  type: "plan",
+  title: "Database Plan",
+  status: "Done",
+  owner: "Darren",
+  priority: null,
+  story_points: null,
+  epic: "EP0007",
+  story: "US0028",
+  metadata: null,
+  content: "# PL0028: Database Plan\n\nPlan content.",
+  file_path: "plans/PL0028-database-plan.md",
+  file_hash: "f".repeat(64),
+  synced_at: "2026-02-18T12:00:00Z",
+};
+
+const planRelated = {
+  doc_id: "PL0028-database-plan",
+  type: "plan",
+  title: "Database Plan",
+  parents: [
+    { doc_id: "US0028-database-schema", type: "story", title: "Database Schema", status: "Done" },
+    { doc_id: "EP0007-git-repo-sync", type: "epic", title: "Git Repository Sync", status: "Done" },
+  ],
+  children: [],
+};
+
+const epicDocument: DocumentDetail = {
+  doc_id: "EP0007-git-repo-sync",
+  type: "epic",
+  title: "Git Repository Sync",
+  status: "Done",
+  owner: "Darren",
+  priority: null,
+  story_points: null,
+  epic: null,
+  story: null,
+  metadata: null,
+  content: "# EP0007\n\nEpic content.",
+  file_path: "epics/EP0007-git-repo-sync.md",
+  file_hash: "e".repeat(64),
+  synced_at: "2026-02-18T12:00:00Z",
+};
+
+const epicRelated = {
+  doc_id: "EP0007-git-repo-sync",
+  type: "epic",
+  title: "Git Repository Sync",
+  parents: [],
+  children: [
+    { doc_id: "US0028-database-schema", type: "story", title: "Database Schema", status: "Done" },
+    { doc_id: "US0029-github-api", type: "story", title: "GitHub API Source", status: "Done" },
+  ],
+};
+
+describe("TC0372: Hierarchy breadcrumbs for plan (3 levels)", () => {
+  it("shows ancestor chain in breadcrumbs", async () => {
+    mockFetchDocument.mockResolvedValueOnce(planDocument);
+    mockFetchRelated.mockResolvedValueOnce(planRelated);
+    renderDocumentView("/projects/testproject/documents/plan/PL0028-database-plan");
+    await waitFor(() => {
+      expect(screen.getByText("Database Plan")).toBeInTheDocument();
+    });
+    // Breadcrumbs should contain EP0007 and US0028
+    const nav = screen.getByRole("navigation");
+    expect(within(nav).getByText("EP0007")).toBeInTheDocument();
+    expect(within(nav).getByText("US0028")).toBeInTheDocument();
+  });
+});
+
+describe("TC0373: Breadcrumbs link to correct routes", () => {
+  it("ancestor links have correct href", async () => {
+    mockFetchDocument.mockResolvedValueOnce(planDocument);
+    mockFetchRelated.mockResolvedValueOnce(planRelated);
+    renderDocumentView("/projects/testproject/documents/plan/PL0028-database-plan");
+    await waitFor(() => {
+      expect(screen.getByText("Database Plan")).toBeInTheDocument();
+    });
+    const nav = screen.getByRole("navigation");
+    const epicLink = within(nav).getByText("EP0007").closest("a");
+    expect(epicLink).toHaveAttribute(
+      "href",
+      "/projects/testproject/documents/epic/EP0007-git-repo-sync",
+    );
+  });
+});
+
+describe("TC0374: Related panel shows parents", () => {
+  it("displays parent documents in sidebar", async () => {
+    mockFetchDocument.mockResolvedValueOnce(planDocument);
+    mockFetchRelated.mockResolvedValueOnce(planRelated);
+    renderDocumentView("/projects/testproject/documents/plan/PL0028-database-plan");
+    await waitFor(() => {
+      expect(screen.getByText("Relationships")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Parents")).toBeInTheDocument();
+    expect(screen.getByText("Database Schema")).toBeInTheDocument();
+    expect(screen.getByText("Git Repository Sync")).toBeInTheDocument();
+  });
+});
+
+describe("TC0375: Related panel shows children", () => {
+  it("displays child documents in sidebar", async () => {
+    mockFetchDocument.mockResolvedValueOnce(epicDocument);
+    mockFetchRelated.mockResolvedValueOnce(epicRelated);
+    renderDocumentView("/projects/testproject/documents/epic/EP0007-git-repo-sync");
+    await waitFor(() => {
+      expect(screen.getByText("Relationships")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Children")).toBeInTheDocument();
+    expect(screen.getByText("Database Schema")).toBeInTheDocument();
+    expect(screen.getByText("GitHub API Source")).toBeInTheDocument();
+  });
+});
+
+describe("TC0376: No relationships panel when empty", () => {
+  it("hides relationships panel when no parents or children", async () => {
+    mockFetchDocument.mockResolvedValueOnce(sampleDocument);
+    // Default mock returns empty parents/children
+    renderDocumentView();
+    await waitFor(() => {
+      expect(screen.getByText("Register a New Project")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Relationships")).not.toBeInTheDocument();
+  });
+});
+
+describe("TC0377: Fallback when relationships API fails", () => {
+  it("still renders document when related API fails", async () => {
+    mockFetchDocument.mockResolvedValueOnce(sampleDocument);
+    mockFetchRelated.mockRejectedValueOnce(new Error("Network error"));
+    renderDocumentView();
+    await waitFor(() => {
+      expect(screen.getByText("Register a New Project")).toBeInTheDocument();
+    });
+    // Generic breadcrumbs shown (no ancestors)
+    const nav = screen.getByRole("navigation");
+    expect(within(nav).getByText("Project")).toBeInTheDocument();
+    expect(within(nav).getByText("Documents")).toBeInTheDocument();
+  });
+});
+
+describe("TC0378: Story field shown in properties sidebar", () => {
+  it("displays story value in sidebar when present", async () => {
+    mockFetchDocument.mockResolvedValueOnce(planDocument);
+    mockFetchRelated.mockResolvedValueOnce(planRelated);
+    renderDocumentView("/projects/testproject/documents/plan/PL0028-database-plan");
+    await waitFor(() => {
+      expect(screen.getByText("Database Plan")).toBeInTheDocument();
+    });
+    const sidebar = screen.getByText("Properties").closest("div")!;
+    expect(within(sidebar).getByText("Story")).toBeInTheDocument();
+    expect(within(sidebar).getByText("US0028")).toBeInTheDocument();
   });
 });

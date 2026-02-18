@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router";
 import { Layout } from "./components/Layout.tsx";
 import { Dashboard } from "./pages/Dashboard.tsx";
 import { DocumentList } from "./pages/DocumentList.tsx";
+import { DocumentTree } from "./pages/DocumentTree.tsx";
 import { DocumentView } from "./pages/DocumentView.tsx";
 import { ProjectDetail } from "./pages/ProjectDetail.tsx";
 import { SearchResults } from "./pages/SearchResults.tsx";
@@ -25,6 +26,7 @@ export function App() {
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="projects/:slug" element={<ProjectDetail />} />
+        <Route path="projects/:slug/tree" element={<DocumentTree />} />
         <Route
           path="projects/:slug/documents"
           element={<DocumentList />}

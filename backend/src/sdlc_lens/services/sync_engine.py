@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -44,8 +45,31 @@ class SyncResult:
 
 # Standard metadata fields stored as dedicated columns
 _STANDARD_FIELDS = frozenset(
-    {"status", "owner", "priority", "story_points", "epic"}
+    {"status", "owner", "priority", "story_points", "epic", "story"}
 )
+
+# Matches the document ID at the start of a markdown link text.
+# e.g. "[EP0007: Git Repository Sync](../epics/...)" captures "EP0007"
+# e.g. "[US0028](../stories/...)" captures "US0028"
+_MD_LINK_ID_RE = re.compile(r"^\[([A-Z]{2}\d{4})")
+
+
+def extract_doc_id(value: str | None) -> str | None:
+    """Extract a clean document ID from a markdown link or plain text.
+
+    Handles values like:
+      - ``[EP0007: Git Repository Sync](../epics/EP0007-...md)`` → ``EP0007``
+      - ``[US0028](../stories/US0028-...md)`` → ``US0028``
+      - ``EP0007`` → ``EP0007`` (returned unchanged)
+      - ``None`` or ``""`` → ``None``
+    """
+    if not value or not value.strip():
+        return None
+    stripped = value.strip()
+    match = _MD_LINK_ID_RE.match(stripped)
+    if match:
+        return match.group(1)
+    return stripped
 
 
 def _walk_md_files(root: Path) -> list[Path]:
@@ -148,7 +172,8 @@ def _build_doc_attrs(
         "owner": parsed_meta.get("owner"),
         "priority": parsed_meta.get("priority"),
         "story_points": parsed_meta.get("story_points"),
-        "epic": parsed_meta.get("epic"),
+        "epic": extract_doc_id(parsed_meta.get("epic")),
+        "story": extract_doc_id(parsed_meta.get("story")),
         "metadata_json": json.dumps(extra) if extra else None,
         "content": parsed_body,
         "file_path": file_path,

@@ -1,7 +1,7 @@
 # Test Strategy Document
 
 > **Project:** SDLC Studio Lens
-> **Version:** 1.1.0
+> **Version:** 1.2.0
 > **Last Updated:** 2026-02-18
 > **Owner:** Darren
 
@@ -9,7 +9,7 @@
 
 ## Overview
 
-This test strategy defines the approach for validating SDLC Studio Lens, a read-only web dashboard for browsing and searching sdlc-studio documents. The architecture consists of a FastAPI backend with SQLite/FTS5 storage that also serves the built React SPA frontend. Documents can be synced from local filesystem paths or from GitHub repositories via the GitHub API.
+This test strategy defines the approach for validating SDLC Studio Lens, a read-only web dashboard for browsing and searching sdlc-studio documents. The architecture consists of a FastAPI backend with SQLite/FTS5 storage that also serves the built React SPA frontend. Documents can be synced from local filesystem paths or from GitHub repositories via the GitHub API. Document relationships (parent/child hierarchy) are extracted from frontmatter links and exposed via API for navigation.
 
 Given the project's three main concerns - document parsing/sync, GitHub repository integration, and web dashboard presentation - the strategy emphasises thorough unit testing of the parser and sync services, mocked HTTP tests for GitHub API interactions, API integration tests with a real SQLite database, and E2E tests for critical user flows.
 
@@ -25,6 +25,9 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 - Ensure the frontend renders documents, charts, and navigation correctly
 - Validate GitHub API integration (mocked httpx) correctly fetches repository contents and handles errors
 - Verify source type dispatch routes sync to the correct provider (filesystem or GitHub)
+- Validate document relationship extraction parses clean IDs from frontmatter markdown links
+- Verify relationships API returns correct parent chain and child documents
+- Confirm breadcrumb navigation and tree view render hierarchy accurately
 - Verify Docker deployment serves frontend and API correctly from a single container
 
 ## Scope
@@ -36,6 +39,9 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 - Filesystem sync service (add, update, delete, skip behaviour)
 - GitHub repository sync service (mocked httpx for API calls, content fetching, error handling)
 - Source type dispatch (routing sync to filesystem or GitHub provider)
+- Document relationship extraction (frontmatter link parsing, clean ID storage)
+- Relationships API (parent chain, child documents, tree endpoint)
+- Frontend navigation components (breadcrumbs, related docs panel, tree view)
 - FTS5 search functionality
 - Statistics aggregation
 - React frontend (components, pages, API client)
@@ -120,6 +126,23 @@ The testing approach follows the **test pyramid** principle: many fast unit test
 - Calculate completion percentage (Done / Total stories)
 - Handle projects with zero documents
 - Aggregate statistics across multiple projects
+
+#### Relationship Extraction Tests
+- Extract clean ID from `[EP0007: Title](path)` markdown link format
+- Extract clean ID from `[US0028: Title](path)` markdown link format
+- Handle plain text references (no markdown link)
+- Handle missing or empty references gracefully
+- Extract story reference from plan frontmatter
+- Extract story reference from test-spec frontmatter
+- Extract epic reference from story frontmatter
+
+#### Relationship API Tests
+- GET /related returns parent epic for a story
+- GET /related returns child stories for an epic
+- GET /related returns child plans and test-specs for a story
+- GET /related returns parent chain (story → epic) for a plan
+- GET /related returns empty for top-level documents (PRD, TRD, TSD)
+- GET /tree returns full hierarchy for a project
 
 ### Integration Testing
 
@@ -286,6 +309,14 @@ class TestDocumentResponseContract:
 - fetchStats returns statistics
 - search handles query and filters
 - API client handles error responses
+
+#### Relationship Navigation Tests
+- Breadcrumb renders correct hierarchy path
+- Breadcrumb links navigate to parent documents
+- Related documents panel shows children
+- Related documents panel shows parent
+- Tree view renders expandable hierarchy
+- Tree view nodes are clickable
 
 #### Page Tests
 - Dashboard renders project cards
@@ -521,3 +552,4 @@ e2e/
 | 2026-02-17 | Darren | Initial TSD created |
 | 2026-02-18 | Claude | Updated for single-container Docker architecture |
 | 2026-02-18 | Claude | Updated for EP0007 GitHub Repository Sync |
+| 2026-02-18 | Claude | Updated for EP0008 Document Relationship Navigation |

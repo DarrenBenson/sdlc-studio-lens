@@ -8,8 +8,8 @@
 |--------|-------|
 | Draft | 0 |
 | Ready | 0 |
-| Complete | 27 |
-| **Total** | **27** |
+| Complete | 36 |
+| **Total** | **36** |
 
 ## Test Specs
 
@@ -42,6 +42,15 @@
 | [TS0025](TS0025-frontend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0025 | 8 | Complete | 2026-02-17 |
 | [TS0026](TS0026-docker-compose-orchestration.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0026 | 9 | Complete | 2026-02-17 |
 | [TS0027](TS0027-nginx-reverse-proxy-config.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0027 | 8 | Complete | 2026-02-17 |
+| [TS0028](TS0028-database-schema-github-source.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0028 | 10 | Complete | 2026-02-18 |
+| [TS0029](TS0029-github-api-source-module.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0029 | 12 | Complete | 2026-02-18 |
+| [TS0030](TS0030-sync-engine-source-dispatch.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0030 | 10 | Complete | 2026-02-18 |
+| [TS0031](TS0031-api-schema-source-type.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0031 | 12 | Complete | 2026-02-18 |
+| [TS0032](TS0032-frontend-source-type-ui.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0032 | 10 | Complete | 2026-02-18 |
+| [TS0033](TS0033-relationship-data-extraction.md) | [EP0008](../epics/EP0008-document-relationship-navigation.md) | US0033 | 15 | Complete | 2026-02-18 |
+| [TS0034](TS0034-relationships-api.md) | [EP0008](../epics/EP0008-document-relationship-navigation.md) | US0034 | 14 | Complete | 2026-02-18 |
+| [TS0035](TS0035-document-view-navigation.md) | [EP0008](../epics/EP0008-document-relationship-navigation.md) | US0035 | 7 | Complete | 2026-02-18 |
+| [TS0036](TS0036-document-tree-view.md) | [EP0008](../epics/EP0008-document-relationship-navigation.md) | US0036 | 11 | Complete | 2026-02-18 |
 
 ## Notes
 

@@ -1,6 +1,6 @@
 # Story Registry
 
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-18
 **Personas Reference:** [User Personas](../personas.md)
 
 ## Summary
@@ -12,8 +12,9 @@
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 27 |
-| **Total** | **27** |
+| Done | 36 |
+| Not Started | 0 |
+| **Total** | **36** |
 
 ## Stories by Epic
 
@@ -74,6 +75,25 @@
 | [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | Done | TBD | Darren |
 | [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Done | TBD | Darren |
 
+### [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
+
+| ID | Title | Status | Points | Owner |
+|----|-------|--------|--------|-------|
+| [US0028](US0028-database-github-fields.md) | Database Schema - GitHub Source | Done | TBD | Darren |
+| [US0029](US0029-github-api-source-module.md) | GitHub API Source Module | Done | TBD | Darren |
+| [US0030](US0030-sync-engine-source-dispatch.md) | Sync Engine Source Dispatch | Done | TBD | Darren |
+| [US0031](US0031-api-schema-source-type.md) | API Schema Updates | Done | TBD | Darren |
+| [US0032](US0032-frontend-source-type-ui.md) | Frontend Source Type UI | Done | TBD | Darren |
+
+### [EP0008: Document Relationship Navigation](../epics/EP0008-document-relationship-navigation.md)
+
+| ID | Title | Status | Points | Owner |
+|----|-------|--------|--------|-------|
+| [US0033](US0033-relationship-data-extraction.md) | Relationship Data Extraction | Done | 3 | Darren |
+| [US0034](US0034-relationships-api.md) | Relationships API | Done | 5 | Darren |
+| [US0035](US0035-document-view-navigation.md) | Document View Navigation | Done | 5 | Darren |
+| [US0036](US0036-document-tree-view.md) | Document Tree View | Done | 3 | Darren |
+
 ## All Stories
 
 | ID | Title | Epic | Status | Points | Persona |
@@ -105,6 +125,15 @@
 | [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
 | [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
 | [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
+| [US0028](US0028-database-github-fields.md) | Database Schema - GitHub Source | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
+| [US0029](US0029-github-api-source-module.md) | GitHub API Source Module | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
+| [US0030](US0030-sync-engine-source-dispatch.md) | Sync Engine Source Dispatch | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
+| [US0031](US0031-api-schema-source-type.md) | API Schema Updates | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
+| [US0032](US0032-frontend-source-type-ui.md) | Frontend Source Type UI | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
+| [US0033](US0033-relationship-data-extraction.md) | Relationship Data Extraction | [EP0008](../epics/EP0008-document-relationship-navigation.md) | Done | 3 | Darren |
+| [US0034](US0034-relationships-api.md) | Relationships API | [EP0008](../epics/EP0008-document-relationship-navigation.md) | Done | 5 | Darren |
+| [US0035](US0035-document-view-navigation.md) | Document View Navigation | [EP0008](../epics/EP0008-document-relationship-navigation.md) | Done | 5 | Darren |
+| [US0036](US0036-document-tree-view.md) | Document Tree View | [EP0008](../epics/EP0008-document-relationship-navigation.md) | Done | 3 | Darren |
 
 ## Notes
 

@@ -1,7 +1,7 @@
 # Technical Requirements Document
 
 **Project:** SDLC Studio Lens
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Status:** Draft
 **Last Updated:** 2026-02-18
 **PRD Reference:** [PRD](prd.md)
@@ -21,6 +21,7 @@ This Technical Requirements Document describes the architecture, technology stac
 - Blockquote frontmatter markdown parser
 - Filesystem sync service with change detection
 - GitHub repository sync via REST API (Trees + Blobs)
+- Document relationship navigation (hierarchy extraction, breadcrumbs, tree view)
 - Full-text search via SQLite FTS5
 - Single-container Docker deployment
 - Multi-project support
@@ -127,6 +128,7 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 | Sync Service | Walk filesystem, detect changes, parse documents | Python (pathlib, hashlib) |
 | GitHub Source | Fetch .md files from GitHub repos via REST API (Trees + Blobs) | Python (httpx AsyncClient) |
 | Parser | Extract blockquote frontmatter from markdown | Python (regex-based) |
+| Relationship Resolver | Extract parent IDs from frontmatter links, build hierarchy | Python (regex, SQL queries) |
 | Database | Document storage, metadata, full-text search | SQLite + FTS5 |
 
 ---
@@ -220,6 +222,8 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 |--------|------|-------------|------|
 | GET | `/api/v1/projects/{slug}/documents` | List documents with filtering | No |
 | GET | `/api/v1/projects/{slug}/documents/{type}/{doc_id}` | Get single document with content | No |
+| GET | `/api/v1/projects/{slug}/documents/{type}/{doc_id}/related` | Get parent chain and child documents | No |
+| GET | `/api/v1/projects/{slug}/tree` | Get document hierarchy tree for a project | No |
 
 **Query Parameters for Document List:**
 
@@ -472,7 +476,8 @@ Standard error codes:
 | owner | TEXT | NULLABLE | Owner from frontmatter |
 | priority | TEXT | NULLABLE | Priority from frontmatter (P0, P1, P2, P3) |
 | story_points | INTEGER | NULLABLE | Story points from frontmatter |
-| epic | TEXT | NULLABLE | Parent epic ID from frontmatter |
+| epic | TEXT | NULLABLE, INDEXED | Parent epic ID extracted from frontmatter link (clean ID, e.g., "EP0007") |
+| story | TEXT | NULLABLE, INDEXED | Parent story ID extracted from frontmatter link (clean ID, e.g., "US0028") |
 | metadata | TEXT | NULLABLE | Additional frontmatter as JSON |
 | content | TEXT | NOT NULL | Raw markdown content |
 | file_path | TEXT | NOT NULL | Relative path within sdlc-studio directory |
@@ -498,6 +503,8 @@ CREATE VIRTUAL TABLE documents_fts USING fts5(
 ```
 projects 1──▶ N documents
 documents ──▶ documents_fts (FTS5 shadow table)
+documents.epic ──▶ documents.doc_id (parent epic lookup)
+documents.story ──▶ documents.doc_id (parent story lookup)
 ```
 
 ### Storage Strategy
@@ -760,6 +767,7 @@ Vertical only. Single instance of each container. SQLite does not support concur
 | `/projects/:slug/documents` | DocumentList | Filterable document list |
 | `/projects/:slug/documents/:type/:docId` | DocumentView | Rendered markdown with metadata sidebar |
 | `/search` | SearchResults | Cross-project search results |
+| `/projects/:slug/tree` | DocumentTree | Hierarchical tree view of project documents |
 | `/settings` | Settings | Project management (add, edit, remove) |
 
 ### Colour System
@@ -897,3 +905,4 @@ frontend/
 | 2026-02-17 | 1.0.4 | Updated §14 UI/UX to reference brand-guide.md as authoritative source; updated colour tokens to match brand guide (lime green palette) |
 | 2026-02-18 | 1.0.5 | Architecture changed from two-container to single-container deployment; updated diagram, component overview, deployment topology, Docker images, ADR-005; removed nginx from infrastructure services |
 | 2026-02-18 | 1.1.0 | EP0007 Git Repository Sync: added GitHub REST API source (Trees + Blobs); new Project columns (source_type, repo_url, repo_branch, repo_path, access_token); sdlc_path now nullable; new services/github_source.py module; httpx runtime dependency; updated API schemas with conditional validation |
+| 2026-02-18 | 1.2.0 | EP0008 Document Relationship Navigation: added story column to Document model; relationship resolver service; /related and /tree API endpoints; breadcrumb and tree view UI components; indexed epic and story columns for efficient hierarchy queries |

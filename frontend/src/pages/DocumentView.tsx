@@ -4,10 +4,35 @@ import { Link, useParams } from "react-router";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
-import { fetchDocument } from "../api/client.ts";
+import { fetchDocument, fetchRelatedDocuments } from "../api/client.ts";
 import { StatusBadge } from "../components/StatusBadge.tsx";
 import { TypeBadge } from "../components/TypeBadge.tsx";
-import type { DocumentDetail } from "../types/index.ts";
+import type {
+  DocumentDetail,
+  DocumentRelationships,
+  RelatedDocumentItem,
+} from "../types/index.ts";
+
+function RelatedDocLink({
+  item,
+  slug,
+}: {
+  item: RelatedDocumentItem;
+  slug: string;
+}): React.JSX.Element {
+  return (
+    <Link
+      to={`/projects/${slug}/documents/${item.type}/${item.doc_id}`}
+      className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-bg-elevated"
+    >
+      <TypeBadge type={item.type} />
+      <span className="min-w-0 flex-1 truncate text-text-primary">
+        {item.title}
+      </span>
+      {item.status && <StatusBadge status={item.status} />}
+    </Link>
+  );
+}
 
 export function DocumentView(): React.JSX.Element {
   const { slug, type, docId } = useParams<{
@@ -17,6 +42,7 @@ export function DocumentView(): React.JSX.Element {
   }>();
 
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
+  const [related, setRelated] = useState<DocumentRelationships | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,8 +50,16 @@ export function DocumentView(): React.JSX.Element {
     if (!slug || !type || !docId) return;
     setLoading(true);
     setError(null);
-    fetchDocument(slug, type, docId)
-      .then(setDoc)
+    setRelated(null);
+
+    Promise.all([
+      fetchDocument(slug, type, docId),
+      fetchRelatedDocuments(slug, type, docId).catch(() => null),
+    ])
+      .then(([docData, relData]) => {
+        setDoc(docData);
+        setRelated(relData);
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Unknown error");
       })
@@ -61,6 +95,13 @@ export function DocumentView(): React.JSX.Element {
     year: "numeric",
   });
 
+  // Build breadcrumb ancestors (furthest first for display)
+  const ancestors = related?.parents ? [...related.parents].reverse() : [];
+
+  const hasParents = related !== null && related.parents.length > 0;
+  const hasChildren = related !== null && related.children.length > 0;
+  const hasRelationships = hasParents || hasChildren;
+
   return (
     <div className="flex gap-6">
       {/* Main content */}
@@ -70,9 +111,23 @@ export function DocumentView(): React.JSX.Element {
             Project
           </Link>
           <span>/</span>
-          <Link to={`/projects/${slug}/documents`} className="hover:text-accent">
+          <Link
+            to={`/projects/${slug}/documents`}
+            className="hover:text-accent"
+          >
             Documents
           </Link>
+          {ancestors.map((parent) => (
+            <span key={parent.doc_id} className="flex items-center gap-1">
+              <span>/</span>
+              <Link
+                to={`/projects/${slug}/documents/${parent.type}/${parent.doc_id}`}
+                className="hover:text-accent"
+              >
+                {parent.doc_id.split("-")[0]}
+              </Link>
+            </span>
+          ))}
         </nav>
 
         <h1 className="font-display text-2xl font-bold text-text-primary">
@@ -88,7 +143,10 @@ export function DocumentView(): React.JSX.Element {
 
         {/* Markdown content */}
         <article className="prose prose-invert mt-6 max-w-none">
-          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+          >
             {doc.content}
           </Markdown>
         </article>
@@ -137,6 +195,13 @@ export function DocumentView(): React.JSX.Element {
               </div>
             )}
 
+            {doc.story && (
+              <div>
+                <dt className="text-text-tertiary">Story</dt>
+                <dd className="text-text-primary">{doc.story}</dd>
+              </div>
+            )}
+
             {doc.metadata &&
               Object.entries(doc.metadata).map(([key, value]) => (
                 <div key={key}>
@@ -146,6 +211,41 @@ export function DocumentView(): React.JSX.Element {
               ))}
           </dl>
         </div>
+
+        {/* Relationships panel */}
+        {hasRelationships && (
+          <div className="mt-4 rounded-lg border border-border-default bg-bg-surface p-4">
+            <h3 className="mb-3 font-display text-sm font-semibold text-text-primary">
+              Relationships
+            </h3>
+
+            {hasParents && (
+              <div className="mb-3">
+                <h4 className="mb-1 text-xs font-medium text-text-tertiary">
+                  Parents
+                </h4>
+                <div className="-mx-2 space-y-0.5">
+                  {related!.parents.map((p) => (
+                    <RelatedDocLink key={p.doc_id} item={p} slug={slug!} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasChildren && (
+              <div>
+                <h4 className="mb-1 text-xs font-medium text-text-tertiary">
+                  Children
+                </h4>
+                <div className="-mx-2 space-y-0.5">
+                  {related!.children.map((c) => (
+                    <RelatedDocLink key={c.doc_id} item={c} slug={slug!} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </aside>
     </div>
   );

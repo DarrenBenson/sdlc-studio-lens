@@ -129,6 +129,20 @@ export function ProjectDetail() {
           <p className="text-sm text-text-secondary mt-1">
             {stats.total_documents} documents
           </p>
+          <div className="mt-2 flex gap-3">
+            <Link
+              to={`/projects/${slug}/documents`}
+              className="text-sm text-accent hover:text-accent-hover"
+            >
+              Document List
+            </Link>
+            <Link
+              to={`/projects/${slug}/tree`}
+              className="text-sm text-accent hover:text-accent-hover"
+            >
+              Tree View
+            </Link>
+          </div>
         </div>
       </div>
 

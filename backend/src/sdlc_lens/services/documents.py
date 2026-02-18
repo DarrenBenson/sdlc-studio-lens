@@ -1,11 +1,13 @@
 """Document service - business logic for document queries."""
 
-import math
+import re
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sdlc_lens.db.models.document import Document
+
+_DOC_PREFIX_RE = re.compile(r"^([A-Z]{2}\d{4})")
 
 
 async def list_documents(
@@ -91,3 +93,103 @@ async def get_document(
     if doc is None:
         raise DocumentNotFoundError
     return doc
+
+
+def _extract_doc_prefix(doc_id: str) -> str | None:
+    """Extract clean prefix from a doc_id (e.g. 'EP0007' from 'EP0007-git-repo-sync')."""
+    match = _DOC_PREFIX_RE.match(doc_id)
+    return match.group(1) if match else None
+
+
+async def _find_doc_by_clean_id(
+    session: AsyncSession,
+    project_id: int,
+    clean_id: str,
+) -> Document | None:
+    """Find a document by its clean ID prefix (e.g. EP0007)."""
+    stmt = (
+        select(Document)
+        .where(
+            Document.project_id == project_id,
+            Document.doc_id.like(f"{clean_id}%"),
+        )
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_related_documents(
+    session: AsyncSession,
+    project_id: int,
+    doc: Document,
+) -> tuple[list[Document], list[Document]]:
+    """Get parent chain and children for a document.
+
+    Returns (parents, children) where parents are ordered nearest ancestor first.
+    """
+    parents = await _get_parent_chain(session, project_id, doc)
+    children = await _get_children(session, project_id, doc)
+    return parents, children
+
+
+async def _get_parent_chain(
+    session: AsyncSession,
+    project_id: int,
+    doc: Document,
+) -> list[Document]:
+    """Walk up the hierarchy using epic/story columns."""
+    parents: list[Document] = []
+
+    if doc.story:
+        story_doc = await _find_doc_by_clean_id(session, project_id, doc.story)
+        if story_doc:
+            parents.append(story_doc)
+            if story_doc.epic:
+                epic_doc = await _find_doc_by_clean_id(
+                    session, project_id, story_doc.epic
+                )
+                if epic_doc:
+                    parents.append(epic_doc)
+    elif doc.epic:
+        epic_doc = await _find_doc_by_clean_id(session, project_id, doc.epic)
+        if epic_doc:
+            parents.append(epic_doc)
+
+    return parents
+
+
+async def _get_children(
+    session: AsyncSession,
+    project_id: int,
+    doc: Document,
+) -> list[Document]:
+    """Find documents that reference this doc as their parent."""
+    prefix = _extract_doc_prefix(doc.doc_id)
+    if not prefix:
+        return []
+
+    if doc.doc_type == "epic":
+        stmt = (
+            select(Document)
+            .where(
+                Document.project_id == project_id,
+                Document.epic == prefix,
+                Document.story.is_(None),
+            )
+            .order_by(Document.doc_type, Document.doc_id)
+        )
+    elif doc.doc_type == "story":
+        stmt = (
+            select(Document)
+            .where(
+                Document.project_id == project_id,
+                Document.story == prefix,
+            )
+            .order_by(Document.doc_type, Document.doc_id)
+        )
+    else:
+        return []
+
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
