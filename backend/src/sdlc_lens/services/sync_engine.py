@@ -53,6 +53,10 @@ _STANDARD_FIELDS = frozenset(
 # e.g. "[US0028](../stories/...)" captures "US0028"
 _MD_LINK_ID_RE = re.compile(r"^\[([A-Z]{2}\d{4})")
 
+# Matches a clean document ID prefix in plain text.
+# e.g. "EP0007" or "US0163: Container Service Status" captures the ID prefix.
+_PLAIN_ID_RE = re.compile(r"^([A-Z]{2}\d{4})\b")
+
 
 def extract_doc_id(value: str | None) -> str | None:
     """Extract a clean document ID from a markdown link or plain text.
@@ -60,6 +64,7 @@ def extract_doc_id(value: str | None) -> str | None:
     Handles values like:
       - ``[EP0007: Git Repository Sync](../epics/EP0007-...md)`` → ``EP0007``
       - ``[US0028](../stories/US0028-...md)`` → ``US0028``
+      - ``US0163: Container Service Status`` → ``US0163``
       - ``EP0007`` → ``EP0007`` (returned unchanged)
       - ``None`` or ``""`` → ``None``
     """
@@ -67,6 +72,9 @@ def extract_doc_id(value: str | None) -> str | None:
         return None
     stripped = value.strip()
     match = _MD_LINK_ID_RE.match(stripped)
+    if match:
+        return match.group(1)
+    match = _PLAIN_ID_RE.match(stripped)
     if match:
         return match.group(1)
     return stripped

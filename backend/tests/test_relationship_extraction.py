@@ -85,6 +85,13 @@ class TestExtractDocId:
     def test_plain_id_with_whitespace(self) -> None:
         assert extract_doc_id("  EP0007  ") == "EP0007"
 
+    def test_plain_text_with_title(self) -> None:
+        # Plain text like "US0163: Container Service Status"
+        assert extract_doc_id("US0163: Container Service Status") == "US0163"
+
+    def test_plain_text_epic_with_title(self) -> None:
+        assert extract_doc_id("EP0012: Docker Management") == "EP0012"
+
 
 # ---------------------------------------------------------------------------
 # TC0349: _STANDARD_FIELDS includes "story"
