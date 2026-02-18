@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { fetchDocuments } from "../api/client.ts";
+import { fetchAllDocuments } from "../api/client.ts";
 import { StatusBadge } from "../components/StatusBadge.tsx";
 import { TypeBadge } from "../components/TypeBadge.tsx";
 import type { DocumentListItem } from "../types/index.ts";
@@ -184,15 +184,20 @@ export function DocumentTree(): React.JSX.Element {
     if (!slug) return;
     setLoading(true);
     setError(null);
-    fetchDocuments(slug, { per_page: "500" })
-      .then((data) => {
-        const roots = buildTree(data.items);
+    fetchAllDocuments(slug)
+      .then((items) => {
+        const roots = buildTree(items);
         setTree(roots);
-        // Default expand: root nodes + their immediate children (epics)
+        // Default expand: root nodes and epics (first two levels)
         const defaultExpanded = new Set<string>();
         for (const root of roots) {
           if (root.children.length > 0) {
             defaultExpanded.add(root.doc_id);
+            for (const child of root.children) {
+              if (child.children.length > 0) {
+                defaultExpanded.add(child.doc_id);
+              }
+            }
           }
         }
         setExpanded(defaultExpanded);
@@ -247,9 +252,39 @@ export function DocumentTree(): React.JSX.Element {
         <span className="text-text-primary">Tree View</span>
       </nav>
 
-      <h1 className="mb-4 font-display text-2xl font-bold text-text-primary">
-        Document Hierarchy
-      </h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="font-display text-2xl font-bold text-text-primary">
+          Document Hierarchy
+        </h1>
+        {tree.length > 0 && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                const all = new Set<string>();
+                const collect = (nodes: TreeNode[]) => {
+                  for (const n of nodes) {
+                    if (n.children.length > 0) {
+                      all.add(n.doc_id);
+                      collect(n.children);
+                    }
+                  }
+                };
+                collect(tree);
+                setExpanded(all);
+              }}
+              className="rounded border border-border-default px-3 py-1 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
+            >
+              Expand all
+            </button>
+            <button
+              onClick={() => setExpanded(new Set())}
+              className="rounded border border-border-default px-3 py-1 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
+            >
+              Collapse all
+            </button>
+          </div>
+        )}
+      </div>
 
       {tree.length === 0 ? (
         <div className="rounded-lg border border-border-default bg-bg-surface p-6 text-center text-text-secondary">

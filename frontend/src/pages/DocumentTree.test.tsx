@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-import type { DocumentListItem, PaginatedDocuments } from "../types/index.ts";
+import type { DocumentListItem } from "../types/index.ts";
 import { buildTree, DocumentTree } from "./DocumentTree.tsx";
 
 vi.mock("../api/client.ts", () => ({
@@ -20,6 +20,7 @@ vi.mock("../api/client.ts", () => ({
   deleteProject: vi.fn(),
   triggerSync: vi.fn(),
   fetchDocuments: vi.fn(),
+  fetchAllDocuments: vi.fn(),
   fetchDocument: vi.fn(),
   fetchRelatedDocuments: vi.fn(),
   fetchAggregateStats: vi.fn(),
@@ -27,8 +28,8 @@ vi.mock("../api/client.ts", () => ({
   fetchSearchResults: vi.fn(),
 }));
 
-const { fetchDocuments } = await import("../api/client.ts");
-const mockFetchDocuments = vi.mocked(fetchDocuments);
+const { fetchAllDocuments } = await import("../api/client.ts");
+const mockFetchAllDocuments = vi.mocked(fetchAllDocuments);
 
 const now = "2026-02-18T12:00:00Z";
 
@@ -56,14 +57,6 @@ const hierarchyDocs: DocumentListItem[] = [
   makeDoc({ doc_id: "TS0001-register-tests", type: "test-spec", title: "Register Tests", story: "US0001", epic: "EP0001" }),
   makeDoc({ doc_id: "US0003-sync-story", type: "story", title: "Sync Story", epic: "EP0002" }),
 ];
-
-const paginatedResponse: PaginatedDocuments = {
-  items: hierarchyDocs,
-  total: hierarchyDocs.length,
-  page: 1,
-  per_page: 500,
-  pages: 1,
-};
 
 function renderTree(path = "/projects/testproject/tree") {
   return render(
@@ -136,7 +129,7 @@ describe("TC0380: Orphan documents at root", () => {
 
 describe("TC0381: Page renders at correct route", () => {
   it("renders tree view page", async () => {
-    mockFetchDocuments.mockResolvedValueOnce(paginatedResponse);
+    mockFetchAllDocuments.mockResolvedValueOnce(hierarchyDocs);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("Document Hierarchy")).toBeInTheDocument();
@@ -150,7 +143,7 @@ describe("TC0381: Page renders at correct route", () => {
 
 describe("TC0382: Type badges on nodes", () => {
   it("shows type badges for each node", async () => {
-    mockFetchDocuments.mockResolvedValueOnce(paginatedResponse);
+    mockFetchAllDocuments.mockResolvedValueOnce(hierarchyDocs);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("Document Hierarchy")).toBeInTheDocument();
@@ -167,7 +160,7 @@ describe("TC0382: Type badges on nodes", () => {
 
 describe("TC0383: Status badges on nodes", () => {
   it("shows status badges", async () => {
-    mockFetchDocuments.mockResolvedValueOnce(paginatedResponse);
+    mockFetchAllDocuments.mockResolvedValueOnce(hierarchyDocs);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("Document Hierarchy")).toBeInTheDocument();
@@ -184,7 +177,7 @@ describe("TC0383: Status badges on nodes", () => {
 
 describe("TC0384: Document title links", () => {
   it("links to document view page", async () => {
-    mockFetchDocuments.mockResolvedValueOnce(paginatedResponse);
+    mockFetchAllDocuments.mockResolvedValueOnce(hierarchyDocs);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("Product Requirements")).toBeInTheDocument();
@@ -203,7 +196,7 @@ describe("TC0384: Document title links", () => {
 
 describe("TC0385: Expand/collapse", () => {
   it("collapses an expanded node on click", async () => {
-    mockFetchDocuments.mockResolvedValueOnce(paginatedResponse);
+    mockFetchAllDocuments.mockResolvedValueOnce(hierarchyDocs);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("Project Management")).toBeInTheDocument();
@@ -229,13 +222,7 @@ describe("TC0385: Expand/collapse", () => {
 
 describe("TC0386: Empty project", () => {
   it("shows empty state message", async () => {
-    mockFetchDocuments.mockResolvedValueOnce({
-      items: [],
-      total: 0,
-      page: 1,
-      per_page: 500,
-      pages: 0,
-    });
+    mockFetchAllDocuments.mockResolvedValueOnce([]);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("No documents synced yet.")).toBeInTheDocument();
@@ -249,7 +236,7 @@ describe("TC0386: Empty project", () => {
 
 describe("TC0387: Loading state", () => {
   it("shows loading indicator initially", () => {
-    mockFetchDocuments.mockReturnValue(new Promise(() => {}));
+    mockFetchAllDocuments.mockReturnValue(new Promise(() => {}));
     renderTree();
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
@@ -261,7 +248,7 @@ describe("TC0387: Loading state", () => {
 
 describe("TC0388: Error state", () => {
   it("shows error message on fetch failure", async () => {
-    mockFetchDocuments.mockRejectedValueOnce(new Error("Network error"));
+    mockFetchAllDocuments.mockRejectedValueOnce(new Error("Network error"));
     renderTree();
     await waitFor(() => {
       expect(screen.getByText(/error/i)).toBeInTheDocument();
@@ -275,7 +262,7 @@ describe("TC0388: Error state", () => {
 
 describe("TC0389: Breadcrumb navigation", () => {
   it("shows Project / Tree View breadcrumb", async () => {
-    mockFetchDocuments.mockResolvedValueOnce(paginatedResponse);
+    mockFetchAllDocuments.mockResolvedValueOnce(hierarchyDocs);
     renderTree();
     await waitFor(() => {
       expect(screen.getByText("Document Hierarchy")).toBeInTheDocument();

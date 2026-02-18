@@ -2,6 +2,7 @@ import type {
   AggregateStats,
   ApiError,
   DocumentDetail,
+  DocumentListItem,
   DocumentRelationships,
   PaginatedDocuments,
   Project,
@@ -89,6 +90,25 @@ export async function fetchDocuments(
     throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<PaginatedDocuments>;
+}
+
+/** Fetch ALL documents for a project (paginating automatically). */
+export async function fetchAllDocuments(
+  slug: string,
+): Promise<DocumentListItem[]> {
+  const allItems: DocumentListItem[] = [];
+  let page = 1;
+  let pages = 1;
+  do {
+    const data = await fetchDocuments(slug, {
+      per_page: "100",
+      page: String(page),
+    });
+    allItems.push(...data.items);
+    pages = data.pages;
+    page++;
+  } while (page <= pages);
+  return allItems;
 }
 
 /** Fetch a single document detail by type and doc_id. */
