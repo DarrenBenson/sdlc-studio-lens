@@ -149,6 +149,12 @@ function TreeNodeRow({
         </Link>
 
         <StatusBadge status={node.status} />
+
+        {hasChildren && (
+          <span className="shrink-0 text-xs text-text-tertiary">
+            {node.children.length}
+          </span>
+        )}
       </div>
 
       {hasChildren && isExpanded && (
