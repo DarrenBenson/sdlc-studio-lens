@@ -72,9 +72,7 @@ class TestHealthCheckEndpoint:
             _make_doc(project.id, "prd", "PRD-main"),
             _make_doc(project.id, "trd", "TRD-main"),
             _make_doc(project.id, "epic", "EP0001", status="Done"),
-            _make_doc(
-                project.id, "story", "US0001", epic="EP0001", status="Done"
-            ),
+            _make_doc(project.id, "story", "US0001", epic="EP0001", status="Done"),
             _make_doc(project.id, "plan", "PL0001", story="US0001", status="Done"),
             _make_doc(project.id, "test-spec", "TS0001", story="US0001", status="Done"),
         ]
@@ -163,9 +161,7 @@ class TestHealthCheckEndpoint:
         data = resp.json()
 
         # Find the EPIC_NO_STORIES finding
-        epic_findings = [
-            f for f in data["findings"] if f["rule_id"] == "EPIC_NO_STORIES"
-        ]
+        epic_findings = [f for f in data["findings"] if f["rule_id"] == "EPIC_NO_STORIES"]
         assert len(epic_findings) == 1
         affected = epic_findings[0]["affected_documents"]
         assert len(affected) == 1

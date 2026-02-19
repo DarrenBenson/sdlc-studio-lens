@@ -19,7 +19,7 @@ async def search(
     db: DbDep,
     q: Annotated[str, Query(min_length=1, max_length=500)],
     project: str | None = None,
-    type: str | None = None,
+    type: str | None = None,  # noqa: A002
     page: Annotated[int, Query(ge=1)] = 1,
     per_page: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> SearchResponse:

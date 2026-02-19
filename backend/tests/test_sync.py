@@ -28,9 +28,7 @@ def _write_md(base: Path, rel_path: str, content: str) -> None:
     full.write_text(content, encoding="utf-8")
 
 
-async def _create_project(
-    session: AsyncSession, sdlc_path: str
-) -> Project:
+async def _create_project(session: AsyncSession, sdlc_path: str) -> Project:
     """Insert a project record and return it."""
     project = Project(
         slug="test-project",
@@ -93,9 +91,7 @@ class TestHashComputation:
 
 class TestSyncAddsNewDocs:
     @pytest.mark.asyncio
-    async def test_adds_five_docs(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_adds_five_docs(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -125,12 +121,10 @@ class TestSyncAddsNewDocs:
         assert result.deleted == 0
 
         docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
         assert len(docs) == 5
 
 
@@ -141,9 +135,7 @@ class TestSyncAddsNewDocs:
 
 class TestSyncUpdatesChanged:
     @pytest.mark.asyncio
-    async def test_updates_changed_file(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_updates_changed_file(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(
@@ -169,11 +161,7 @@ class TestSyncUpdatesChanged:
         assert result.added == 0
 
         doc = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
+            await session.execute(select(Document).where(Document.project_id == project.id))
         ).scalar_one()
         assert "Updated." in doc.content
         assert doc.status == "Done"
@@ -186,9 +174,7 @@ class TestSyncUpdatesChanged:
 
 class TestSyncSkipsUnchanged:
     @pytest.mark.asyncio
-    async def test_skips_unchanged(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_skips_unchanged(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -211,9 +197,7 @@ class TestSyncSkipsUnchanged:
 
 class TestSyncDeletesRemoved:
     @pytest.mark.asyncio
-    async def test_deletes_removed_file(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_deletes_removed_file(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -227,12 +211,10 @@ class TestSyncDeletesRemoved:
         # First sync
         await sync_project(project, session)
         docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
         assert len(docs) == 2
 
         # Delete one file
@@ -244,12 +226,10 @@ class TestSyncDeletesRemoved:
         assert result.skipped == 1
 
         docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
         assert len(docs) == 1
 
 
@@ -260,9 +240,7 @@ class TestSyncDeletesRemoved:
 
 class TestSyncStatusSynced:
     @pytest.mark.asyncio
-    async def test_status_synced(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_status_synced(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -282,9 +260,7 @@ class TestSyncStatusSynced:
 
 class TestSyncTimestamp:
     @pytest.mark.asyncio
-    async def test_last_synced_at_set(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_last_synced_at_set(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         project = await _create_project(session, str(sdlc))
@@ -303,9 +279,7 @@ class TestSyncTimestamp:
 
 class TestSyncStatusError:
     @pytest.mark.asyncio
-    async def test_error_on_bad_path(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_error_on_bad_path(self, session: AsyncSession, tmp_path: Path) -> None:
         bad_path = str(tmp_path / "nonexistent")
         project = await _create_project(session, bad_path)
 
@@ -323,9 +297,7 @@ class TestSyncStatusError:
 
 class TestSyncEmptyDir:
     @pytest.mark.asyncio
-    async def test_empty_dir_syncs(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_empty_dir_syncs(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         project = await _create_project(session, str(sdlc))
@@ -345,9 +317,7 @@ class TestSyncEmptyDir:
 
 class TestSyncUnreadableFile:
     @pytest.mark.asyncio
-    async def test_skips_unreadable(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_skips_unreadable(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -378,9 +348,7 @@ class TestSyncUnreadableFile:
 
 class TestSyncPopulatesFields:
     @pytest.mark.asyncio
-    async def test_all_fields_populated(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_all_fields_populated(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(
@@ -402,11 +370,7 @@ class TestSyncPopulatesFields:
         await sync_project(project, session)
 
         doc = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
+            await session.execute(select(Document).where(Document.project_id == project.id))
         ).scalar_one()
 
         assert doc.doc_type == "epic"
@@ -466,9 +430,7 @@ class TestSyncMixedOperations:
 
 class TestSyncEdgeCases:
     @pytest.mark.asyncio
-    async def test_index_files_skipped(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_index_files_skipped(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -481,9 +443,7 @@ class TestSyncEdgeCases:
         assert result.added == 1
 
     @pytest.mark.asyncio
-    async def test_bom_stripped(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_bom_stripped(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         bom_content = "\ufeff# PRD\n\nBOM content."
@@ -493,11 +453,7 @@ class TestSyncEdgeCases:
         await sync_project(project, session)
 
         doc = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
+            await session.execute(select(Document).where(Document.project_id == project.id))
         ).scalar_one()
         assert doc.title == "PRD"
         assert "\ufeff" not in doc.content
@@ -511,9 +467,7 @@ class TestSyncEdgeCases:
 # TC0113: Unchanged files skipped during re-sync (3 files)
 class TestUnchangedSkipMultiple:
     @pytest.mark.asyncio
-    async def test_three_unchanged_skipped(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_three_unchanged_skipped(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -532,9 +486,7 @@ class TestUnchangedSkipMultiple:
 # TC0115: file_hash stored correctly in database
 class TestHashStoredInDb:
     @pytest.mark.asyncio
-    async def test_hash_matches_content(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_hash_matches_content(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         content = "# PRD\n\nSome content."
@@ -544,11 +496,7 @@ class TestHashStoredInDb:
         await sync_project(project, session)
 
         doc = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
+            await session.execute(select(Document).where(Document.project_id == project.id))
         ).scalar_one()
 
         expected = compute_hash(content.encode("utf-8"))
@@ -559,9 +507,7 @@ class TestHashStoredInDb:
 # TC0116: Re-sync of 100 unchanged documents in < 2 seconds
 class TestResyncPerformance:
     @pytest.mark.asyncio
-    async def test_100_unchanged_under_2s(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_100_unchanged_under_2s(self, session: AsyncSession, tmp_path: Path) -> None:
         import time
 
         sdlc = tmp_path / "sdlc-studio"
@@ -591,10 +537,7 @@ class TestResyncPerformance:
 # TC0117: Empty file produces valid hash
 class TestEmptyFileHash:
     def test_empty_bytes_hash(self) -> None:
-        expected = (
-            "e3b0c44298fc1c149afbf4c8996fb924"
-            "27ae41e4649b934ca495991b7852b855"
-        )
+        expected = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         assert compute_hash(b"") == expected
 
 
@@ -606,9 +549,7 @@ class TestEmptyFileHash:
 # TC0128: Detect and delete removed files (3 docs, delete 1)
 class TestDeletionDetection:
     @pytest.mark.asyncio
-    async def test_selective_deletion(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_selective_deletion(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(
@@ -635,12 +576,10 @@ class TestDeletionDetection:
 
         assert result.deleted == 1
         docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
         doc_ids = {d.doc_id for d in docs}
         assert "US0001-register" in doc_ids
         assert "US0003-sync" in doc_ids
@@ -650,9 +589,7 @@ class TestDeletionDetection:
 # TC0130: Bulk deletion
 class TestBulkDeletion:
     @pytest.mark.asyncio
-    async def test_bulk_delete(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_bulk_delete(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         # 10 stories + 5 epics = 15 total
@@ -681,12 +618,10 @@ class TestBulkDeletion:
         assert result.skipped == 5
 
         docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
         assert len(docs) == 5
         assert all(d.doc_type == "epic" for d in docs)
 
@@ -694,9 +629,7 @@ class TestBulkDeletion:
 # TC0133: File moved = delete + add
 class TestFileMoved:
     @pytest.mark.asyncio
-    async def test_move_is_delete_plus_add(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_move_is_delete_plus_add(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         content = "# US0001: Register\n\nBody."
@@ -718,9 +651,7 @@ class TestFileMoved:
 # TC0134: All files deleted = zero documents
 class TestAllFilesDeleted:
     @pytest.mark.asyncio
-    async def test_all_deleted(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_all_deleted(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         for i in range(5):
@@ -741,12 +672,10 @@ class TestAllFilesDeleted:
         assert result.deleted == 5
 
         docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
         assert len(docs) == 0
 
         await session.refresh(project)
@@ -756,9 +685,7 @@ class TestAllFilesDeleted:
 # TC0135: No deletion without sync
 class TestNoDeletionWithoutSync:
     @pytest.mark.asyncio
-    async def test_docs_persist_without_sync(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_docs_persist_without_sync(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
@@ -772,10 +699,8 @@ class TestNoDeletionWithoutSync:
 
         # DB still has 2 docs
         docs = (
-            await session.execute(
-                select(Document).where(
-                    Document.project_id == project.id
-                )
-            )
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
         assert len(docs) == 2

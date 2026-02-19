@@ -1,9 +1,9 @@
 # Technical Requirements Document
 
 **Project:** SDLC Studio Lens
-**Version:** 1.2.0
-**Status:** Draft
-**Last Updated:** 2026-02-18
+**Version:** 1.3.0
+**Status:** Complete
+**Last Updated:** 2026-02-19
 **PRD Reference:** [PRD](prd.md)
 
 ---
@@ -129,6 +129,7 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 | GitHub Source | Fetch .md files from GitHub repos via REST API (Trees + Blobs) | Python (httpx AsyncClient) |
 | Parser | Extract blockquote frontmatter from markdown | Python (regex-based) |
 | Relationship Resolver | Extract parent IDs from frontmatter links, build hierarchy | Python (regex, SQL queries) |
+| Health Check Engine | 17-rule analysis of completeness, consistency, quality, integrity | Python (pure functions, dataclasses) |
 | Database | Document storage, metadata, full-text search | SQLite + FTS5 |
 
 ---
@@ -140,11 +141,11 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 | Category | Technology | Version | Rationale |
 |----------|-----------|---------|-----------|
 | Language (Backend) | Python | 3.12+ | Type hints, asyncio, pathlib |
-| Language (Frontend) | TypeScript | 5.0+ | Type safety, tooling |
+| Language (Frontend) | TypeScript | ~5.9.3 | Type safety, tooling |
 | Backend Framework | FastAPI | >=0.115.0 | Async, Pydantic v2, OpenAPI 3.1 |
-| Frontend Framework | React | 19 | Component model, hooks, ecosystem |
-| Build Tool | Vite | 6.0+ | Fast builds, ESM native |
-| UI Styling | Tailwind CSS | 4.0+ | Utility-first, dark theme support |
+| Frontend Framework | React | ^19.2.0 | Component model, hooks, ecosystem |
+| Build Tool | Vite | ^7.3.1 | Fast builds, ESM native |
+| UI Styling | Tailwind CSS | ^4.1.18 | Utility-first, dark theme support |
 | Markdown Rendering | react-markdown | >=9.0.0 | Markdown to React components |
 | Syntax Highlighting | rehype-highlight | >=7.0.0 | Code block highlighting |
 | Charts | Recharts | >=2.10.0 | React-native charts |
@@ -215,6 +216,7 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 | PUT | `/api/v1/projects/{slug}` | Update project name or path | No |
 | DELETE | `/api/v1/projects/{slug}` | Remove project and its documents | No |
 | POST | `/api/v1/projects/{slug}/sync` | Trigger filesystem sync | No |
+| GET | `/api/v1/projects/{slug}/health-check` | Run health check rules engine | No |
 
 #### Documents
 
@@ -223,7 +225,8 @@ SDLC Studio Lens reads sdlc-studio document directories from the local filesyste
 | GET | `/api/v1/projects/{slug}/documents` | List documents with filtering | No |
 | GET | `/api/v1/projects/{slug}/documents/{type}/{doc_id}` | Get single document with content | No |
 | GET | `/api/v1/projects/{slug}/documents/{type}/{doc_id}/related` | Get parent chain and child documents | No |
-| GET | `/api/v1/projects/{slug}/tree` | Get document hierarchy tree for a project | No |
+
+> **Note:** The document tree view (`/projects/:slug/tree`) is built client-side from the document list endpoint. No separate `/tree` API endpoint exists.
 
 **Query Parameters for Document List:**
 
@@ -438,6 +441,40 @@ Standard error codes:
 }
 ```
 
+#### Health Check
+
+**Response (200):**
+```json
+{
+  "project_slug": "homelabcmd",
+  "checked_at": "2026-02-19T10:30:00Z",
+  "total_documents": 152,
+  "score": 85,
+  "summary": {
+    "critical": 0,
+    "high": 1,
+    "medium": 3,
+    "low": 2
+  },
+  "findings": [
+    {
+      "rule_id": "QUAL-001",
+      "severity": "high",
+      "category": "quality",
+      "message": "Stories without acceptance criteria",
+      "affected_documents": [
+        {
+          "doc_id": "US0045",
+          "doc_type": "story",
+          "title": "API Key Authentication"
+        }
+      ],
+      "suggested_fix": "Add acceptance criteria to each story"
+    }
+  ]
+}
+```
+
 ---
 
 ## 6. Data Architecture
@@ -484,7 +521,7 @@ Standard error codes:
 | file_hash | TEXT | NOT NULL | SHA-256 hash of file content for change detection |
 | synced_at | TIMESTAMP | NOT NULL | When this document was last synced |
 
-**Unique constraint:** `(project_id, doc_type, doc_id)`
+**Unique constraint:** `(project_id, file_path)`
 
 #### FTS5 Virtual Table
 
@@ -700,13 +737,31 @@ Vertical only. Single instance of each container. SQLite does not support concur
 
 ---
 
+### ADR-006: Health Check Rules Engine
+
+**Status:** Accepted
+
+**Context:** Need a way to assess project health (completeness, consistency, quality) from synced document data. Options: hardcoded checks in the API route, configurable rules engine, external linting tool.
+
+**Decision:** Pure-function rules engine in `services/health_check.py` with 17 rules across 4 categories (completeness, consistency, quality, integrity). Each rule returns findings with severity levels. Score calculated as `100 - (critical*15 + high*5 + medium*2 + low*1)`, clamped to 0-100.
+
+**Consequences:**
+- Positive: Rules are pure functions - easy to test, no database dependencies
+- Positive: Dataclass-based findings provide structured, typed output
+- Positive: Score formula gives intuitive health percentage
+- Positive: Categories allow filtering and prioritised remediation
+- Negative: Rules are hardcoded; adding new rules requires code changes
+- Negative: Severity weights are opinionated and may not suit all projects
+
+---
+
 ## 12. Open Technical Questions
 
 - [x] **Q:** Should FTS5 use porter stemmer or unicode61 tokeniser?
   **Resolved:** unicode61 with `tokenchars '_'`. Technical documents need exact matching (searching "plan" should not match "planned"/"planning" when plan is a document type). Adding underscore as a token character keeps snake_case identifiers (sync_status, last_synced_at) as single searchable terms. The corpus is small (100-2000 docs) so stemming's recall benefit is unnecessary.
 
-- [ ] **Q:** Should sync run in a background task or block the API response?
-  **Context:** Large projects may take >10s to sync; blocking would timeout the HTTP request
+- [x] **Q:** Should sync run in a background task or block the API response?
+  **Resolved:** Background task via FastAPI `BackgroundTasks`. The sync endpoint returns `202 Accepted` immediately and runs `run_sync_task()` asynchronously. This avoids HTTP request timeouts for large projects. The sync status is tracked on the project record (`sync_status` column) and the frontend polls for completion.
 
 - [x] **Q:** Should document content be stored in SQLite or read from filesystem on demand?
   **Resolved:** Store in SQLite. The documents table stores `content TEXT NOT NULL` (§6 Data Architecture). Avoids filesystem reads at view time; the DB is the read cache, the filesystem is the source of truth refreshed on sync.
@@ -768,6 +823,7 @@ Vertical only. Single instance of each container. SQLite does not support concur
 | `/projects/:slug/documents/:type/:docId` | DocumentView | Rendered markdown with metadata sidebar |
 | `/search` | SearchResults | Cross-project search results |
 | `/projects/:slug/tree` | DocumentTree | Hierarchical tree view of project documents |
+| `/projects/:slug/health-check` | HealthCheck | Project health score with colour-coded findings |
 | `/settings` | Settings | Project management (add, edit, remove) |
 
 ### Colour System
@@ -815,15 +871,15 @@ backend/
 │       │   ├── deps.py                # Dependency injection (DB session)
 │       │   └── routes/
 │       │       ├── __init__.py
-│       │       ├── system.py          # Health check
-│       │       ├── projects.py        # Project CRUD + sync trigger
-│       │       ├── documents.py       # Document list + detail
-│       │       ├── stats.py           # Statistics endpoints
-│       │       └── search.py          # Full-text search
+│       │       ├── system.py          # System health endpoint
+│       │       ├── projects.py        # Project CRUD, sync, documents, related, health-check
+│       │       ├── stats.py           # Aggregate statistics endpoint
+│       │       └── search.py          # Full-text search endpoint
 │       ├── api/schemas/
 │       │   ├── __init__.py
 │       │   ├── projects.py            # Project request/response models
 │       │   ├── documents.py           # Document response models
+│       │   ├── health_check.py        # Health check response models
 │       │   ├── stats.py               # Statistics response models
 │       │   └── search.py              # Search response models
 │       ├── db/
@@ -835,9 +891,16 @@ backend/
 │       │       └── document.py        # Document model
 │       └── services/
 │           ├── __init__.py
+│           ├── documents.py           # Document queries (list, get, related)
+│           ├── fts.py                 # FTS5 index management
 │           ├── github_source.py       # GitHub repo sync via REST API (Trees + Blobs), httpx AsyncClient
+│           ├── health_check.py        # Rules engine (17 rules, 4 categories)
 │           ├── parser.py              # Blockquote frontmatter parser
-│           └── sync.py                # Filesystem sync service
+│           ├── project.py             # Project CRUD operations
+│           ├── search.py              # Full-text search queries
+│           ├── stats.py               # Statistics aggregation
+│           ├── sync.py                # Sync orchestration and triggers
+│           └── sync_engine.py         # Filesystem/GitHub dispatch, file collection
 ├── tests/
 │   ├── conftest.py                    # Fixtures (test client, DB, sample data)
 │   ├── test_parser.py                 # Parser unit tests
@@ -865,18 +928,25 @@ frontend/
 │   ├── api/
 │   │   └── client.ts                  # API client (fetch)
 │   ├── components/
+│   │   ├── ChartTooltip.tsx           # Custom Recharts tooltip
+│   │   ├── ConfirmDialog.tsx          # Confirmation modal
 │   │   ├── Layout.tsx                 # Shell with sidebar
-│   │   ├── Sidebar.tsx                # Project navigation
-│   │   ├── StatusBadge.tsx            # Document status badge
-│   │   ├── StatsCard.tsx              # Stat display card
 │   │   ├── ProgressRing.tsx           # Circular progress indicator
-│   │   ├── DocumentCard.tsx           # Document list item
-│   │   └── SearchBar.tsx              # Global search input
+│   │   ├── ProjectCard.tsx            # Dashboard project card
+│   │   ├── ProjectForm.tsx            # Project create/edit form
+│   │   ├── SearchBar.tsx              # Global search input
+│   │   ├── SeverityBadge.tsx          # Health check severity badge
+│   │   ├── Sidebar.tsx                # Project navigation
+│   │   ├── StatsCard.tsx              # Stat display card
+│   │   ├── StatusBadge.tsx            # Document status badge
+│   │   └── TypeBadge.tsx              # Document type badge
 │   ├── pages/
 │   │   ├── Dashboard.tsx              # Multi-project overview
-│   │   ├── ProjectDetail.tsx          # Single project stats
 │   │   ├── DocumentList.tsx           # Filtered document list
+│   │   ├── DocumentTree.tsx           # Hierarchical tree view
 │   │   ├── DocumentView.tsx           # Rendered markdown viewer
+│   │   ├── HealthCheck.tsx            # Project health check page
+│   │   ├── ProjectDetail.tsx          # Single project stats
 │   │   ├── SearchResults.tsx          # Search results page
 │   │   └── Settings.tsx               # Project management
 │   ├── types/
@@ -906,3 +976,4 @@ frontend/
 | 2026-02-18 | 1.0.5 | Architecture changed from two-container to single-container deployment; updated diagram, component overview, deployment topology, Docker images, ADR-005; removed nginx from infrastructure services |
 | 2026-02-18 | 1.1.0 | EP0007 Git Repository Sync: added GitHub REST API source (Trees + Blobs); new Project columns (source_type, repo_url, repo_branch, repo_path, access_token); sdlc_path now nullable; new services/github_source.py module; httpx runtime dependency; updated API schemas with conditional validation |
 | 2026-02-18 | 1.2.0 | EP0008 Document Relationship Navigation: added story column to Document model; relationship resolver service; /related and /tree API endpoints; breadcrumb and tree view UI components; indexed epic and story columns for efficient hierarchy queries |
+| 2026-02-19 | 1.3.0 | Review update: EP0009 Health Check - added ADR-006, health check engine to component overview, health-check API endpoint and response schema, HealthCheck page route; resolved sync background task question; fixed unique constraint to (project_id, file_path); corrected tech versions; updated project structure listings; removed non-existent /tree API endpoint |

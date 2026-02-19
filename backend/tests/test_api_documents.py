@@ -33,7 +33,7 @@ async def project(session: AsyncSession) -> Project:
 @pytest.fixture
 async def seed_documents(session: AsyncSession, project: Project) -> list[Document]:
     """Seed 5 documents with varying types, statuses, and titles."""
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
     docs = [
         Document(
             project_id=project.id,
@@ -283,9 +283,7 @@ class TestSortTitle:
     async def test_sort_title_asc(
         self, client: AsyncClient, project: Project, seed_documents: list[Document]
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?sort=title&order=asc"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?sort=title&order=asc")
         data = resp.json()
         titles = [item["title"] for item in data["items"]]
         assert titles == sorted(titles)
@@ -293,9 +291,7 @@ class TestSortTitle:
     async def test_sort_title_desc(
         self, client: AsyncClient, project: Project, seed_documents: list[Document]
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?sort=title&order=desc"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?sort=title&order=desc")
         data = resp.json()
         titles = [item["title"] for item in data["items"]]
         assert titles == sorted(titles, reverse=True)
@@ -330,9 +326,7 @@ class TestPaginationOffset:
     async def test_page_2_returns_correct_items(
         self, client: AsyncClient, project: Project, seed_documents: list[Document]
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?per_page=2&page=2"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?per_page=2&page=2")
         data = resp.json()
         assert len(data["items"]) == 2
         assert data["page"] == 2
@@ -342,9 +336,7 @@ class TestPaginationOffset:
     async def test_last_page_has_remaining_items(
         self, client: AsyncClient, project: Project, seed_documents: list[Document]
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?per_page=2&page=3"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?per_page=2&page=3")
         data = resp.json()
         assert len(data["items"]) == 1  # 5 total, page 3 of 3
 
@@ -411,9 +403,7 @@ class TestPerPageCapped:
     async def test_per_page_capped(
         self, client: AsyncClient, project: Project, seed_documents: list[Document]
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?per_page=200"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?per_page=200")
         data = resp.json()
         assert data["per_page"] == 100
 
@@ -426,20 +416,12 @@ class TestPerPageCapped:
 class TestPerPageInvalid:
     """TC0157: per_page zero or negative returns 422."""
 
-    async def test_per_page_zero(
-        self, client: AsyncClient, project: Project
-    ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?per_page=0"
-        )
+    async def test_per_page_zero(self, client: AsyncClient, project: Project) -> None:
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?per_page=0")
         assert resp.status_code == 422
 
-    async def test_per_page_negative(
-        self, client: AsyncClient, project: Project
-    ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?per_page=-1"
-        )
+    async def test_per_page_negative(self, client: AsyncClient, project: Project) -> None:
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?per_page=-1")
         assert resp.status_code == 422
 
 
@@ -451,10 +433,6 @@ class TestPerPageInvalid:
 class TestInvalidSortField:
     """TC0158: Invalid sort field returns 422."""
 
-    async def test_invalid_sort_returns_422(
-        self, client: AsyncClient, project: Project
-    ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?sort=invalid_field"
-        )
+    async def test_invalid_sort_returns_422(self, client: AsyncClient, project: Project) -> None:
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?sort=invalid_field")
         assert resp.status_code == 422

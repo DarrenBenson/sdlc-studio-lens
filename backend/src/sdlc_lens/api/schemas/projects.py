@@ -48,8 +48,12 @@ class ProjectUpdate(BaseModel):
     @model_validator(mode="after")
     def at_least_one_field(self) -> "ProjectUpdate":
         fields = [
-            self.name, self.sdlc_path, self.source_type,
-            self.repo_url, self.repo_branch, self.repo_path,
+            self.name,
+            self.sdlc_path,
+            self.source_type,
+            self.repo_url,
+            self.repo_branch,
+            self.repo_path,
             self.access_token,
         ]
         if all(f is None for f in fields):

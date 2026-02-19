@@ -49,10 +49,7 @@ async def list_documents(
 
     # Sort
     col = sort_columns.get(sort, Document.synced_at)
-    if order == "asc":
-        base = base.order_by(col.asc())
-    else:
-        base = base.order_by(col.desc())
+    base = base.order_by(col.asc()) if order == "asc" else base.order_by(col.desc())
 
     # Pagination
     offset = (page - 1) * per_page
@@ -156,9 +153,7 @@ async def _get_parent_chain(
         if story_doc:
             parents.append(story_doc)
             if story_doc.epic:
-                epic_doc = await _find_doc_by_clean_id(
-                    session, project_id, story_doc.epic
-                )
+                epic_doc = await _find_doc_by_clean_id(session, project_id, story_doc.epic)
                 if epic_doc:
                     parents.append(epic_doc)
     elif doc.epic:

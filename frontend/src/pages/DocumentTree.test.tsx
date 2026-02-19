@@ -9,8 +9,9 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
+import { buildTree } from "../lib/buildTree.ts";
 import type { DocumentListItem } from "../types/index.ts";
-import { buildTree, DocumentTree } from "./DocumentTree.tsx";
+import { DocumentTree } from "./DocumentTree.tsx";
 
 vi.mock("../api/client.ts", () => ({
   fetchProjects: vi.fn(),

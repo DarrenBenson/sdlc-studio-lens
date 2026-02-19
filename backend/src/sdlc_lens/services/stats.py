@@ -126,13 +126,15 @@ async def get_aggregate_stats(session: AsyncSession) -> dict:
         total_stories += story_count
         total_done_stories += done_count
 
-        project_summaries.append({
-            "slug": stats["slug"],
-            "name": stats["name"],
-            "total_documents": stats["total_documents"],
-            "completion_percentage": stats["completion_percentage"],
-            "last_synced_at": stats["last_synced_at"],
-        })
+        project_summaries.append(
+            {
+                "slug": stats["slug"],
+                "name": stats["name"],
+                "total_documents": stats["total_documents"],
+                "completion_percentage": stats["completion_percentage"],
+                "last_synced_at": stats["last_synced_at"],
+            }
+        )
 
     completion = round(total_done_stories / total_stories * 100, 1) if total_stories > 0 else 0.0
 

@@ -95,17 +95,17 @@ Automatic extraction of document metadata enables filtering by type, status, and
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Parser extracts all standard frontmatter fields from every sdlc-studio document type
-- [ ] Parser handles multi-line blockquote values correctly
-- [ ] Parser returns empty metadata for documents with no frontmatter
-- [ ] Parser skips malformed lines and continues with valid ones
-- [ ] Document type correctly inferred from filename (EP*, US*, BG*, PL*, TS*, prd, trd, tsd)
-- [ ] SHA-256 hash computed for each file; unchanged files skipped on re-sync
-- [ ] Deleted files (in DB but not on filesystem) removed during sync
-- [ ] FTS5 index populated for new documents, updated for changed, cleaned for deleted
-- [ ] Sync completes within 10 seconds for 100 documents
-- [ ] Unreadable files logged as warnings without stopping sync
-- [ ] Empty sdlc-studio directory results in zero documents synced (not an error)
+- [x] Parser extracts all standard frontmatter fields from every sdlc-studio document type
+- [x] Parser handles multi-line blockquote values correctly
+- [x] Parser returns empty metadata for documents with no frontmatter
+- [x] Parser skips malformed lines and continues with valid ones
+- [x] Document type correctly inferred from filename (EP*, US*, BG*, PL*, TS*, prd, trd, tsd)
+- [x] SHA-256 hash computed for each file; unchanged files skipped on re-sync
+- [x] Deleted files (in DB but not on filesystem) removed during sync
+- [x] FTS5 index populated for new documents, updated for changed, cleaned for deleted
+- [x] Sync completes within 10 seconds for 100 documents
+- [x] Unreadable files logged as warnings without stopping sync
+- [x] Empty sdlc-studio directory results in zero documents synced (not an error)
 
 ## Dependencies
 

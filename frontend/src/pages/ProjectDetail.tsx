@@ -1,5 +1,5 @@
 /** Project detail statistics page. */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   Bar,
@@ -26,7 +26,7 @@ export function ProjectDetail() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!slug) return;
     setLoading(true);
     setError(null);
@@ -34,11 +34,11 @@ export function ProjectDetail() {
       .then(setStats)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [slug]);
 
   useEffect(() => {
     load();
-  }, [slug]);
+  }, [load]);
 
   if (loading) {
     return <p className="p-6 text-text-secondary">Loading project stats...</p>;

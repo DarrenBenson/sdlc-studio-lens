@@ -87,18 +87,18 @@ Type a term into the search bar and instantly see matching documents from all pr
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Search returns results matching query term from any project
-- [ ] Results ranked by FTS5 relevance score
-- [ ] Each result shows document title, type, project name, status, and snippet
-- [ ] Snippet includes surrounding context for the matching term
-- [ ] Project filter narrows results to a single project
-- [ ] Type filter narrows results to a single document type
-- [ ] Combined filters work together
-- [ ] Pagination works correctly with total count
-- [ ] Missing query parameter returns 422 error
-- [ ] No-match query returns empty results list (not an error)
-- [ ] Search response time < 1 second
-- [ ] Clicking a result navigates to the document view page
+- [x] Search returns results matching query term from any project
+- [x] Results ranked by FTS5 relevance score
+- [x] Each result shows document title, type, project name, status, and snippet
+- [x] Snippet includes surrounding context for the matching term
+- [x] Project filter narrows results to a single project
+- [x] Type filter narrows results to a single document type
+- [x] Combined filters work together
+- [x] Pagination works correctly with total count
+- [x] Missing query parameter returns 422 error
+- [x] No-match query returns empty results list (not an error)
+- [x] Search response time < 1 second
+- [x] Clicking a result navigates to the document view page
 
 ## Dependencies
 

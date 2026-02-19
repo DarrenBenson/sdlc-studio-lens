@@ -182,9 +182,7 @@ async def seed_many_documents(
 
 # TC0228: Search returns matching documents
 class TestSearchReturnsMatchingDocuments:
-    async def test_search_returns_matches(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
+    async def test_search_returns_matches(self, client: AsyncClient, seed_search_data) -> None:
         resp = await client.get("/api/v1/search", params={"q": "authentication"})
         assert resp.status_code == 200
         data = resp.json()
@@ -205,9 +203,7 @@ class TestSearchReturnsMatchingDocuments:
 
 # TC0229: Results ranked by relevance (score descending)
 class TestResultsRankedByRelevance:
-    async def test_scores_descending(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
+    async def test_scores_descending(self, client: AsyncClient, seed_search_data) -> None:
         resp = await client.get("/api/v1/search", params={"q": "authentication"})
         assert resp.status_code == 200
         data = resp.json()
@@ -218,9 +214,7 @@ class TestResultsRankedByRelevance:
 
 # TC0230: Snippet includes context with <mark> tags
 class TestSnippetContainsMarkTags:
-    async def test_snippet_has_mark_tags(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
+    async def test_snippet_has_mark_tags(self, client: AsyncClient, seed_search_data) -> None:
         resp = await client.get("/api/v1/search", params={"q": "authentication"})
         assert resp.status_code == 200
         data = resp.json()
@@ -237,9 +231,7 @@ class TestSnippetContainsMarkTags:
 
 # TC0231: Filter by project slug
 class TestFilterByProjectSlug:
-    async def test_project_filter(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
+    async def test_project_filter(self, client: AsyncClient, seed_search_data) -> None:
         resp = await client.get(
             "/api/v1/search", params={"q": "authentication", "project": "project-a"}
         )
@@ -253,12 +245,8 @@ class TestFilterByProjectSlug:
 
 # TC0232: Filter by document type
 class TestFilterByDocumentType:
-    async def test_type_filter(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
-        resp = await client.get(
-            "/api/v1/search", params={"q": "authentication", "type": "story"}
-        )
+    async def test_type_filter(self, client: AsyncClient, seed_search_data) -> None:
+        resp = await client.get("/api/v1/search", params={"q": "authentication", "type": "story"})
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["items"]) > 0
@@ -276,9 +264,7 @@ class TestMissingQueryReturns422:
 
 # TC0234: No results returns empty list
 class TestNoResultsReturnsEmptyList:
-    async def test_no_matches(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
+    async def test_no_matches(self, client: AsyncClient, seed_search_data) -> None:
         resp = await client.get("/api/v1/search", params={"q": "xyznonexistent"})
         assert resp.status_code == 200
         data = resp.json()
@@ -288,21 +274,15 @@ class TestNoResultsReturnsEmptyList:
 
 # TC0235: Pagination works
 class TestPaginationWorks:
-    async def test_per_page_limits_results(
-        self, client: AsyncClient, seed_many_documents
-    ) -> None:
-        resp = await client.get(
-            "/api/v1/search", params={"q": "testing", "per_page": 10}
-        )
+    async def test_per_page_limits_results(self, client: AsyncClient, seed_many_documents) -> None:
+        resp = await client.get("/api/v1/search", params={"q": "testing", "per_page": 10})
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["items"]) == 10
         assert data["total"] == 25
         assert data["per_page"] == 10
 
-    async def test_page_two(
-        self, client: AsyncClient, seed_many_documents
-    ) -> None:
+    async def test_page_two(self, client: AsyncClient, seed_many_documents) -> None:
         resp = await client.get(
             "/api/v1/search", params={"q": "testing", "per_page": 10, "page": 2}
         )
@@ -312,9 +292,7 @@ class TestPaginationWorks:
         assert data["total"] == 25
         assert data["page"] == 2
 
-    async def test_last_page_partial(
-        self, client: AsyncClient, seed_many_documents
-    ) -> None:
+    async def test_last_page_partial(self, client: AsyncClient, seed_many_documents) -> None:
         resp = await client.get(
             "/api/v1/search", params={"q": "testing", "per_page": 10, "page": 3}
         )
@@ -326,9 +304,7 @@ class TestPaginationWorks:
 
 # TC0236: Combined filters (project + type)
 class TestCombinedFilters:
-    async def test_project_and_type_filter(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
+    async def test_project_and_type_filter(self, client: AsyncClient, seed_search_data) -> None:
         resp = await client.get(
             "/api/v1/search",
             params={"q": "authentication", "project": "project-a", "type": "story"},
@@ -362,9 +338,7 @@ class TestEmptyQueryReturns422:
 
 # TC0238: Response includes query echo
 class TestResponseIncludesQueryEcho:
-    async def test_query_echoed(
-        self, client: AsyncClient, seed_search_data
-    ) -> None:
+    async def test_query_echoed(self, client: AsyncClient, seed_search_data) -> None:
         resp = await client.get("/api/v1/search", params={"q": "authentication"})
         assert resp.status_code == 200
         data = resp.json()

@@ -84,17 +84,17 @@ A single dashboard page shows every registered project's status, document counts
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Dashboard shows a card for each registered project
-- [ ] Each project card displays document count and completion percentage
-- [ ] Completion percentage calculated as Done stories / Total stories
-- [ ] Progress ring renders percentage correctly with emerald green fill
-- [ ] Status breakdown chart shows distribution of document statuses
-- [ ] Last-synced-at timestamp appears on each card
-- [ ] Clicking a project card navigates to project detail page
-- [ ] Project detail shows per-type document counts
-- [ ] Aggregated stats across all projects display correctly
-- [ ] Dashboard handles zero registered projects with helpful empty state
-- [ ] Dashboard loads in < 2 seconds
+- [x] Dashboard shows a card for each registered project
+- [x] Each project card displays document count and completion percentage
+- [x] Completion percentage calculated as Done stories / Total stories
+- [x] Progress ring renders percentage correctly with emerald green fill
+- [x] Status breakdown chart shows distribution of document statuses
+- [x] Last-synced-at timestamp appears on each card
+- [x] Clicking a project card navigates to project detail page
+- [x] Project detail shows per-type document counts
+- [x] Aggregated stats across all projects display correctly
+- [x] Dashboard handles zero registered projects with helpful empty state
+- [x] Dashboard loads in < 2 seconds
 
 ## Dependencies
 

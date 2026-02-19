@@ -28,9 +28,7 @@ async def fts_session(session: AsyncSession) -> AsyncSession:
 
 async def _make_project(session: AsyncSession) -> Project:
     """Create a test project."""
-    project = Project(
-        slug="fts-test", name="FTS Test", sdlc_path="/tmp/fts"
-    )
+    project = Project(slug="fts-test", name="FTS Test", sdlc_path="/tmp/fts")
     session.add(project)
     await session.commit()
     await session.refresh(project)
@@ -65,10 +63,7 @@ class TestFts5TableCreation:
     @pytest.mark.asyncio
     async def test_table_exists(self, fts_session: AsyncSession) -> None:
         result = await fts_session.execute(
-            text(
-                "SELECT name FROM sqlite_master "
-                "WHERE name='documents_fts'"
-            )
+            text("SELECT name FROM sqlite_master WHERE name='documents_fts'")
         )
         row = result.scalar_one_or_none()
         assert row == "documents_fts"
@@ -77,9 +72,7 @@ class TestFts5TableCreation:
 # TC0119: New document indexed in FTS5
 class TestFtsInsert:
     @pytest.mark.asyncio
-    async def test_insert_makes_searchable(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_insert_makes_searchable(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc = await _make_doc(
             fts_session,
@@ -92,10 +85,7 @@ class TestFtsInsert:
         await fts_session.commit()
 
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'project'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'project'")
         )
         rows = result.scalars().all()
         assert doc.id in rows
@@ -104,9 +94,7 @@ class TestFtsInsert:
 # TC0120: Changed document FTS5 entry updated
 class TestFtsUpdate:
     @pytest.mark.asyncio
-    async def test_update_changes_searchable_content(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_update_changes_searchable_content(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc = await _make_doc(
             fts_session,
@@ -131,19 +119,13 @@ class TestFtsUpdate:
 
         # "Updated" should be found
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'Updated'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'Updated'")
         )
         assert doc.id in result.scalars().all()
 
         # "Original" should NOT be found
         result2 = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'Original'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'Original'")
         )
         assert doc.id not in result2.scalars().all()
 
@@ -151,9 +133,7 @@ class TestFtsUpdate:
 # TC0121: Deleted document FTS5 entry removed
 class TestFtsDelete:
     @pytest.mark.asyncio
-    async def test_delete_removes_from_index(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_delete_removes_from_index(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc = await _make_doc(
             fts_session,
@@ -167,25 +147,17 @@ class TestFtsDelete:
 
         # Verify it's searchable
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'Deletable'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'Deletable'")
         )
         assert doc.id in result.scalars().all()
 
         # Delete
-        await fts_delete(
-            fts_session, doc.id, doc.title, doc.content
-        )
+        await fts_delete(fts_session, doc.id, doc.title, doc.content)
         await fts_session.commit()
 
         # No longer searchable
         result2 = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'Deletable'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'Deletable'")
         )
         assert doc.id not in result2.scalars().all()
 
@@ -193,9 +165,7 @@ class TestFtsDelete:
 # TC0122: FTS5 MATCH returns correct documents
 class TestFtsMatchAccuracy:
     @pytest.mark.asyncio
-    async def test_match_returns_correct_subset(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_match_returns_correct_subset(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         # 3 docs with "authentication", 2 without
         docs_with = []
@@ -235,10 +205,7 @@ class TestFtsMatchAccuracy:
         await fts_session.commit()
 
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'authentication'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'authentication'")
         )
         found = result.scalars().all()
         assert len(found) == 3
@@ -248,9 +215,7 @@ class TestFtsMatchAccuracy:
 # TC0123: snake_case terms searchable
 class TestFtsSnakeCase:
     @pytest.mark.asyncio
-    async def test_snake_case_searchable(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_snake_case_searchable(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc = await _make_doc(
             fts_session,
@@ -262,10 +227,7 @@ class TestFtsSnakeCase:
         await fts_session.commit()
 
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'sync_status'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'sync_status'")
         )
         assert doc.id in result.scalars().all()
 
@@ -273,9 +235,7 @@ class TestFtsSnakeCase:
 # TC0124: Empty content indexed without error
 class TestFtsEmptyContent:
     @pytest.mark.asyncio
-    async def test_empty_content_no_error(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_empty_content_no_error(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc = await _make_doc(
             fts_session,
@@ -288,10 +248,7 @@ class TestFtsEmptyContent:
 
         # Searchable by title
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'Empty'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'Empty'")
         )
         assert doc.id in result.scalars().all()
 
@@ -299,9 +256,7 @@ class TestFtsEmptyContent:
 # TC0125: FTS5 rebuild works
 class TestFtsRebuild:
     @pytest.mark.asyncio
-    async def test_rebuild_succeeds(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_rebuild_succeeds(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc = await _make_doc(
             fts_session,
@@ -318,10 +273,7 @@ class TestFtsRebuild:
 
         # Content still searchable
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'Rebuild'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'Rebuild'")
         )
         assert doc.id in result.scalars().all()
 
@@ -329,9 +281,7 @@ class TestFtsRebuild:
 # TC0126: Unicode content handled
 class TestFtsUnicode:
     @pytest.mark.asyncio
-    async def test_unicode_content(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_unicode_content(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc = await _make_doc(
             fts_session,
@@ -343,10 +293,7 @@ class TestFtsUnicode:
         await fts_session.commit()
 
         result = await fts_session.execute(
-            text(
-                "SELECT rowid FROM documents_fts "
-                "WHERE documents_fts MATCH 'unicode'"
-            )
+            text("SELECT rowid FROM documents_fts WHERE documents_fts MATCH 'unicode'")
         )
         assert doc.id in result.scalars().all()
 
@@ -354,9 +301,7 @@ class TestFtsUnicode:
 # TC0127: FTS5 index consistent after full sync
 class TestFtsConsistency:
     @pytest.mark.asyncio
-    async def test_index_matches_documents(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_index_matches_documents(self, fts_session: AsyncSession) -> None:
         project = await _make_project(fts_session)
         doc_ids = []
         for i in range(5):
@@ -373,7 +318,5 @@ class TestFtsConsistency:
         await fts_session.commit()
 
         # Count FTS5 entries
-        result = await fts_session.execute(
-            text("SELECT count(*) FROM documents_fts")
-        )
+        result = await fts_session.execute(text("SELECT count(*) FROM documents_fts"))
         assert result.scalar_one() == 5

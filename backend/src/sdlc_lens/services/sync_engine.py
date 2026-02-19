@@ -25,11 +25,23 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Directories to skip during filesystem walk
-_EXCLUDED_DIRS = frozenset({
-    ".venv", ".git", ".hg", ".svn", "__pycache__",
-    "node_modules", ".tox", ".mypy_cache", ".pytest_cache",
-    ".ruff_cache", "dist", "build", ".eggs",
-})
+_EXCLUDED_DIRS = frozenset(
+    {
+        ".venv",
+        ".git",
+        ".hg",
+        ".svn",
+        "__pycache__",
+        "node_modules",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".eggs",
+    }
+)
 
 
 @dataclass
@@ -44,9 +56,7 @@ class SyncResult:
 
 
 # Standard metadata fields stored as dedicated columns
-_STANDARD_FIELDS = frozenset(
-    {"status", "owner", "priority", "story_points", "epic", "story"}
-)
+_STANDARD_FIELDS = frozenset({"status", "owner", "priority", "story_points", "epic", "story"})
 
 # Matches the document ID at the start of a markdown link text.
 # e.g. "[EP0007: Git Repository Sync](../epics/...)" captures "EP0007"
@@ -165,11 +175,7 @@ def _build_doc_attrs(
 ) -> dict:
     """Build a dict of Document column values from parsed data."""
     # Separate standard fields from extra metadata
-    extra = {
-        k: v
-        for k, v in parsed_meta.items()
-        if k not in _STANDARD_FIELDS
-    }
+    extra = {k: v for k, v in parsed_meta.items() if k not in _STANDARD_FIELDS}
 
     return {
         "project_id": project_id,
@@ -194,10 +200,7 @@ async def _rebuild_fts_if_exists(session: AsyncSession) -> None:
     """Rebuild FTS5 index if the virtual table exists."""
     try:
         row = await session.execute(
-            sql_text(
-                "SELECT name FROM sqlite_master "
-                "WHERE name='documents_fts' AND type='table'"
-            )
+            sql_text("SELECT name FROM sqlite_master WHERE name='documents_fts' AND type='table'")
         )
         if row.scalar_one_or_none() is not None:
             from sdlc_lens.services.fts import fts_rebuild
@@ -268,13 +271,9 @@ async def sync_project(
 
         # Step 2: Load existing documents from DB
         db_result = await session.execute(
-            select(Document).where(
-                Document.project_id == project_id
-            )
+            select(Document).where(Document.project_id == project_id)
         )
-        existing_docs = {
-            doc.file_path: doc for doc in db_result.scalars().all()
-        }
+        existing_docs = {doc.file_path: doc for doc in db_result.scalars().all()}
 
         # Step 3: Process collected files
         for rel_path, (file_hash, raw) in fs_files.items():
@@ -289,9 +288,7 @@ async def sync_project(
             try:
                 text = raw.decode("utf-8-sig")  # strips BOM
             except UnicodeDecodeError:
-                logger.warning(
-                    "Cannot decode %s as UTF-8, skipping", rel_path
-                )
+                logger.warning("Cannot decode %s as UTF-8, skipping", rel_path)
                 result.errors += 1
                 continue
 
@@ -348,8 +345,6 @@ async def sync_project(
             proj.sync_status = "error"
             proj.sync_error = str(exc)
             await session.commit()
-        logger.exception(
-            "Sync failed for project %d: %s", project_id, exc
-        )
+        logger.exception("Sync failed for project %d: %s", project_id, exc)
 
     return result

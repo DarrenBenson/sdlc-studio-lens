@@ -87,18 +87,18 @@ Type and status filters let developers find specific artefacts in seconds. Rende
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Document list displays all synced documents with type badge, status badge, and title
-- [ ] Type filter narrows list to selected document type
-- [ ] Status filter narrows list to selected status
-- [ ] Combined filters work together (type AND status)
-- [ ] Sort controls change document order by any supported field
-- [ ] Pagination navigates between pages with correct total count
-- [ ] Clicking a document navigates to rendered markdown view
-- [ ] Markdown renders correctly with headings, lists, tables, code blocks
-- [ ] Code blocks have syntax highlighting
-- [ ] Frontmatter sidebar shows extracted metadata fields
-- [ ] Status badge reflects correct colour per status
-- [ ] API response time < 500ms for filtered document list
+- [x] Document list displays all synced documents with type badge, status badge, and title
+- [x] Type filter narrows list to selected document type
+- [x] Status filter narrows list to selected status
+- [x] Combined filters work together (type AND status)
+- [x] Sort controls change document order by any supported field
+- [x] Pagination navigates between pages with correct total count
+- [x] Clicking a document navigates to rendered markdown view
+- [x] Markdown renders correctly with headings, lists, tables, code blocks
+- [x] Code blocks have syntax highlighting
+- [x] Frontmatter sidebar shows extracted metadata fields
+- [x] Status badge reflects correct colour per status
+- [x] API response time < 500ms for filtered document list
 
 ## Dependencies
 

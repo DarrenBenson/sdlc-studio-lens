@@ -28,8 +28,7 @@ def _doc(
     epic: str | None = None,
     story: str | None = None,
     content: str = (
-        "# Test Story\n\nThis is a test story with enough content "
-        "to pass the empty check."
+        "# Test Story\n\nThis is a test story with enough content to pass the empty check."
     ),
     synced_at: datetime.datetime | None = None,
     file_path: str | None = None,
@@ -343,9 +342,7 @@ class TestTestSpecNoStory:
 
     def test_skips_epic_scoped_test_spec_with_epic_column(self):
         """Test-specs covering multiple stories reference an epic instead."""
-        docs = [
-            _doc(doc_type="test-spec", doc_id="TS0001", story=None, epic="EP0001")
-        ]
+        docs = [_doc(doc_type="test-spec", doc_id="TS0001", story=None, epic="EP0001")]
         result = _run(docs)
         assert _find(result, "TEST_SPEC_NO_STORY") == []
 
@@ -637,9 +634,7 @@ class TestMissingPriority:
         assert _find(result, "MISSING_PRIORITY") == []
 
     def test_skips_superseded_story(self):
-        docs = [
-            _doc(doc_type="story", doc_id="US0001", priority=None, status="Superseded")
-        ]
+        docs = [_doc(doc_type="story", doc_id="US0001", priority=None, status="Superseded")]
         result = _run(docs)
         assert _find(result, "MISSING_PRIORITY") == []
 
@@ -658,9 +653,7 @@ class TestMissingStoryPoints:
         assert _find(result, "MISSING_STORY_POINTS") == []
 
     def test_skips_done_story(self):
-        docs = [
-            _doc(doc_type="story", doc_id="US0001", story_points=None, status="Done")
-        ]
+        docs = [_doc(doc_type="story", doc_id="US0001", story_points=None, status="Done")]
         result = _run(docs)
         assert _find(result, "MISSING_STORY_POINTS") == []
 

@@ -17,9 +17,7 @@ _PREFIX_PATTERNS: dict[str, str] = {
 }
 
 # Compiled regex: matches PREFIX followed by 4+ digits at start of filename
-_PREFIX_RE = re.compile(
-    r"^(" + "|".join(_PREFIX_PATTERNS) + r")(\d{4,})"
-)
+_PREFIX_RE = re.compile(r"^(" + "|".join(_PREFIX_PATTERNS) + r")(\d{4,})")
 
 # Singleton filenames (case-insensitive stem) -> doc_type
 _SINGLETONS: dict[str, str] = {
@@ -48,9 +46,7 @@ class InferenceResult:
     doc_id: str
 
 
-def infer_type_and_id(
-    filename: str, rel_path: str
-) -> InferenceResult | None:
+def infer_type_and_id(filename: str, rel_path: str) -> InferenceResult | None:
     """Infer document type and ID from filename and relative path.
 
     Priority order:
@@ -85,17 +81,13 @@ def infer_type_and_id(
     # 3. Singleton filenames
     stem_lower = stem.lower()
     if stem_lower in _SINGLETONS:
-        return InferenceResult(
-            doc_type=_SINGLETONS[stem_lower], doc_id=stem_lower
-        )
+        return InferenceResult(doc_type=_SINGLETONS[stem_lower], doc_id=stem_lower)
 
     # 4. Directory fallback
     path = PurePosixPath(rel_path)
     for part in path.parts[:-1]:  # skip the filename itself
         if part in _DIR_FALLBACK:
-            return InferenceResult(
-                doc_type=_DIR_FALLBACK[part], doc_id=stem
-            )
+            return InferenceResult(doc_type=_DIR_FALLBACK[part], doc_id=stem)
 
     # 5. Default
     return InferenceResult(doc_type="other", doc_id=stem)

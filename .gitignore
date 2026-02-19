@@ -53,6 +53,7 @@ pnpm-debug.log*
 
 # Vitest
 vitest.config.ts.timestamp-*
+coverage/
 
 # === Database ===
 *.db
@@ -71,6 +72,10 @@ Thumbs.db
 *~
 .vscode/*
 !.vscode/extensions.json
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
 
 # === Project-specific ===
 data/db/

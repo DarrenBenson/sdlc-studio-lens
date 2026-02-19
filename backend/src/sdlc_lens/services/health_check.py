@@ -110,8 +110,7 @@ def _check_missing_prd(docs: list[Document]) -> list[HealthFinding]:
                 message="Project has no PRD document.",
                 affected_documents=[],
                 suggested_fix=(
-                    "Create a PRD document defining the product requirements "
-                    "for this project."
+                    "Create a PRD document defining the product requirements for this project."
                 ),
             )
         ]
@@ -130,8 +129,7 @@ def _check_missing_trd(docs: list[Document]) -> list[HealthFinding]:
                 message="Project has no TRD document.",
                 affected_documents=[],
                 suggested_fix=(
-                    "Create a TRD document defining the technical "
-                    "requirements and architecture."
+                    "Create a TRD document defining the technical requirements and architecture."
                 ),
             )
         ]
@@ -147,9 +145,7 @@ def _check_missing_plan(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story"
-        and not _is_archive(d)
-        and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
     ]
     plans = [d for d in docs if d.doc_type == "plan"]
     plan_stories = {p.story for p in plans if p.story}
@@ -183,9 +179,7 @@ def _check_missing_test_spec(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story"
-        and not _is_archive(d)
-        and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
     ]
     test_specs = [d for d in docs if d.doc_type == "test-spec"]
     tested_stories = {ts.story for ts in test_specs if ts.story}
@@ -286,8 +280,7 @@ def _check_plan_no_story(docs: list[Document]) -> list[HealthFinding]:
                     message=f"Plan '{plan.title}' has no story reference.",
                     affected_documents=[_affected(plan)],
                     suggested_fix=(
-                        f"Add a story reference to plan {plan.doc_id} "
-                        f"in its frontmatter metadata."
+                        f"Add a story reference to plan {plan.doc_id} in its frontmatter metadata."
                     ),
                 )
             )
@@ -336,10 +329,7 @@ def _check_orphan_reference(docs: list[Document]) -> list[HealthFinding]:
                     rule_id="ORPHAN_REFERENCE",
                     severity="medium",
                     category="consistency",
-                    message=(
-                        f"Document '{doc.title}' references non-existent "
-                        f"epic '{doc.epic}'."
-                    ),
+                    message=(f"Document '{doc.title}' references non-existent epic '{doc.epic}'."),
                     affected_documents=[_affected(doc)],
                     suggested_fix=(
                         f"Update the epic reference in {doc.doc_id} to point to "
@@ -355,8 +345,7 @@ def _check_orphan_reference(docs: list[Document]) -> list[HealthFinding]:
                     severity="medium",
                     category="consistency",
                     message=(
-                        f"Document '{doc.title}' references non-existent "
-                        f"story '{doc.story}'."
+                        f"Document '{doc.title}' references non-existent story '{doc.story}'."
                     ),
                     affected_documents=[_affected(doc)],
                     suggested_fix=(
@@ -383,9 +372,7 @@ def _check_status_mismatch(docs: list[Document]) -> list[HealthFinding]:
             continue
         epic_pfx = _prefix(epic.doc_id)
         child_stories = [s for s in stories if s.epic == epic_pfx]
-        incomplete = [
-            s for s in child_stories if s.status not in _INACTIVE_STATUSES
-        ]
+        incomplete = [s for s in child_stories if s.status not in _INACTIVE_STATUSES]
         if incomplete:
             findings.append(
                 HealthFinding(
@@ -396,8 +383,7 @@ def _check_status_mismatch(docs: list[Document]) -> list[HealthFinding]:
                         f"Epic '{epic.title}' is marked Done but has "
                         f"{len(incomplete)} incomplete child stories."
                     ),
-                    affected_documents=[_affected(epic)]
-                    + [_affected(s) for s in incomplete],
+                    affected_documents=[_affected(epic)] + [_affected(s) for s in incomplete],
                     suggested_fix=(
                         f"Either update the incomplete stories under {epic.doc_id} "
                         f"to Done, or change the epic status to reflect the actual state."
@@ -439,8 +425,7 @@ def _check_stale_artefact_status(docs: list[Document]) -> list[HealthFinding]:
                     ),
                     affected_documents=[_affected(doc)],
                     suggested_fix=(
-                        f"Update the status of {doc.doc_id} to Done to "
-                        f"match its completed story."
+                        f"Update the status of {doc.doc_id} to Done to match its completed story."
                     ),
                 )
             )
@@ -493,9 +478,7 @@ def _check_missing_owner(docs: list[Document]) -> list[HealthFinding]:
     applicable = [
         d
         for d in docs
-        if d.doc_type in ("story", "epic")
-        and not _is_archive(d)
-        and not _is_review_doc(d)
+        if d.doc_type in ("story", "epic") and not _is_archive(d) and not _is_review_doc(d)
     ]
     findings = []
     for doc in applicable:
@@ -524,9 +507,7 @@ def _check_missing_priority(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story"
-        and not _is_archive(d)
-        and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
     ]
     findings = []
     for story in stories:
@@ -539,8 +520,7 @@ def _check_missing_priority(docs: list[Document]) -> list[HealthFinding]:
                     message=f"Story '{story.title}' has no priority set.",
                     affected_documents=[_affected(story)],
                     suggested_fix=(
-                        f"Add a priority field to {story.doc_id} frontmatter "
-                        f"(e.g. P0, P1, P2)."
+                        f"Add a priority field to {story.doc_id} frontmatter (e.g. P0, P1, P2)."
                     ),
                 )
             )
@@ -555,9 +535,7 @@ def _check_missing_story_points(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story"
-        and not _is_archive(d)
-        and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
     ]
     findings = []
     for story in stories:
@@ -731,9 +709,7 @@ def run_health_check(
         summary[finding.severity] = summary.get(finding.severity, 0) + 1
 
     # Calculate health score
-    penalty = sum(
-        count * _SEVERITY_WEIGHTS.get(sev, 0) for sev, count in summary.items()
-    )
+    penalty = sum(count * _SEVERITY_WEIGHTS.get(sev, 0) for sev, count in summary.items())
     score = max(0, min(100, 100 - penalty))
 
     check_time = now or datetime.datetime.now(tz=datetime.UTC)

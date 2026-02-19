@@ -235,9 +235,7 @@ class TestNullOptionalFields:
     async def test_null_fields(
         self, client: AsyncClient, project: Project, doc_no_optionals: Document
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents/prd/prd"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents/prd/prd")
         data = resp.json()
         assert data["status"] is None
         assert data["owner"] is None
@@ -306,8 +304,6 @@ class TestEmptyMetadata:
     async def test_null_metadata_returns_null(
         self, client: AsyncClient, project: Project, doc_no_optionals: Document
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents/prd/prd"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents/prd/prd")
         data = resp.json()
         assert data["metadata"] is None

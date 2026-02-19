@@ -93,13 +93,9 @@ def _build_headers(access_token: str | None) -> dict[str, str]:
 def _handle_error_response(response: httpx.Response) -> None:
     """Raise appropriate error for non-2xx responses."""
     if response.status_code == 404:
-        raise RepoNotFoundError(
-            f"Repository not found (HTTP {response.status_code})"
-        )
+        raise RepoNotFoundError(f"Repository not found (HTTP {response.status_code})")
     if response.status_code == 401:
-        raise AuthenticationError(
-            "Authentication failed - check your access token"
-        )
+        raise AuthenticationError("Authentication failed - check your access token")
     if response.status_code == 403:
         # Check if rate limited
         remaining = response.headers.get("x-ratelimit-remaining", "")
@@ -107,13 +103,9 @@ def _handle_error_response(response: httpx.Response) -> None:
             raise RateLimitError(
                 "GitHub API rate limit exceeded - use an access token for higher limits"
             )
-        raise AuthenticationError(
-            "Access denied (HTTP 403) - repository may be private"
-        )
+        raise AuthenticationError("Access denied (HTTP 403) - repository may be private")
     if response.status_code >= 400:
-        raise GitHubSourceError(
-            f"GitHub API error: HTTP {response.status_code}"
-        )
+        raise GitHubSourceError(f"GitHub API error: HTTP {response.status_code}")
 
 
 async def fetch_github_files(
@@ -167,13 +159,9 @@ async def fetch_github_files(
         try:
             response = await client.get(tarball_url)
         except httpx.TimeoutException as exc:
-            raise GitHubSourceError(
-                f"Timeout downloading repository tarball: {exc}"
-            ) from exc
+            raise GitHubSourceError(f"Timeout downloading repository tarball: {exc}") from exc
         except httpx.ConnectError as exc:
-            raise GitHubSourceError(
-                f"Cannot connect to GitHub API: {exc}"
-            ) from exc
+            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
 
         _handle_error_response(response)
 
@@ -182,7 +170,11 @@ async def fetch_github_files(
 
         logger.info(
             "Found %d .md files in %s/%s (branch: %s, path: %s)",
-            len(result), owner, repo, branch, repo_path,
+            len(result),
+            owner,
+            repo,
+            branch,
+            repo_path,
         )
 
         return result
@@ -219,7 +211,7 @@ def _extract_md_from_tarball(
                 continue
 
             # Compute path relative to repo_path
-            rel_path = inner_path[len(prefix):] if prefix else inner_path
+            rel_path = inner_path[len(prefix) :] if prefix else inner_path
             if not rel_path:
                 continue
 

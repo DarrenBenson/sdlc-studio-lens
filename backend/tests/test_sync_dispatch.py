@@ -28,9 +28,7 @@ def _write_md(base: Path, rel_path: str, content: str) -> None:
     full.write_text(content, encoding="utf-8")
 
 
-async def _create_local_project(
-    session: AsyncSession, sdlc_path: str
-) -> Project:
+async def _create_local_project(session: AsyncSession, sdlc_path: str) -> Project:
     """Insert a local project record."""
     project = Project(
         slug="test-local",
@@ -126,13 +124,12 @@ class TestCollectLocalFiles:
 
 
 class TestSyncDispatchLocal:
-    async def test_local_project_syncs(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_local_project_syncs(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(
-            sdlc, "stories/US0001-test-story.md",
+            sdlc,
+            "stories/US0001-test-story.md",
             "# US0001\n\n> **Status:** Draft\n\nStory",
         )
 
@@ -144,9 +141,7 @@ class TestSyncDispatchLocal:
         assert project.sync_status == "synced"
 
     # TC0311: sync_project add/update/skip/delete behaviour unchanged for local (regression)
-    async def test_add_update_skip_delete(
-        self, session: AsyncSession, tmp_path: Path
-    ) -> None:
+    async def test_add_update_skip_delete(self, session: AsyncSession, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         md = "# US0001\n\n> **Status:** Draft\n\nOriginal"
@@ -171,10 +166,10 @@ class TestSyncDispatchLocal:
         _write_md(sdlc, "stories/US0004-brand-new.md", new)
 
         r2 = await sync_project(project, session)
-        assert r2.added == 1      # US0004
-        assert r2.updated == 1    # US0001 (changed)
-        assert r2.skipped == 1    # US0002 (unchanged)
-        assert r2.deleted == 1    # US0003 (removed)
+        assert r2.added == 1  # US0004
+        assert r2.updated == 1  # US0001 (changed)
+        assert r2.skipped == 1  # US0002 (unchanged)
+        assert r2.deleted == 1  # US0003 (removed)
 
 
 # ---------------------------------------------------------------------------

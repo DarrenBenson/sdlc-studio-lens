@@ -91,16 +91,16 @@ Without containerised deployment, the dashboard requires manual setup of Python,
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Combined Dockerfile builds successfully and produces a minimal image
-- [ ] FastAPI serves both API endpoints and built frontend static files
-- [ ] SPA fallback routing returns index.html for client-side routes
-- [ ] docker-compose up starts the container with default configuration
-- [ ] Project directories configurable as bind-mount volumes (read-only)
-- [ ] SQLite database persists via named volume across container restarts
-- [ ] Container starts successfully within 10 seconds
-- [ ] Docker build completes in < 3 minutes
-- [ ] Environment variables configurable (host, port, db path, log level)
-- [ ] Health check endpoint accessible
+- [x] Combined Dockerfile builds successfully and produces a minimal image
+- [x] FastAPI serves both API endpoints and built frontend static files
+- [x] SPA fallback routing returns index.html for client-side routes
+- [x] docker-compose up starts the container with default configuration
+- [x] Project directories configurable as bind-mount volumes (read-only)
+- [x] SQLite database persists via named volume across container restarts
+- [x] Container starts successfully within 10 seconds
+- [x] Docker build completes in < 3 minutes
+- [x] Environment variables configurable (host, port, db path, log level)
+- [x] Health check endpoint accessible
 
 ## Dependencies
 

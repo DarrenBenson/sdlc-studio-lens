@@ -257,9 +257,7 @@ class TestPrdRelationships:
     async def test_prd_has_no_parents_or_children(
         self, client: AsyncClient, project: Project, hierarchy: dict
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents/prd/prd/related"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents/prd/prd/related")
         data = resp.json()
         assert data["parents"] == []
         assert data["children"] == []
@@ -338,9 +336,7 @@ class TestProjectNotFound:
     """TC0368: 404 for non-existent project."""
 
     async def test_returns_404(self, client: AsyncClient) -> None:
-        resp = await client.get(
-            "/api/v1/projects/nonexistent/documents/story/US0028/related"
-        )
+        resp = await client.get("/api/v1/projects/nonexistent/documents/story/US0028/related")
         assert resp.status_code == 404
 
 
@@ -405,9 +401,7 @@ class TestDocumentListEpicStoryFields:
     async def test_list_items_have_epic_and_story(
         self, client: AsyncClient, project: Project, hierarchy: dict
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?type=plan"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?type=plan")
         data = resp.json()
         assert data["total"] >= 1
         item = data["items"][0]
@@ -417,9 +411,7 @@ class TestDocumentListEpicStoryFields:
     async def test_list_story_has_epic_populated(
         self, client: AsyncClient, project: Project, hierarchy: dict
     ) -> None:
-        resp = await client.get(
-            f"/api/v1/projects/{project.slug}/documents?type=story"
-        )
+        resp = await client.get(f"/api/v1/projects/{project.slug}/documents?type=story")
         data = resp.json()
         # All stories in hierarchy have epic=EP0007
         for item in data["items"]:

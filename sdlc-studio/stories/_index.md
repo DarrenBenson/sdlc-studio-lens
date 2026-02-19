@@ -1,6 +1,6 @@
 # Story Registry
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-02-19
 **Personas Reference:** [User Personas](../personas.md)
 
 ## Summary
@@ -12,9 +12,9 @@
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 36 |
+| Done | 39 |
 | Not Started | 0 |
-| **Total** | **36** |
+| **Total** | **39** |
 
 ## Stories by Epic
 
@@ -79,7 +79,7 @@
 
 | ID | Title | Status | Points | Owner |
 |----|-------|--------|--------|-------|
-| [US0028](US0028-database-github-fields.md) | Database Schema - GitHub Source | Done | TBD | Darren |
+| [US0028](US0028-database-schema-github-source.md) | Database Schema - GitHub Source | Done | TBD | Darren |
 | [US0029](US0029-github-api-source-module.md) | GitHub API Source Module | Done | TBD | Darren |
 | [US0030](US0030-sync-engine-source-dispatch.md) | Sync Engine Source Dispatch | Done | TBD | Darren |
 | [US0031](US0031-api-schema-source-type.md) | API Schema Updates | Done | TBD | Darren |
@@ -93,6 +93,14 @@
 | [US0034](US0034-relationships-api.md) | Relationships API | Done | 5 | Darren |
 | [US0035](US0035-document-view-navigation.md) | Document View Navigation | Done | 5 | Darren |
 | [US0036](US0036-document-tree-view.md) | Document Tree View | Done | 3 | Darren |
+
+### [EP0009: Project Health Check](../epics/EP0009-project-health-check.md)
+
+| ID | Title | Status | Points | Owner |
+|----|-------|--------|--------|-------|
+| [US0037](US0037-health-check-rules-engine.md) | Health Check Rules Engine | Done | 5 | Darren |
+| [US0038](US0038-health-check-api-endpoint.md) | Health Check API Endpoint | Done | 3 | Darren |
+| [US0039](US0039-health-check-dashboard-page.md) | Health Check Dashboard Page | Done | 5 | Darren |
 
 ## All Stories
 
@@ -125,7 +133,7 @@
 | [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
 | [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
 | [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
-| [US0028](US0028-database-github-fields.md) | Database Schema - GitHub Source | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
+| [US0028](US0028-database-schema-github-source.md) | Database Schema - GitHub Source | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
 | [US0029](US0029-github-api-source-module.md) | GitHub API Source Module | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
 | [US0030](US0030-sync-engine-source-dispatch.md) | Sync Engine Source Dispatch | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
 | [US0031](US0031-api-schema-source-type.md) | API Schema Updates | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
@@ -134,6 +142,9 @@
 | [US0034](US0034-relationships-api.md) | Relationships API | [EP0008](../epics/EP0008-document-relationship-navigation.md) | Done | 5 | Darren |
 | [US0035](US0035-document-view-navigation.md) | Document View Navigation | [EP0008](../epics/EP0008-document-relationship-navigation.md) | Done | 5 | Darren |
 | [US0036](US0036-document-tree-view.md) | Document Tree View | [EP0008](../epics/EP0008-document-relationship-navigation.md) | Done | 3 | Darren |
+| [US0037](US0037-health-check-rules-engine.md) | Health Check Rules Engine | [EP0009](../epics/EP0009-project-health-check.md) | Done | 5 | Darren |
+| [US0038](US0038-health-check-api-endpoint.md) | Health Check API Endpoint | [EP0009](../epics/EP0009-project-health-check.md) | Done | 3 | Darren |
+| [US0039](US0039-health-check-dashboard-page.md) | Health Check Dashboard Page | [EP0009](../epics/EP0009-project-health-check.md) | Done | 5 | Darren |
 
 ## Notes
 

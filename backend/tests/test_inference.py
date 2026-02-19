@@ -177,9 +177,7 @@ class TestPrefixedIds:
             ),
         ],
     )
-    def test_id_extraction(
-        self, filename: str, rel_path: str, expected_id: str
-    ) -> None:
+    def test_id_extraction(self, filename: str, rel_path: str, expected_id: str) -> None:
         result = infer_type_and_id(filename, rel_path)
         assert result is not None
         assert result.doc_id == expected_id
@@ -240,9 +238,7 @@ class TestDirectoryFallback:
 class TestEdgeCases:
     def test_prefix_in_wrong_directory(self) -> None:
         """EP0001.md in stories/ still infers as epic (prefix priority)."""
-        result = infer_type_and_id(
-            "EP0001-overview.md", "stories/EP0001-overview.md"
-        )
+        result = infer_type_and_id("EP0001-overview.md", "stories/EP0001-overview.md")
         assert result is not None
         assert result.doc_type == "epic"
 
@@ -256,9 +252,7 @@ class TestEdgeCases:
 
     def test_nested_subdirectory(self) -> None:
         """File in nested dir still inferred from filename prefix."""
-        result = infer_type_and_id(
-            "EP0001-archived.md", "epics/archive/EP0001-archived.md"
-        )
+        result = infer_type_and_id("EP0001-archived.md", "epics/archive/EP0001-archived.md")
         assert result is not None
         assert result.doc_type == "epic"
         assert result.doc_id == "EP0001-archived"
@@ -272,9 +266,7 @@ class TestEdgeCases:
 
     def test_wf_prefix(self) -> None:
         """WF prefix infers type workflow."""
-        result = infer_type_and_id(
-            "WF0001-workflow.md", "workflows/WF0001-workflow.md"
-        )
+        result = infer_type_and_id("WF0001-workflow.md", "workflows/WF0001-workflow.md")
         assert result is not None
         assert result.doc_type == "workflow"
         assert result.doc_id == "WF0001-workflow"

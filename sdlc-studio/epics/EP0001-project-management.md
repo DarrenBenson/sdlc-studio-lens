@@ -88,17 +88,17 @@ One-time project registration with a single sync click imports all SDLC document
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Can register a project with name and valid sdlc-studio directory path
-- [ ] Path validation rejects non-existent directories
-- [ ] Duplicate slugs are rejected with appropriate error
-- [ ] Project list displays all registered projects with sync status
-- [ ] Can edit project name and path
-- [ ] Can delete a project (and its documents are removed)
-- [ ] Sync button triggers document import and shows progress state
-- [ ] Sync status updates from "syncing" to "synced" on success
-- [ ] Sync status shows "error" with message on failure
-- [ ] Last-synced-at timestamp displays correctly
-- [ ] Settings page provides project CRUD interface
+- [x] Can register a project with name and valid sdlc-studio directory path
+- [x] Path validation rejects non-existent directories
+- [x] Duplicate slugs are rejected with appropriate error
+- [x] Project list displays all registered projects with sync status
+- [x] Can edit project name and path
+- [x] Can delete a project (and its documents are removed)
+- [x] Sync button triggers document import and shows progress state
+- [x] Sync status updates from "syncing" to "synced" on success
+- [x] Sync status shows "error" with message on failure
+- [x] Last-synced-at timestamp displays correctly
+- [x] Settings page provides project CRUD interface
 
 ## Dependencies
 

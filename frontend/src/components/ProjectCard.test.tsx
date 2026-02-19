@@ -3,7 +3,7 @@
  * Test cases: TC0340-TC0342 from TS0032.
  */
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { Project } from "../types/index.ts";
 import { ProjectCard } from "./ProjectCard.tsx";

@@ -26,10 +26,7 @@ async def fts_insert(
 ) -> None:
     """Insert a document into the FTS5 index."""
     await session.execute(
-        text(
-            "INSERT INTO documents_fts(rowid, title, content) "
-            "VALUES (:rowid, :title, :content)"
-        ),
+        text("INSERT INTO documents_fts(rowid, title, content) VALUES (:rowid, :title, :content)"),
         {"rowid": rowid, "title": title, "content": content},
     )
 
@@ -66,8 +63,4 @@ async def fts_delete(
 
 async def fts_rebuild(session: AsyncSession) -> None:
     """Rebuild the FTS5 index from the documents table."""
-    await session.execute(
-        text(
-            "INSERT INTO documents_fts(documents_fts) VALUES('rebuild')"
-        )
-    )
+    await session.execute(text("INSERT INTO documents_fts(documents_fts) VALUES('rebuild')"))

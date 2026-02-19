@@ -81,7 +81,8 @@ def _make_doc(project_id: int, doc_type: str, doc_id: str, status: str | None) -
 
 @pytest.fixture
 async def seed_project_a(session: AsyncSession, project_a: Project) -> None:
-    """Seed project A: 3 Done stories, 1 Draft story, 2 Done epics, 1 prd (null status), 1 trd (null status), 2 Done plans = 10 docs."""
+    """Seed project A: 3 Done stories, 1 Draft story, 2 Done epics,
+    1 prd (null status), 1 trd (null status), 2 Done plans = 10 docs."""
     docs = [
         _make_doc(project_a.id, "story", "US0001", "Done"),
         _make_doc(project_a.id, "story", "US0002", "Done"),
@@ -145,7 +146,12 @@ class TestPerProjectByStatus:
 
 # TC0190: Per-project includes slug, name, last_synced_at
 class TestPerProjectFields:
-    async def test_includes_project_fields(self, client: AsyncClient, seed_project_a, project_a) -> None:
+    async def test_includes_project_fields(
+        self,
+        client: AsyncClient,
+        seed_project_a,
+        project_a,
+    ) -> None:
         resp = await client.get("/api/v1/projects/project-alpha/stats")
         data = resp.json()
         assert data["slug"] == "project-alpha"
@@ -159,7 +165,11 @@ class TestNullStatusInByStatus:
         resp = await client.get("/api/v1/projects/project-alpha/stats")
         data = resp.json()
         # prd and trd have null status - should appear under null key
-        assert data["by_status"].get("null") == 2 or data["by_status"].get(None) == 2 or data["by_status"].get("Unknown") == 2
+        assert (
+            data["by_status"].get("null") == 2
+            or data["by_status"].get(None) == 2
+            or data["by_status"].get("Unknown") == 2
+        )
 
 
 # TC0195: Completion percentage calculated correctly
@@ -173,7 +183,12 @@ class TestCompletionPercentage:
 
 # TC0196: No stories means completion 0.0
 class TestNoStoriesCompletion:
-    async def test_no_stories_zero_completion(self, client: AsyncClient, session: AsyncSession, empty_project) -> None:
+    async def test_no_stories_zero_completion(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        empty_project,
+    ) -> None:
         """Project with epics only, no stories."""
         docs = [
             _make_doc(empty_project.id, "epic", "EP0001", "Done"),
@@ -194,7 +209,12 @@ class TestAllStoriesDone:
         Let's seed a project with all Done stories separately."""
         pass
 
-    async def test_all_stories_done(self, client: AsyncClient, session: AsyncSession, empty_project) -> None:
+    async def test_all_stories_done(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        empty_project,
+    ) -> None:
         docs = [
             _make_doc(empty_project.id, "story", "US0001", "Done"),
             _make_doc(empty_project.id, "story", "US0002", "Done"),
@@ -241,7 +261,12 @@ class TestAggregateTotals:
 
 # TC0193: Aggregate by_type sums across projects
 class TestAggregateByType:
-    async def test_aggregate_by_type(self, client: AsyncClient, seed_project_a, seed_project_b) -> None:
+    async def test_aggregate_by_type(
+        self,
+        client: AsyncClient,
+        seed_project_a,
+        seed_project_b,
+    ) -> None:
         resp = await client.get("/api/v1/stats")
         data = resp.json()
         # project_a: 4 stories, project_b: 3 stories = 7
@@ -251,7 +276,12 @@ class TestAggregateByType:
 
 # TC0194: Aggregate projects array with per-project summaries
 class TestAggregateProjectsArray:
-    async def test_projects_array(self, client: AsyncClient, seed_project_a, seed_project_b) -> None:
+    async def test_projects_array(
+        self,
+        client: AsyncClient,
+        seed_project_a,
+        seed_project_b,
+    ) -> None:
         resp = await client.get("/api/v1/stats")
         data = resp.json()
         assert len(data["projects"]) == 2
@@ -268,7 +298,12 @@ class TestAggregateProjectsArray:
 
 # Aggregate completion: weighted average
 class TestAggregateCompletion:
-    async def test_weighted_completion(self, client: AsyncClient, seed_project_a, seed_project_b) -> None:
+    async def test_weighted_completion(
+        self,
+        client: AsyncClient,
+        seed_project_a,
+        seed_project_b,
+    ) -> None:
         """Project A: 3/4 Done stories. Project B: 2/3 Done stories.
         Overall: 5/7 = 71.4%."""
         resp = await client.get("/api/v1/stats")

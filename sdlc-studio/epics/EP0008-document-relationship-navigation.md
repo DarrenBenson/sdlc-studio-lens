@@ -82,15 +82,15 @@ Document relationship navigation lets users traverse the SDLC document tree from
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] From any story, user can navigate to its parent epic in one click
-- [ ] From any story, user can see its child plans, test specs, and bugs
-- [ ] From any epic, user can see its child stories
-- [ ] From any plan or test spec, user can navigate to its parent story and grandparent epic
-- [ ] Breadcrumbs show the full hierarchy path (Project → Epic → Story → Document)
-- [ ] A tree view shows the complete document hierarchy for a project
-- [ ] Relationship data is extracted from frontmatter markdown links during sync
-- [ ] All existing tests pass without modification
-- [ ] New tests cover relationship extraction, API, and frontend components
+- [x]From any story, user can navigate to its parent epic in one click
+- [x]From any story, user can see its child plans, test specs, and bugs
+- [x]From any epic, user can see its child stories
+- [x]From any plan or test spec, user can navigate to its parent story and grandparent epic
+- [x]Breadcrumbs show the full hierarchy path (Project → Epic → Story → Document)
+- [x]A tree view shows the complete document hierarchy for a project
+- [x]Relationship data is extracted from frontmatter markdown links during sync
+- [x]All existing tests pass without modification
+- [x]New tests cover relationship extraction, API, and frontend components
 
 ## Dependencies
 

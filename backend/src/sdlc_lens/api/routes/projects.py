@@ -148,7 +148,7 @@ async def get_project_stats_endpoint(slug: str, db: DbDep) -> ProjectStats | JSO
 async def list_project_documents(
     slug: str,
     db: DbDep,
-    type: str | None = Query(None),
+    type: str | None = Query(None),  # noqa: A002
     status_filter: str | None = Query(None, alias="status"),
     sort: SortField = Query(SortField.updated_at),
     order: str = Query("desc", pattern="^(asc|desc)$"),
@@ -206,9 +206,7 @@ async def list_project_documents(
 
 
 @router.get("/{slug}/health-check", response_model=HealthCheckResponse)
-async def get_health_check(
-    slug: str, db: DbDep
-) -> HealthCheckResponse | JSONResponse:
+async def get_health_check(slug: str, db: DbDep) -> HealthCheckResponse | JSONResponse:
     """Run a health check on a project's documentation."""
     try:
         project = await get_project_by_slug(db, slug)
@@ -232,9 +230,7 @@ async def get_health_check(
                 category=f.category,
                 message=f.message,
                 affected_documents=[
-                    AffectedDocumentSchema(
-                        doc_id=ad.doc_id, doc_type=ad.doc_type, title=ad.title
-                    )
+                    AffectedDocumentSchema(doc_id=ad.doc_id, doc_type=ad.doc_type, title=ad.title)
                     for ad in f.affected_documents
                 ],
                 suggested_fix=f.suggested_fix,

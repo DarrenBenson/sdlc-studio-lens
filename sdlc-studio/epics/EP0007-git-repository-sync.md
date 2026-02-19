@@ -86,15 +86,15 @@ GitHub repository sync allows the deployed container to pull SDLC documents dire
 
 ## Acceptance Criteria (Epic Level)
 
-- [ ] Register a project with source_type "github" and a valid GitHub repository URL
-- [ ] Sync fetches .md files from the specified branch and subdirectory
-- [ ] Public repositories sync without an access token
-- [ ] Private repositories sync with a valid PAT
-- [ ] Access tokens are masked in GET /projects and GET /projects/{slug} responses
-- [ ] Local filesystem sync continues to work unchanged for existing projects
-- [ ] Sync produces identical document records regardless of source type
-- [ ] All existing tests pass without modification
-- [ ] New tests cover GitHub source, sync dispatch, API schemas, and frontend form
+- [x] Register a project with source_type "github" and a valid GitHub repository URL
+- [x] Sync fetches .md files from the specified branch and subdirectory
+- [x] Public repositories sync without an access token
+- [x] Private repositories sync with a valid PAT
+- [x] Access tokens are masked in GET /projects and GET /projects/{slug} responses
+- [x] Local filesystem sync continues to work unchanged for existing projects
+- [x] Sync produces identical document records regardless of source type
+- [x] All existing tests pass without modification
+- [x] New tests cover GitHub source, sync dispatch, API schemas, and frontend form
 
 ## Dependencies
 
@@ -180,11 +180,11 @@ GitHub repository sync allows the deployed container to pull SDLC documents dire
 
 | ID | Title | Complexity | Status |
 |----|-------|------------|--------|
-| [US0028](../stories/US0028-database-schema-github-source.md) | Database Schema & Project Model | Medium | Not Started |
-| [US0029](../stories/US0029-github-api-source-module.md) | GitHub API Source Module | High | Not Started |
-| [US0030](../stories/US0030-sync-engine-source-dispatch.md) | Sync Engine Source Dispatch | Medium | Not Started |
-| [US0031](../stories/US0031-api-schema-source-type.md) | API Schema Updates | Medium | Not Started |
-| [US0032](../stories/US0032-frontend-source-type-ui.md) | Frontend Source Type UI | Medium | Not Started |
+| [US0028](../stories/US0028-database-schema-github-source.md) | Database Schema & Project Model | Medium | Done |
+| [US0029](../stories/US0029-github-api-source-module.md) | GitHub API Source Module | High | Done |
+| [US0030](../stories/US0030-sync-engine-source-dispatch.md) | Sync Engine Source Dispatch | Medium | Done |
+| [US0031](../stories/US0031-api-schema-source-type.md) | API Schema Updates | Medium | Done |
+| [US0032](../stories/US0032-frontend-source-type-ui.md) | Frontend Source Type UI | Medium | Done |
 
 ## Test Plan
 

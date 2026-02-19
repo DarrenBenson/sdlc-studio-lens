@@ -91,9 +91,7 @@ class TestGithubNoSdlcPath:
 
 # TC0320: POST /projects with source_type=local ignores repo fields
 class TestLocalIgnoresRepoFields:
-    async def test_local_accepts_repo_fields(
-        self, client: AsyncClient, sdlc_dir: Path
-    ) -> None:
+    async def test_local_accepts_repo_fields(self, client: AsyncClient, sdlc_dir: Path) -> None:
         resp = await client.post(
             "/api/v1/projects",
             json={
@@ -111,9 +109,7 @@ class TestLocalIgnoresRepoFields:
 
 # TC0321: POST /projects defaults source_type to "local" when omitted
 class TestDefaultSourceType:
-    async def test_defaults_to_local(
-        self, client: AsyncClient, sdlc_dir: Path
-    ) -> None:
+    async def test_defaults_to_local(self, client: AsyncClient, sdlc_dir: Path) -> None:
         resp = await client.post(
             "/api/v1/projects",
             json={"name": "Default Test", "sdlc_path": str(sdlc_dir)},
@@ -126,9 +122,7 @@ class TestDefaultSourceType:
 # TC0322: GET /projects returns masked access_token
 class TestListMasksToken:
     async def test_list_masks_token(self, client: AsyncClient) -> None:
-        await _register_github(
-            client, "GitHub Test", access_token="ghp_abcdef1234567890"
-        )
+        await _register_github(client, "GitHub Test", access_token="ghp_abcdef1234567890")
 
         resp = await client.get("/api/v1/projects")
         assert resp.status_code == 200
@@ -140,9 +134,7 @@ class TestListMasksToken:
 # TC0323: GET /projects/{slug} returns masked access_token
 class TestGetMasksToken:
     async def test_get_single_masks_token(self, client: AsyncClient) -> None:
-        data = await _register_github(
-            client, "GitHub Test", access_token="ghp_abcdef1234567890"
-        )
+        data = await _register_github(client, "GitHub Test", access_token="ghp_abcdef1234567890")
 
         resp = await client.get(f"/api/v1/projects/{data['slug']}")
         assert resp.status_code == 200
@@ -169,12 +161,8 @@ class TestUpdateRepoUrl:
 
 # TC0327: PUT /projects/{slug} updates access_token
 class TestUpdateAccessToken:
-    async def test_updates_token_and_masks_in_response(
-        self, client: AsyncClient
-    ) -> None:
-        data = await _register_github(
-            client, "GitHub Test", access_token="ghp_oldtoken1234"
-        )
+    async def test_updates_token_and_masks_in_response(self, client: AsyncClient) -> None:
+        data = await _register_github(client, "GitHub Test", access_token="ghp_oldtoken1234")
 
         resp = await client.put(
             f"/api/v1/projects/{data['slug']}",

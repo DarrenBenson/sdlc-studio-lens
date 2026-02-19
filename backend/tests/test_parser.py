@@ -254,7 +254,10 @@ class TestHeadingBeforeFrontmatter:
     """Real sdlc-studio documents have heading first, then blockquote."""
 
     def test_extracts_metadata_after_heading(self) -> None:
-        content = "# US0001: Register a New Project\n\n> **Status:** Done\n> **Owner:** Darren\n\n## Section\n\nBody."
+        content = (
+            "# US0001: Register a New Project\n\n"
+            "> **Status:** Done\n> **Owner:** Darren\n\n## Section\n\nBody."
+        )
         result = parse_document(content)
         assert result.metadata["status"] == "Done"
         assert result.metadata["owner"] == "Darren"
@@ -265,7 +268,10 @@ class TestHeadingBeforeFrontmatter:
         assert result.title == "US0001: Register a New Project"
 
     def test_body_after_frontmatter(self) -> None:
-        content = "# US0001: Register a New Project\n\n> **Status:** Done\n> **Owner:** Darren\n\n## Section\n\nBody."
+        content = (
+            "# US0001: Register a New Project\n\n"
+            "> **Status:** Done\n> **Owner:** Darren\n\n## Section\n\nBody."
+        )
         result = parse_document(content)
         assert "## Section" in result.body
         assert "Body." in result.body

@@ -1,5 +1,5 @@
 /** Project health check page. */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { fetchHealthCheck } from "../api/client.ts";
@@ -204,7 +204,7 @@ export function HealthCheck() {
   const [filter, setFilter] = useState<Severity | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!slug) return;
     setLoading(true);
     setError(null);
@@ -212,11 +212,11 @@ export function HealthCheck() {
       .then(setData)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [slug]);
 
   useEffect(() => {
     load();
-  }, [slug]);
+  }, [load]);
 
   if (loading) {
     return (
