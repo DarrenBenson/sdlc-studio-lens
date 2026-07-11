@@ -16,6 +16,7 @@ Registry of all review findings for traceability and audit.
 | ID | Artifact | Type | Date | Critical | Important |
 |-------|----------|------|------|----------|-----------|
 | [RV-0001](RV0001-repository-review-architecture-code-quality-defensive-security.md) | repository | review generate | 2026-07-11 | 3 | 3 |
+| [RV-0002](RV0002-repository-review-2-post-v3-codebase-architecture-code.md) | -- | Feature | 2026-07-11 | -- | -- |
 
 ## Reviews Requiring Attention
 

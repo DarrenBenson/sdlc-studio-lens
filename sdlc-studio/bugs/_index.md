@@ -6,14 +6,14 @@
 
 | Status | Count |
 | -------- | ------- |
-| Open | 0 |
+| Open | 5 |
 | In Progress | 0 |
 | Fixed | 6 |
 | Verified | 0 |
 | Closed | 0 |
 | Won't Fix | 0 |
 | inbox | 0 |
-| **Total** | **6** |
+| **Total** | **11** |
 
 ## By Severity
 
@@ -30,6 +30,11 @@
 | [BG-01KX8BJY](BG-01KX8BJY-unrestricted-sdlc-path-allows-harvesting-arbitrary-md-files.md) | Unrestricted sdlc_path allows harvesting arbitrary .md files from the host | Medium | Medium | Fixed | -- | -- | 2026-07-11 |
 | [BG-01KX8B04](BG-01KX8B04-failed-sync-can-leave-a-project-permanently-stuck.md) | Failed sync can leave a project permanently stuck in 'syncing' | Medium | Medium | Fixed | -- | -- | 2026-07-11 |
 | [BG-01KX8BY1](BG-01KX8BY1-blocking-tarball-extraction-and-filesystem-walk-run-on.md) | Blocking tarball extraction and filesystem walk run on the event loop during sync | Medium | Medium | Fixed | -- | -- | 2026-07-11 |
+| [BG-01KX95DB](BG-01KX95DB-ref-id-not-backfilled-after-migration-007-relationship.md) | ref_id not backfilled after migration 007: relationship resolution breaks for existing docs post-upgrade | High | Medium | Open | -- | -- | 2026-07-11 |
+| [BG-01KX95WX](BG-01KX95WX-stored-xss-in-search-results-dangerouslysetinnerhtml-on-fts.md) | Stored XSS in search results: dangerouslySetInnerHTML on FTS snippet over synced document content | High | Medium | Open | -- | -- | 2026-07-11 |
+| [BG-01KX95CR](BG-01KX95CR-documentview-breadcrumb-truncates-v3-ulid-ids-to-the.md) | DocumentView breadcrumb truncates v3 ULID ids to the bare prefix | Medium | Medium | Open | -- | -- | 2026-07-11 |
+| [BG-01KX95AZ](BG-01KX95AZ-decrypt-token-raises-invalidtoken-on-a-wrong-rotated.md) | decrypt_token raises InvalidToken on a wrong/rotated key, 500-ing the whole project list | Medium | Medium | Open | -- | -- | 2026-07-11 |
+| [BG-01KX95QP](BG-01KX95QP-sdlc-path-allowlist-bypassable-via-a-two-step.md) | sdlc_path allowlist bypassable via a two-step source_type update | Medium | Medium | Open | -- | -- | 2026-07-11 |
 
 ## Notes
 

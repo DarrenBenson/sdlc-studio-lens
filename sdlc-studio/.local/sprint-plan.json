@@ -1,8 +1,12 @@
 {
-  "generated_at": "2026-07-11T15:59:41Z",
-  "kind": "cr",
-  "status": "Proposed",
+  "generated_at": "2026-07-11T18:02:48Z",
+  "kind": "bug+cr",
+  "status": "Open, Proposed",
   "queries": [
+    {
+      "kind": "bug",
+      "status": "Open"
+    },
     {
       "kind": "cr",
       "status": "Proposed"
@@ -11,23 +15,11 @@
   "order": "priority",
   "batch": [
     {
-      "id": "CR-01KX8Y32",
-      "type": "cr",
-      "status": "Proposed",
+      "id": "BG-01KX95DB",
+      "type": "bug",
+      "status": "Open",
       "priority": "High",
-      "path": "sdlc-studio/change-requests/CR-01KX8Y32-robust-ingest-id-and-type-recognition-for-schema.md",
-      "difficulty": {
-        "score": 48,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KX8Y2G",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "High",
-      "path": "sdlc-studio/change-requests/CR-01KX8Y2G-traceability-resolve-references-and-relationships-across-id-forms.md",
+      "path": "sdlc-studio/bugs/BG-01KX95DB-ref-id-not-backfilled-after-migration-007-relationship.md",
       "difficulty": {
         "score": 50,
         "band": "medium",
@@ -35,69 +27,105 @@
       }
     },
     {
-      "id": "CR-01KX8Y0M",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KX8Y0M-status-vocabulary-v3-and-canonicalisation.md",
+      "id": "BG-01KX95WX",
+      "type": "bug",
+      "status": "Open",
+      "priority": "High",
+      "path": "sdlc-studio/bugs/BG-01KX95WX-stored-xss-in-search-results-dangerouslysetinnerhtml-on-fts.md",
       "difficulty": {
-        "score": 48,
+        "score": 50,
         "band": "medium",
         "confidence": "low"
       }
     },
     {
-      "id": "CR-01KX8YD6",
-      "type": "cr",
-      "status": "Proposed",
+      "id": "BG-01KX95AZ",
+      "type": "bug",
+      "status": "Open",
       "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KX8YD6-display-new-artefact-types-and-v3-metadata-fields.md",
+      "path": "sdlc-studio/bugs/BG-01KX95AZ-decrypt-token-raises-invalidtoken-on-a-wrong-rotated.md",
       "difficulty": {
-        "score": 48,
+        "score": 50,
         "band": "medium",
         "confidence": "low"
       }
     },
     {
-      "id": "CR-01KX8YMC",
-      "type": "cr",
-      "status": "Proposed",
+      "id": "BG-01KX95CR",
+      "type": "bug",
+      "status": "Open",
       "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KX8YMC-health-check-alignment-with-schema-v3-vocabulary-and.md",
+      "path": "sdlc-studio/bugs/BG-01KX95CR-documentview-breadcrumb-truncates-v3-ulid-ids-to-the.md",
       "difficulty": {
-        "score": 48,
+        "score": 50,
         "band": "medium",
         "confidence": "low"
       }
     },
     {
-      "id": "CR-01KX8Y6H",
+      "id": "BG-01KX95QP",
+      "type": "bug",
+      "status": "Open",
+      "priority": "Medium",
+      "path": "sdlc-studio/bugs/BG-01KX95QP-sdlc-path-allowlist-bypassable-via-a-two-step.md",
+      "difficulty": {
+        "score": 50,
+        "band": "medium",
+        "confidence": "low"
+      }
+    },
+    {
+      "id": "CR-01KX95HS",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "Medium",
+      "path": "sdlc-studio/change-requests/CR-01KX95HS-centralise-terminal-status-canonicalisation-logic-duplicated-and-drifted.md",
+      "difficulty": {
+        "score": 45,
+        "band": "medium",
+        "confidence": "low"
+      }
+    },
+    {
+      "id": "CR-01KX95FH",
       "type": "cr",
       "status": "Proposed",
       "priority": "Low",
-      "path": "sdlc-studio/change-requests/CR-01KX8Y6H-config-and-schema-version-awareness-config-yaml-and.md",
+      "path": "sdlc-studio/change-requests/CR-01KX95FH-low-severity-bugs-consolidated.md",
       "difficulty": {
-        "score": 50,
+        "score": 45,
+        "band": "medium",
+        "confidence": "low"
+      }
+    },
+    {
+      "id": "CR-01KX95WV",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "Low",
+      "path": "sdlc-studio/change-requests/CR-01KX95WV-low-severity-crs-consolidated.md",
+      "difficulty": {
+        "score": 42,
         "band": "medium",
         "confidence": "low"
       }
     }
   ],
-  "count": 6,
+  "count": 8,
   "waves": [
     [
-      "CR-01KX8Y32"
+      "BG-01KX95DB",
+      "BG-01KX95WX",
+      "BG-01KX95AZ",
+      "BG-01KX95CR",
+      "CR-01KX95HS"
     ],
     [
-      "CR-01KX8Y2G",
-      "CR-01KX8YMC"
+      "BG-01KX95QP",
+      "CR-01KX95FH"
     ],
     [
-      "CR-01KX8Y0M"
-    ],
-    [
-      "CR-01KX8YD6",
-      "CR-01KX8Y6H"
+      "CR-01KX95WV"
     ]
   ],
   "deps_declared": true,
