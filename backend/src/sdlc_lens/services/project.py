@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sdlc_lens.config import settings
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
+from sdlc_lens.utils.crypto import encrypt_token
 from sdlc_lens.utils.slug import generate_slug
 
 logger = logging.getLogger(__name__)
@@ -114,7 +115,7 @@ async def create_project(
         repo_url=repo_url,
         repo_branch=repo_branch,
         repo_path=repo_path,
-        access_token=access_token,
+        access_token=encrypt_token(access_token),
     )
     session.add(project)
 
@@ -205,7 +206,7 @@ async def update_project(
         project.repo_path = repo_path
 
     if access_token is not None:
-        project.access_token = access_token
+        project.access_token = encrypt_token(access_token)
 
     await session.commit()
     await session.refresh(project)

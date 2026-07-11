@@ -277,6 +277,115 @@ class TestRunSyncTask:
 
 
 # ---------------------------------------------------------------------------
+# BG-01KX8B04: run_sync_task must never leave a project stuck in "syncing";
+# trigger_sync must transition atomically.
+# ---------------------------------------------------------------------------
+
+
+class TestRunSyncTaskRecovery:
+    """A failure inside run_sync_task must land the project in "error", never
+    leave it stuck in "syncing" (which would 409 every future sync)."""
+
+    async def test_sync_project_raising_sets_error_not_syncing(
+        self, engine, tmp_path: Path
+    ) -> None:
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        from sdlc_lens.services.sync import run_sync_task
+
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+        async with session_factory() as sess:
+            project = Project(
+                slug="test-local",
+                name="Test Local",
+                source_type="local",
+                sdlc_path=str(tmp_path),
+                sync_status="syncing",
+            )
+            sess.add(project)
+            await sess.commit()
+
+        with patch(
+            "sdlc_lens.services.sync.sync_project",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("boom"),
+        ):
+            # run_sync_task must swallow-and-record, not propagate.
+            await run_sync_task("test-local", session_factory)
+
+        async with session_factory() as sess:
+            refreshed = (
+                await sess.execute(select(Project).where(Project.slug == "test-local"))
+            ).scalar_one()
+            assert refreshed.sync_status == "error"
+            assert refreshed.sync_error is not None
+            assert "boom" in refreshed.sync_error
+
+    async def test_missing_project_does_not_raise(self, engine) -> None:
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        from sdlc_lens.services.sync import run_sync_task
+
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+        # No project with this slug - should log and return, not raise.
+        await run_sync_task("does-not-exist", session_factory)
+
+
+class TestTriggerSyncAtomicGuard:
+    """trigger_sync transitions atomically so a project already syncing is
+    rejected and a missing project still 404s."""
+
+    async def test_happy_path_sets_syncing_and_returns_project(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        from sdlc_lens.services.sync import trigger_sync
+
+        project = Project(
+            slug="test-local",
+            name="Test Local",
+            source_type="local",
+            sdlc_path=str(tmp_path),
+            sync_status="never_synced",
+            sync_error="stale error",
+        )
+        session.add(project)
+        await session.commit()
+
+        returned = await trigger_sync(session, "test-local")
+
+        assert returned.slug == "test-local"
+        assert returned.sync_status == "syncing"
+        assert returned.sync_error is None
+
+    async def test_already_syncing_raises_sync_in_progress(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        from sdlc_lens.services.sync import SyncInProgressError, trigger_sync
+
+        project = Project(
+            slug="test-local",
+            name="Test Local",
+            source_type="local",
+            sdlc_path=str(tmp_path),
+            sync_status="syncing",
+        )
+        session.add(project)
+        await session.commit()
+
+        with pytest.raises(SyncInProgressError):
+            await trigger_sync(session, "test-local")
+
+    async def test_missing_project_raises_not_found(self, session: AsyncSession) -> None:
+        from sdlc_lens.services.project import ProjectNotFoundError
+        from sdlc_lens.services.sync import trigger_sync
+
+        with pytest.raises(ProjectNotFoundError):
+            await trigger_sync(session, "does-not-exist")
+
+
+# ---------------------------------------------------------------------------
 # BG-01KX8BFP: empty source must not wipe existing documents
 # ---------------------------------------------------------------------------
 

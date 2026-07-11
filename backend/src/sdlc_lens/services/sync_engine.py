@@ -154,12 +154,14 @@ async def collect_github_files(project: Project) -> dict[str, tuple[str, bytes]]
         Dict mapping relative file paths to (hash, content) tuples.
     """
     from sdlc_lens.services.github_source import fetch_github_files
+    from sdlc_lens.utils.crypto import decrypt_token
 
     return await fetch_github_files(
         repo_url=project.repo_url,
         branch=project.repo_branch,
         repo_path=project.repo_path,
-        access_token=project.access_token,
+        # Decrypt the at-rest token back to the real PAT for the API call.
+        access_token=decrypt_token(project.access_token),
     )
 
 

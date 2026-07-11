@@ -5,9 +5,17 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from sdlc_lens.utils.crypto import decrypt_token
+
 
 def mask_token(token: str | None) -> str | None:
-    """Mask an access token, showing only the last 4 characters."""
+    """Mask a stored access token, showing only the last 4 characters.
+
+    The stored value may be Fernet ciphertext, so decrypt first to expose the
+    real last-4 to the user. The masked result never leaks ciphertext or the
+    full plaintext.
+    """
+    token = decrypt_token(token)
     if not token:
         return None
     if len(token) <= 4:
