@@ -1,8 +1,9 @@
 # BG-01KX95CR: DocumentView breadcrumb truncates v3 ULID ids to the bare prefix
 
-> **Status:** Open
+> **Status:** Fixed
 > **Triaged-by:** Darren; human; v3
 > **Severity:** Medium
+> **Verification depth:** functional
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio file
 > **Raised-by:** Elena Foss; persona; v3

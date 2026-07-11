@@ -1,6 +1,6 @@
 # CR-01KX95HS: Centralise terminal-status / canonicalisation logic (duplicated and drifted across 3 modules)
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Triaged-by:** Darren; human; v3
 > **Priority:** Medium
 > **Type:** Improvement

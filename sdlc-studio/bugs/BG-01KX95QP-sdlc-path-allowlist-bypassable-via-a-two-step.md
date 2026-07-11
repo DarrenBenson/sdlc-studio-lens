@@ -1,9 +1,10 @@
 # BG-01KX95QP: sdlc_path allowlist bypassable via a two-step source_type update
 
-> **Status:** Open
+> **Status:** Fixed
 > **Depends on:** BG-01KX95DB
 > **Triaged-by:** Darren; human; v3
 > **Severity:** Medium
+> **Verification depth:** functional
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio file
 > **Raised-by:** Priya Nair; persona; v3

@@ -1,6 +1,6 @@
 # CR-01KX95FH: Low-severity bugs (consolidated)
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Depends on:** CR-01KX95HS
 > **Triaged-by:** Darren; human; v3
 > **Priority:** Low

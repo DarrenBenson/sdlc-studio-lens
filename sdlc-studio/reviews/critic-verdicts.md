@@ -22,3 +22,11 @@
 | CR01KX8YD6 | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
 | CR01KX8YMC | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
 | CR01KX8Y6H | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
+| BG01KX95DB | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| BG01KX95WX | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| BG01KX95CR | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| BG01KX95AZ | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| BG01KX95QP | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| CR01KX95HS | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| CR01KX95FH | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| CR01KX95WV | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |

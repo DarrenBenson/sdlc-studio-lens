@@ -1,8 +1,9 @@
 # BG-01KX95DB: ref_id not backfilled after migration 007: relationship resolution breaks for existing docs post-upgrade
 
-> **Status:** Open
+> **Status:** Fixed
 > **Triaged-by:** Darren; human; v3
 > **Severity:** High
+> **Verification depth:** functional
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio file
 > **Raised-by:** Priya Nair; persona; v3

@@ -7,10 +7,10 @@
 
 | Status | Count |
 | --- | --- |
-| Proposed | 3 |
+| Proposed | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Complete | 10 |
+| Complete | 13 |
 | Rejected | 0 |
 | Deferred | 0 |
 | inbox | 0 |
@@ -35,9 +35,9 @@
 | [CR-01KX8YD6](CR-01KX8YD6-display-new-artefact-types-and-v3-metadata-fields.md) | Display new artefact types and v3 metadata fields | Medium | Complete | Feature | -- | 2026-07-11 |
 | [CR-01KX8YMC](CR-01KX8YMC-health-check-alignment-with-schema-v3-vocabulary-and.md) | Health-check alignment with schema v3 vocabulary and types | Medium | Complete | Feature | -- | 2026-07-11 |
 | [CR-01KX8Y6H](CR-01KX8Y6H-config-and-schema-version-awareness-config-yaml-and.md) | Config and schema-version awareness (.config.yaml and .version) | Medium | Complete | Feature | -- | 2026-07-11 |
-| [CR-01KX95HS](CR-01KX95HS-centralise-terminal-status-canonicalisation-logic-duplicated-and-drifted.md) | Centralise terminal-status / canonicalisation logic (duplicated and drifted across 3 modules) | Medium | Proposed | Improvement | -- | 2026-07-11 |
-| [CR-01KX95FH](CR-01KX95FH-low-severity-bugs-consolidated.md) | Low-severity bugs (consolidated) | Low | Proposed | Improvement | -- | 2026-07-11 |
-| [CR-01KX95WV](CR-01KX95WV-low-severity-crs-consolidated.md) | Low-severity crs (consolidated) | Low | Proposed | Improvement | -- | 2026-07-11 |
+| [CR-01KX95HS](CR-01KX95HS-centralise-terminal-status-canonicalisation-logic-duplicated-and-drifted.md) | Centralise terminal-status / canonicalisation logic (duplicated and drifted across 3 modules) | Medium | Complete | Improvement | -- | 2026-07-11 |
+| [CR-01KX95FH](CR-01KX95FH-low-severity-bugs-consolidated.md) | Low-severity bugs (consolidated) | Low | Complete | Improvement | -- | 2026-07-11 |
+| [CR-01KX95WV](CR-01KX95WV-low-severity-crs-consolidated.md) | Low-severity crs (consolidated) | Low | Complete | Improvement | -- | 2026-07-11 |
 
 ## Dependencies
 

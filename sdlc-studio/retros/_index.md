@@ -15,3 +15,4 @@ Registry of sprint/batch retrospectives.
 |----|-------|------|-----------|---------|
 | [RETRO-0001](RETRO0001-rv-0001-backlog-sprint-6-bugs-4-crs.md) | RV-0001 backlog sprint - 6 bugs + 4 CRs delivered | 2026-07-11 | 10/10 | 0 |
 | [RETRO-0002](RETRO0002-schema-v3-format-support-sprint-6-crs-delivered.md) | Schema v3 format-support sprint - 6 CRs delivered | 2026-07-11 | -- | -- |
+| [RETRO-0003](RETRO0003-rv-0002-backlog-sprint-5-bugs-3-crs.md) | RV-0002 backlog sprint - 5 bugs + 3 CRs delivered | 2026-07-11 | -- | -- |
