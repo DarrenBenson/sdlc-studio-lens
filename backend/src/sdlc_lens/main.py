@@ -103,7 +103,7 @@ def create_app() -> FastAPI:
         async def _spa_fallback(path: str) -> Response:
             """Serve static files or fall back to index.html for SPA routing."""
             # Unknown API paths must yield a JSON 404, not the SPA shell.
-            if path.startswith("api/"):
+            if path == "api" or path.startswith("api/"):
                 return JSONResponse(
                     status_code=404,
                     content={

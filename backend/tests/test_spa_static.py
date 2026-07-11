@@ -70,3 +70,10 @@ class TestSpaFallback:
         assert response.status_code == 404
         assert response.headers["content-type"].startswith("application/json")
         assert response.json()["error"]["code"] == "NOT_FOUND"
+
+    def test_bare_api_path_returns_json_404(self, client: TestClient) -> None:
+        # A bare `/api` (no trailing slash) must not fall through to the SPA shell.
+        response = client.get("/api")
+        assert response.status_code == 404
+        assert response.headers["content-type"].startswith("application/json")
+        assert response.json()["error"]["code"] == "NOT_FOUND"
