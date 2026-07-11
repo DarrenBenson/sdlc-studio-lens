@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sdlc_lens.config import settings
@@ -149,15 +149,16 @@ async def get_project_by_slug(session: AsyncSession, slug: str) -> Project:
 
 
 async def get_document_count(session: AsyncSession, project_id: int) -> int:
-    """Count documents belonging to a project."""
-    try:
-        result = await session.execute(
-            select(func.count()).select_from(Document).where(Document.project_id == project_id)
-        )
-        return result.scalar_one()
-    except OperationalError:
-        # Documents table may not exist yet (created in EP0002)
-        return 0
+    """Count documents belonging to a project.
+
+    A database error is allowed to propagate: the documents table is part of the
+    baseline schema, so a failure here is a genuine fault, not the missing-table
+    condition the old broad ``except`` masked by returning 0.
+    """
+    result = await session.execute(
+        select(func.count()).select_from(Document).where(Document.project_id == project_id)
+    )
+    return result.scalar_one()
 
 
 async def update_project(

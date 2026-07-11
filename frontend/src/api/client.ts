@@ -20,7 +20,7 @@ const BASE = "/api/v1";
 export async function fetchProjects(): Promise<Project[]> {
   const res = await fetch(`${BASE}/projects`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch projects: ${res.status}`);
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<Project[]>;
 }
@@ -29,7 +29,7 @@ export async function fetchProjects(): Promise<Project[]> {
 export async function fetchProject(slug: string): Promise<Project> {
   const res = await fetch(`${BASE}/projects/${slug}`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch project: ${res.status}`);
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<Project>;
 }
@@ -135,7 +135,7 @@ export async function fetchRelatedDocuments(
     `${BASE}/projects/${slug}/documents/${type}/${docId}/related`,
   );
   if (!res.ok) {
-    throw new Error(`Failed to fetch relationships: ${res.status}`);
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<DocumentRelationships>;
 }
@@ -144,7 +144,7 @@ export async function fetchRelatedDocuments(
 export async function fetchAggregateStats(): Promise<AggregateStats> {
   const res = await fetch(`${BASE}/stats`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch stats: ${res.status}`);
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<AggregateStats>;
 }

@@ -213,17 +213,21 @@ def _build_doc_attrs(
 
 async def _rebuild_fts_if_exists(session: AsyncSession) -> None:
     """Rebuild FTS5 index if the virtual table exists."""
-    try:
-        row = await session.execute(
-            sql_text("SELECT name FROM sqlite_master WHERE name='documents_fts' AND type='table'")
-        )
-        if row.scalar_one_or_none() is not None:
-            from sdlc_lens.services.fts import fts_rebuild
+    row = await session.execute(
+        sql_text("SELECT name FROM sqlite_master WHERE name='documents_fts' AND type='table'")
+    )
+    if row.scalar_one_or_none() is None:
+        # The FTS virtual table is absent - nothing to rebuild. This is the only
+        # condition the guard covers; a real rebuild failure below is not swallowed.
+        return
 
-            await fts_rebuild(session)
-            await session.commit()
+    from sdlc_lens.services.fts import fts_rebuild
+
+    try:
+        await fts_rebuild(session)
+        await session.commit()
     except Exception:
-        logger.debug("FTS5 rebuild skipped (table may not exist)")
+        logger.warning("FTS5 rebuild failed after sync; search index may be stale", exc_info=True)
 
 
 async def sync_project(
