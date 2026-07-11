@@ -163,15 +163,15 @@ async def _get_parent_chain(
 
     if doc.story:
         story_doc = await _find_doc_by_clean_id(session, project_id, doc.story)
-        if story_doc:
+        if story_doc and story_doc.id != doc.id:
             parents.append(story_doc)
             if story_doc.epic:
                 epic_doc = await _find_doc_by_clean_id(session, project_id, story_doc.epic)
-                if epic_doc:
+                if epic_doc and epic_doc.id not in {doc.id, story_doc.id}:
                     parents.append(epic_doc)
     elif doc.epic:
         epic_doc = await _find_doc_by_clean_id(session, project_id, doc.epic)
-        if epic_doc:
+        if epic_doc and epic_doc.id != doc.id:
             parents.append(epic_doc)
 
     return parents
@@ -194,6 +194,7 @@ async def _get_children(
                 Document.project_id == project_id,
                 Document.epic == ref,
                 Document.story.is_(None),
+                Document.id != doc.id,  # a doc naming its own id is not its own child
             )
             .order_by(Document.doc_type, Document.doc_id)
         )
@@ -203,6 +204,7 @@ async def _get_children(
             .where(
                 Document.project_id == project_id,
                 Document.story == ref,
+                Document.id != doc.id,
             )
             .order_by(Document.doc_type, Document.doc_id)
         )
@@ -230,7 +232,7 @@ async def _get_dependencies(
     seen: set[int] = set()
     for dep in _split_ref_list(doc.depends_on):
         target = await _find_doc_by_clean_id(session, project_id, dep)
-        if target is not None and target.id not in seen:
+        if target is not None and target.id != doc.id and target.id not in seen:
             seen.add(target.id)
             results.append(target)
     return results
@@ -249,6 +251,7 @@ async def _get_dependents(
         select(Document)
         .where(
             Document.project_id == project_id,
+            Document.id != doc.id,
             or_(
                 Document.depends_on == ref,
                 Document.depends_on.like(f"{ref},%"),

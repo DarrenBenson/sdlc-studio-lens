@@ -61,3 +61,16 @@ class TestIsDone:
     )
     def test_is_done(self, status, doc_type, expected) -> None:
         assert is_done(status, doc_type) is expected
+
+
+def test_extra_vocab_overrides_prefix_collision() -> None:
+    """A custom status that has a built-in token as a prefix must win via extra_vocab.
+
+    Without the vocab, "Blocked externally" canonicalises to the built-in "Blocked";
+    with it, the longer custom token wins - proving extra_vocab actually changes output.
+    """
+    assert canonical_status("Blocked externally", "story") == "Blocked"
+    assert (
+        canonical_status("Blocked externally", "story", extra_vocab=["Blocked externally"])
+        == "Blocked externally"
+    )

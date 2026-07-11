@@ -916,3 +916,17 @@ class TestUntriagedInbox:
         assert len(flagged) == 1
         assert "BG-01KX8B82" in flagged[0].affected_documents[0].doc_id
         assert flagged[0].category == "consistency"
+
+
+class TestWorkflowNotExempt:
+    """CR-01KX8YMC review fix: workflow is a lifecycle type, not a record."""
+
+    def test_workflow_missing_status_is_flagged(self) -> None:
+        docs = [_doc(doc_type="workflow", doc_id="WF0001", status=None)]
+        result = _run(docs)
+        assert _find(result, "MISSING_STATUS") != []
+
+    def test_record_types_still_exempt(self) -> None:
+        docs = [_doc(doc_type="retro", doc_id="RETRO0001", status=None)]
+        result = _run(docs)
+        assert _find(result, "MISSING_STATUS") == []

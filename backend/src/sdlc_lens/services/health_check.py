@@ -45,7 +45,8 @@ _INBOX_TYPES = {"bug", "cr", "rfc"}
 # Record artefacts: point-in-time notes, not lifecycle documents. They carry no
 # Draft->Done status and reference other docs informally, so they are exempt
 # from status/orphan/staleness rules.
-_RECORD_TYPES = {"retro", "review", "decision", "persona", "personas", "pvd", "workflow"}
+# Workflow is NOT a record - it is a lifecycle artefact with a full status vocabulary.
+_RECORD_TYPES = {"retro", "review", "decision", "persona", "personas", "pvd"}
 
 # Splits a status off its trailing prose: `Done — implemented 2026-07-08` -> `Done`.
 # Separators are a spaced hyphen/en-dash/em-dash/middot, or an opening bracket.

@@ -85,3 +85,18 @@ async def test_alias_reference_resolves(session: AsyncSession) -> None:
 
     parents, _c, _d, _dd = await get_related_documents(session, p.id, plan)
     assert [pp.doc_id for pp in parents] == ["US-01KX8CCC-renamed"]
+
+
+async def test_self_reference_not_linked(session: AsyncSession) -> None:
+    """A document naming its own id is never its own parent/child/dependency."""
+    p = await _project(session)
+    # epic that (erroneously) names itself as epic, and depends on itself
+    doc = _doc(p.id, "epic", "EP0001-self", epic="EP0001", depends_on=norm_id("EP0001"))
+    session.add(doc)
+    await session.commit()
+
+    parents, children, depends_on, dependents = await get_related_documents(session, p.id, doc)
+    assert parents == []
+    assert children == []
+    assert depends_on == []
+    assert dependents == []
