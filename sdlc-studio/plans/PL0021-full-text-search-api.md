@@ -1,6 +1,7 @@
 # PL0021: Full-Text Search API - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0021: Full-Text Search API](../stories/US0021-full-text-search-api.md)
 > **Epic:** [EP0005: Search](../epics/EP0005-search.md)
 > **Created:** 2026-02-17

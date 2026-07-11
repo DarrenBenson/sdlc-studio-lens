@@ -1,6 +1,7 @@
 # US0016: Status and Type Badge Components
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0003: Document Browsing](../epics/EP0003-document-browsing.md)
 > **Owner:** Darren
 > **Reviewer:** -

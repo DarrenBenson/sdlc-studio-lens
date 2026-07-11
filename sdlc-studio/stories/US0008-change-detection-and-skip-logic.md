@@ -1,6 +1,7 @@
 # US0008: Change Detection via SHA-256 Hashing
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0002: Document Sync & Parsing](../epics/EP0002-document-sync-and-parsing.md)
 > **Owner:** Darren
 > **Reviewer:** -

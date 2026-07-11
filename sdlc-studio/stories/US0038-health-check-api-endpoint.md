@@ -1,6 +1,7 @@
 # US0038: Health Check API Endpoint
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0009: Project Health Check](../epics/EP0009-project-health-check.md)
 > **Owner:** Darren
 > **Reviewer:** -

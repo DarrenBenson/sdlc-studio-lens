@@ -1,6 +1,7 @@
 # PL0022: Search Results Page - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0022: Search Results Page](../stories/US0022-search-results-page.md)
 > **Epic:** [EP0005: Search](../epics/EP0005-search.md)
 > **Created:** 2026-02-17

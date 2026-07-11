@@ -1,6 +1,7 @@
 # US0020: Progress Ring and Chart Components
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0004: Dashboard & Statistics](../epics/EP0004-dashboard-and-statistics.md)
 > **Owner:** Darren
 > **Reviewer:** -

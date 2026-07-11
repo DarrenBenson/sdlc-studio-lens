@@ -6,20 +6,21 @@
 
 | Status | Count |
 |--------|-------|
-| Draft | 0 |
+| Draft | 7 |
 | Ready | 0 |
-| Complete | 36 |
+| Complete | 27 |
+| Superseded | 2 |
 | **Total** | **36** |
 
 ## Test Specs
 
 | ID | Epic | Stories | Test Cases | Status | Created |
 |----|------|---------|------------|--------|---------|
-| [TS0001](TS0001-register-new-project.md) | [EP0001](../epics/EP0001-project-management.md) | US0001 | 18 | Complete | 2026-02-17 |
-| [TS0002](TS0002-project-list-and-management-api.md) | [EP0001](../epics/EP0001-project-management.md) | US0002 | 16 | Complete | 2026-02-17 |
-| [TS0003](TS0003-trigger-sync-and-track-status.md) | [EP0001](../epics/EP0001-project-management.md) | US0003 | 13 | Complete | 2026-02-17 |
-| [TS0004](TS0004-settings-page-project-management.md) | [EP0001](../epics/EP0001-project-management.md) | US0004 | 13 | Complete | 2026-02-17 |
-| [TS0005](TS0005-sidebar-project-navigation.md) | [EP0001](../epics/EP0001-project-management.md) | US0005 | 8 | Complete | 2026-02-17 |
+| [TS0001](TS0001-register-new-project.md) | [EP0001](../epics/EP0001-project-management.md) | US0001 | 18 | Draft | 2026-02-17 |
+| [TS0002](TS0002-project-list-and-management-api.md) | [EP0001](../epics/EP0001-project-management.md) | US0002 | 16 | Draft | 2026-02-17 |
+| [TS0003](TS0003-trigger-sync-and-track-status.md) | [EP0001](../epics/EP0001-project-management.md) | US0003 | 13 | Draft | 2026-02-17 |
+| [TS0004](TS0004-settings-page-project-management.md) | [EP0001](../epics/EP0001-project-management.md) | US0004 | 13 | Draft | 2026-02-17 |
+| [TS0005](TS0005-sidebar-project-navigation.md) | [EP0001](../epics/EP0001-project-management.md) | US0005 | 8 | Draft | 2026-02-17 |
 | [TS0006](TS0006-blockquote-frontmatter-parser.md) | [EP0002](../epics/EP0002-document-sync-and-parsing.md) | US0006 | 15 | Complete | 2026-02-17 |
 | [TS0007](TS0007-filesystem-sync-service.md) | [EP0002](../epics/EP0002-document-sync-and-parsing.md) | US0007 | 13 | Complete | 2026-02-17 |
 | [TS0008](TS0008-change-detection-and-skip-logic.md) | [EP0002](../epics/EP0002-document-sync-and-parsing.md) | US0008 | 8 | Complete | 2026-02-17 |
@@ -38,10 +39,10 @@
 | [TS0021](TS0021-full-text-search-api.md) | [EP0005](../epics/EP0005-search.md) | US0021 | 11 | Complete | 2026-02-17 |
 | [TS0022](TS0022-search-results-page.md) | [EP0005](../epics/EP0005-search.md) | US0022 | 8 | Complete | 2026-02-17 |
 | [TS0023](TS0023-global-search-bar.md) | [EP0005](../epics/EP0005-search.md) | US0023 | 6 | Complete | 2026-02-17 |
-| [TS0024](TS0024-backend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0024 | 9 | Complete | 2026-02-17 |
-| [TS0025](TS0025-frontend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0025 | 8 | Complete | 2026-02-17 |
-| [TS0026](TS0026-docker-compose-orchestration.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0026 | 9 | Complete | 2026-02-17 |
-| [TS0027](TS0027-nginx-reverse-proxy-config.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0027 | 8 | Complete | 2026-02-17 |
+| [TS0024](TS0024-backend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0024 | 9 | Draft | 2026-02-17 |
+| [TS0025](TS0025-frontend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0025 | 8 | Superseded | 2026-02-17 |
+| [TS0026](TS0026-docker-compose-orchestration.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0026 | 9 | Draft | 2026-02-17 |
+| [TS0027](TS0027-nginx-reverse-proxy-config.md) | [EP0006](../epics/EP0006-docker-deployment.md) | US0027 | 8 | Superseded | 2026-02-17 |
 | [TS0028](TS0028-database-schema-github-source.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0028 | 10 | Complete | 2026-02-18 |
 | [TS0029](TS0029-github-api-source-module.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0029 | 12 | Complete | 2026-02-18 |
 | [TS0030](TS0030-sync-engine-source-dispatch.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | US0030 | 10 | Complete | 2026-02-18 |

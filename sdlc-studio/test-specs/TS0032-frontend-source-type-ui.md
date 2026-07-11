@@ -1,6 +1,7 @@
 # TS0032: Frontend Source Type UI
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0032: Frontend Source Type UI](../stories/US0032-frontend-source-type-ui.md)
 > **Epic:** [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
 > **Owner:** Darren

@@ -1,6 +1,7 @@
 # EP0008: Document Relationship Navigation
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Owner:** Darren
 > **Created:** 2026-02-18
 > **Target Release:** Phase 5 (Navigation)

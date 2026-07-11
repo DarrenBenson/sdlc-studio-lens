@@ -1,6 +1,7 @@
 # PL0011: Document Type and ID Inference - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0011: Document Type and ID Inference](../stories/US0011-document-type-and-id-inference.md)
 > **Epic:** [EP0002: Document Sync & Parsing](../epics/EP0002-document-sync-and-parsing.md)
 > **Created:** 2026-02-17

@@ -1,6 +1,7 @@
 # PL0002: Project List and Management API - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0002: Project List and Management API](../stories/US0002-project-list-and-management-api.md)
 > **Epic:** [EP0001: Project Management](../epics/EP0001-project-management.md)
 > **Created:** 2026-02-17

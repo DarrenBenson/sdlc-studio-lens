@@ -1,6 +1,7 @@
 # PL0009: Document Deletion Detection - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0009: Document Deletion Detection](../stories/US0009-document-deletion-detection.md)
 > **Epic:** [EP0002: Document Sync & Parsing](../epics/EP0002-document-sync-and-parsing.md)
 > **Created:** 2026-02-17

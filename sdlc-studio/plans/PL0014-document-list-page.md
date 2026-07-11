@@ -1,6 +1,7 @@
 # PL0014: Document List Page - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0014: Document List Page](../stories/US0014-document-list-page.md)
 > **Epic:** [EP0003: Document Browsing](../epics/EP0003-document-browsing.md)
 > **Created:** 2026-02-17

@@ -1,6 +1,7 @@
 # PL0030: Sync Engine Source Dispatch - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0030: Sync Engine Source Dispatch](../stories/US0030-sync-engine-source-dispatch.md)
 > **Epic:** [EP0007: GitHub Repository Sync](../epics/EP0007-github-repository-sync.md)
 > **Owner:** Darren

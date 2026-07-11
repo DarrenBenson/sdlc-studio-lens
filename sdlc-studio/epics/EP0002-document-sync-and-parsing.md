@@ -1,6 +1,7 @@
 # EP0002: Document Sync & Parsing
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Owner:** Darren
 > **Created:** 2026-02-17
 > **Target Release:** Phase 1 (Foundation)

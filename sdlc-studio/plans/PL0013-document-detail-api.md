@@ -1,6 +1,7 @@
 # PL0013: Document Detail API - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0013: Document Detail API](../stories/US0013-document-detail-api.md)
 > **Epic:** [EP0003: Document Browsing](../epics/EP0003-document-browsing.md)
 > **Created:** 2026-02-17

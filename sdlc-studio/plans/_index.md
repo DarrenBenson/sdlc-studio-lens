@@ -8,7 +8,8 @@
 |--------|-------|
 | Draft | 0 |
 | In Progress | 0 |
-| Complete | 36 |
+| Complete | 34 |
+| Superseded | 2 |
 | **Total** | **36** |
 
 ## Plans
@@ -39,9 +40,9 @@
 | [PL0022](PL0022-search-results-page.md) | [US0022](../stories/US0022-search-results-page.md) | [EP0005](../epics/EP0005-search.md) | Complete | 2026-02-17 |
 | [PL0023](PL0023-global-search-bar.md) | [US0023](../stories/US0023-global-search-bar.md) | [EP0005](../epics/EP0005-search.md) | Complete | 2026-02-17 |
 | [PL0024](PL0024-backend-dockerfile.md) | [US0024](../stories/US0024-backend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
-| [PL0025](PL0025-frontend-dockerfile.md) | [US0025](../stories/US0025-frontend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
+| [PL0025](PL0025-frontend-dockerfile.md) | [US0025](../stories/US0025-frontend-dockerfile.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Superseded | 2026-02-17 |
 | [PL0026](PL0026-docker-compose-orchestration.md) | [US0026](../stories/US0026-docker-compose-orchestration.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
-| [PL0027](PL0027-nginx-reverse-proxy-config.md) | [US0027](../stories/US0027-nginx-reverse-proxy-config.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Complete | 2026-02-17 |
+| [PL0027](PL0027-nginx-reverse-proxy-config.md) | [US0027](../stories/US0027-nginx-reverse-proxy-config.md) | [EP0006](../epics/EP0006-docker-deployment.md) | Superseded | 2026-02-17 |
 | [PL0028](PL0028-database-schema-github-source.md) | [US0028](../stories/US0028-database-schema-github-source.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | Complete | 2026-02-18 |
 | [PL0029](PL0029-github-api-source-module.md) | [US0029](../stories/US0029-github-api-source-module.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | Complete | 2026-02-18 |
 | [PL0030](PL0030-sync-engine-source-dispatch.md) | [US0030](../stories/US0030-sync-engine-source-dispatch.md) | [EP0007](../epics/EP0007-git-repository-sync.md) | Complete | 2026-02-18 |

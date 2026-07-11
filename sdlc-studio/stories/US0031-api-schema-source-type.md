@@ -1,6 +1,7 @@
 # US0031: API Schema Updates
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
 > **Owner:** Darren
 > **Reviewer:** -

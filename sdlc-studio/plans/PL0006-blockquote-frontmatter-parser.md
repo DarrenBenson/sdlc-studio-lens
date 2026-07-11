@@ -1,6 +1,7 @@
 # PL0006: Blockquote Frontmatter Parser - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0006: Blockquote Frontmatter Parser](../stories/US0006-blockquote-frontmatter-parser.md)
 > **Epic:** [EP0002: Document Sync & Parsing](../epics/EP0002-document-sync-and-parsing.md)
 > **Created:** 2026-02-17

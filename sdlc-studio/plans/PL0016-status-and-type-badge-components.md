@@ -1,6 +1,7 @@
 # PL0016: Status and Type Badge Components - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0016: Status and Type Badge Components](../stories/US0016-status-and-type-badge-components.md)
 > **Epic:** [EP0003: Document Browsing](../epics/EP0003-document-browsing.md)
 > **Created:** 2026-02-17

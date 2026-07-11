@@ -1,6 +1,7 @@
 # PL0001: Register a New Project - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0001: Register a New Project](../stories/US0001-register-new-project.md)
 > **Epic:** [EP0001: Project Management](../epics/EP0001-project-management.md)
 > **Created:** 2026-02-17

@@ -1,6 +1,7 @@
 # US0002: Project List and Management API
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0001: Project Management](../epics/EP0001-project-management.md)
 > **Owner:** Darren
 > **Reviewer:** -

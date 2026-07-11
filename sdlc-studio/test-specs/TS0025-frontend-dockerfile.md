@@ -1,6 +1,7 @@
 # TS0025: Frontend Dockerfile [SUPERSEDED]
 
 > **Status:** Superseded
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17
 > **Last Updated:** 2026-02-18

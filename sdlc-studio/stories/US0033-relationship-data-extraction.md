@@ -1,6 +1,7 @@
 # US0033: Relationship Data Extraction
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0008: Document Relationship Navigation](../epics/EP0008-document-relationship-navigation.md)
 > **Owner:** Darren
 > **Reviewer:** -

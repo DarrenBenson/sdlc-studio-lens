@@ -1,6 +1,7 @@
 # PL0029: GitHub API Source Module - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0029: GitHub API Source Module](../stories/US0029-github-api-source-module.md)
 > **Epic:** [EP0007: GitHub Repository Sync](../epics/EP0007-github-repository-sync.md)
 > **Owner:** Darren

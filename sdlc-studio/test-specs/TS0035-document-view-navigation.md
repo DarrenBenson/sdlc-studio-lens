@@ -1,6 +1,7 @@
 # TS0035: Document View Navigation - Test Specification
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0035: Document View Navigation](../stories/US0035-document-view-navigation.md)
 > **Epic:** [EP0008: Document Relationship Navigation](../epics/EP0008-document-relationship-navigation.md)
 > **Created:** 2026-02-18

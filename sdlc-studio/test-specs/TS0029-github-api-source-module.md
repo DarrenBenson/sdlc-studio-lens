@@ -1,6 +1,7 @@
 # TS0029: GitHub API Source Module
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0029: GitHub API Source Module](../stories/US0029-github-api-source-module.md)
 > **Epic:** [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
 > **Owner:** Darren

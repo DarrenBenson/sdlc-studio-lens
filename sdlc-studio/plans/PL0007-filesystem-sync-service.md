@@ -1,6 +1,7 @@
 # PL0007: Filesystem Sync Service - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0007: Filesystem Sync Service](../stories/US0007-filesystem-sync-service.md)
 > **Epic:** [EP0002: Document Sync & Parsing](../epics/EP0002-document-sync-and-parsing.md)
 > **Created:** 2026-02-17

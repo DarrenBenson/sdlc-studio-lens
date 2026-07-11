@@ -1,6 +1,7 @@
 # PL0027: Nginx Reverse Proxy Configuration - Implementation Plan [SUPERSEDED]
 
 > **Status:** Superseded
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0027: Nginx Reverse Proxy Configuration](../stories/US0027-nginx-reverse-proxy-config.md)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17

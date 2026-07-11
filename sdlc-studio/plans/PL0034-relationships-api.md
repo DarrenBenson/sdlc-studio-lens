@@ -1,6 +1,7 @@
 # PL0034: Relationships API - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0034: Relationships API](../stories/US0034-relationships-api.md)
 > **Epic:** [EP0008: Document Relationship Navigation](../epics/EP0008-document-relationship-navigation.md)
 > **Created:** 2026-02-18

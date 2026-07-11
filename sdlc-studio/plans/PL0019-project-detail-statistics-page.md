@@ -1,6 +1,7 @@
 # PL0019: Project Detail Statistics Page - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0019: Project Detail Statistics Page](../stories/US0019-project-detail-statistics-page.md)
 > **Epic:** [EP0004: Dashboard & Statistics](../epics/EP0004-dashboard-and-statistics.md)
 > **Created:** 2026-02-17

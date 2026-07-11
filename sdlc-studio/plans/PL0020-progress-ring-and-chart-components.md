@@ -1,6 +1,7 @@
 # PL0020: Progress Ring and Chart Components - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0020: Progress Ring and Chart Components](../stories/US0020-progress-ring-and-chart-components.md)
 > **Epic:** [EP0004: Dashboard & Statistics](../epics/EP0004-dashboard-and-statistics.md)
 > **Created:** 2026-02-17

@@ -1,6 +1,7 @@
 # PL0025: Frontend Dockerfile - Implementation Plan [SUPERSEDED]
 
 > **Status:** Superseded
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0025: Frontend Dockerfile](../stories/US0025-frontend-dockerfile.md)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17

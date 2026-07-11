@@ -1,6 +1,7 @@
 # TS0018: Dashboard Page
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0004: Dashboard & Statistics](../epics/EP0004-dashboard-and-statistics.md)
 > **Created:** 2026-02-17
 > **Last Updated:** 2026-02-17

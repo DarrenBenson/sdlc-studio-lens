@@ -1,6 +1,7 @@
 # US0028: Database Schema & Project Model
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
 > **Owner:** Darren
 > **Reviewer:** -

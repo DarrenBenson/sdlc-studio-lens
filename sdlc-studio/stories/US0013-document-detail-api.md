@@ -1,6 +1,7 @@
 # US0013: Document Detail API
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0003: Document Browsing](../epics/EP0003-document-browsing.md)
 > **Owner:** Darren
 > **Reviewer:** -

@@ -1,6 +1,7 @@
 # EP0007: Git Repository Sync
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Owner:** Darren
 > **Created:** 2026-02-18
 > **Target Release:** Phase 4 (Remote Sources)

@@ -1,6 +1,7 @@
 # PL0036: Document Tree View - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0036: Document Tree View](../stories/US0036-document-tree-view.md)
 > **Epic:** [EP0008: Document Relationship Navigation](../epics/EP0008-document-relationship-navigation.md)
 > **Created:** 2026-02-18

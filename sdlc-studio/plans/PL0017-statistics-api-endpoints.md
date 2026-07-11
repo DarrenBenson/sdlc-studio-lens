@@ -1,6 +1,7 @@
 # PL0017: Statistics API Endpoints - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0017: Statistics API Endpoints](../stories/US0017-statistics-api-endpoints.md)
 > **Epic:** [EP0004: Dashboard & Statistics](../epics/EP0004-dashboard-and-statistics.md)
 > **Created:** 2026-02-17

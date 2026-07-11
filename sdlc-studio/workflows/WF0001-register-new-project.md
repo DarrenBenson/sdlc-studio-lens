@@ -1,6 +1,7 @@
 # WF0001: Register a New Project - Workflow State
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0001: Register a New Project](../stories/US0001-register-new-project.md)
 > **Plan:** [PL0001: Register a New Project](../plans/PL0001-register-new-project.md)
 > **Test Spec:** [TS0001: Register a New Project](../test-specs/TS0001-register-new-project.md)

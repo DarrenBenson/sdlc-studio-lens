@@ -1,6 +1,7 @@
 # TS0030: Sync Engine Source Dispatch
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0030: Sync Engine Source Dispatch](../stories/US0030-sync-engine-source-dispatch.md)
 > **Epic:** [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
 > **Owner:** Darren

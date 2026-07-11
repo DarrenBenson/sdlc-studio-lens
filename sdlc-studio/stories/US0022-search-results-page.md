@@ -1,6 +1,7 @@
 # US0022: Search Results Page
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0005: Search](../epics/EP0005-search.md)
 > **Owner:** Darren
 > **Reviewer:** -

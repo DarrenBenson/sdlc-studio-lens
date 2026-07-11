@@ -1,6 +1,7 @@
 # US0027: Nginx Reverse Proxy Configuration [SUPERSEDED]
 
 > **Status:** Superseded
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Owner:** Darren
 > **Reviewer:** -

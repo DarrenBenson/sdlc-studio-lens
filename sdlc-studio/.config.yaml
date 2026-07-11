@@ -1,0 +1,16 @@
+schema_version: 3
+
+# Provenance adoption cutoff. All artefacts up to this per-type id predate the
+# structured `Raised-by` convention and were backfilled during the v3 upgrade
+# (2026-07-11) as `Darren; human; v1 (inferred)`. They are exempt from
+# `provenance check`; new artefacts (ULID ids) must carry a real stamp.
+provenance:
+  enforce: false
+  adopt_after: 39
+
+# Lifecycle-conformance adoption cutoff. The 39 stories (US0001-US0039) delivered
+# before the v3 upgrade (2026-07-11) predate the executable-AC / independent-critic
+# discipline. They are terminal (Done) and grandfathered forward-only: exempt from the
+# conformance gate. Every story from US0040 on must pass the full gate.
+conformance:
+  adopt_after: 39

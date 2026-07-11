@@ -1,6 +1,7 @@
 # PL0010: FTS5 Search Index Management - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0010: FTS5 Search Index Management](../stories/US0010-fts5-search-index-management.md)
 > **Epic:** [EP0002: Document Sync & Parsing](../epics/EP0002-document-sync-and-parsing.md)
 > **Created:** 2026-02-17

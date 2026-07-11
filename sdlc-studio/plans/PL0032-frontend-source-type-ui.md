@@ -1,6 +1,7 @@
 # PL0032: Frontend Source Type UI - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0032: Frontend Source Type UI](../stories/US0032-frontend-source-type-ui.md)
 > **Epic:** [EP0007: GitHub Repository Sync](../epics/EP0007-github-repository-sync.md)
 > **Owner:** Darren

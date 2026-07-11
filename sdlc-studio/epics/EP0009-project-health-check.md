@@ -1,6 +1,7 @@
 # EP0009: Project Health Check
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Owner:** Darren
 > **Created:** 2026-02-18
 > **Target Release:** Phase 6 (Quality)

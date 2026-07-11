@@ -12,8 +12,9 @@
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 39 |
+| Done | 37 |
 | Not Started | 0 |
+| Superseded | 2 |
 | **Total** | **39** |
 
 ## Stories by Epic
@@ -71,9 +72,9 @@
 | ID | Title | Status | Points | Owner |
 |----|-------|--------|--------|-------|
 | [US0024](US0024-backend-dockerfile.md) | Backend Dockerfile | Done | TBD | Darren |
-| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | Done | TBD | Darren |
+| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | Superseded | TBD | Darren |
 | [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | Done | TBD | Darren |
-| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Done | TBD | Darren |
+| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | Superseded | TBD | Darren |
 
 ### [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
 
@@ -130,9 +131,9 @@
 | [US0022](US0022-search-results-page.md) | Search Results Page | [EP0005](../epics/EP0005-search.md) | Done | TBD | Darren |
 | [US0023](US0023-global-search-bar.md) | Global Search Bar Component | [EP0005](../epics/EP0005-search.md) | Done | TBD | Darren |
 | [US0024](US0024-backend-dockerfile.md) | Backend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
-| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
+| [US0025](US0025-frontend-dockerfile.md) | Frontend Dockerfile | [EP0006](../epics/EP0006-docker-deployment.md) | Superseded | TBD | Darren |
 | [US0026](US0026-docker-compose-orchestration.md) | Docker Compose Orchestration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
-| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | [EP0006](../epics/EP0006-docker-deployment.md) | Done | TBD | Darren |
+| [US0027](US0027-nginx-reverse-proxy-config.md) | Nginx Reverse Proxy Configuration | [EP0006](../epics/EP0006-docker-deployment.md) | Superseded | TBD | Darren |
 | [US0028](US0028-database-schema-github-source.md) | Database Schema - GitHub Source | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
 | [US0029](US0029-github-api-source-module.md) | GitHub API Source Module | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |
 | [US0030](US0030-sync-engine-source-dispatch.md) | Sync Engine Source Dispatch | [EP0007](../epics/EP0007-git-repository-sync.md) | Done | TBD | Darren |

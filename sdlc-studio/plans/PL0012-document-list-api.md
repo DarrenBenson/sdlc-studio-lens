@@ -1,6 +1,7 @@
 # PL0012: Document List API with Filtering - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0012: Document List API with Filtering](../stories/US0012-document-list-api.md)
 > **Epic:** [EP0003: Document Browsing](../epics/EP0003-document-browsing.md)
 > **Created:** 2026-02-17

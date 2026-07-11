@@ -1,6 +1,7 @@
 # TS0028: Database Schema & Project Model
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0028: Database Schema & Project Model](../stories/US0028-database-schema-github-source.md)
 > **Epic:** [EP0007: Git Repository Sync](../epics/EP0007-git-repository-sync.md)
 > **Owner:** Darren

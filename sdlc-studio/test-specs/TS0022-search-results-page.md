@@ -1,6 +1,7 @@
 # TS0022: Search Results Page
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0005: Search](../epics/EP0005-search.md)
 > **Created:** 2026-02-17
 > **Last Updated:** 2026-02-17

@@ -1,6 +1,7 @@
 # TS0033: Relationship Data Extraction - Test Specification
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0033: Relationship Data Extraction](../stories/US0033-relationship-data-extraction.md)
 > **Epic:** [EP0008: Document Relationship Navigation](../epics/EP0008-document-relationship-navigation.md)
 > **Created:** 2026-02-18

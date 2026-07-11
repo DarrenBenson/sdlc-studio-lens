@@ -1,6 +1,7 @@
 # PL0023: Global Search Bar Component - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0023: Global Search Bar Component](../stories/US0023-global-search-bar.md)
 > **Epic:** [EP0005: Search](../epics/EP0005-search.md)
 > **Created:** 2026-02-17

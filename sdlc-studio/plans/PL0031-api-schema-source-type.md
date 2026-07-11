@@ -1,6 +1,7 @@
 # PL0031: API Schema Updates - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0031: API Schema Updates](../stories/US0031-api-schema-source-type.md)
 > **Epic:** [EP0007: GitHub Repository Sync](../epics/EP0007-github-repository-sync.md)
 > **Owner:** Darren

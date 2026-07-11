@@ -1,6 +1,7 @@
 # PL0003: Trigger Sync and Track Status - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0003: Trigger Sync and Track Status](../stories/US0003-trigger-sync-and-track-status.md)
 > **Epic:** [EP0001: Project Management](../epics/EP0001-project-management.md)
 > **Created:** 2026-02-17

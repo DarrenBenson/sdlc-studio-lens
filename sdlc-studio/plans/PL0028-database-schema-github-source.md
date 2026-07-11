@@ -1,6 +1,7 @@
 # PL0028: Database Schema & Project Model - Implementation Plan
 
-> **Status:** Done
+> **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0028: Database Schema & Project Model](../stories/US0028-database-schema-github-source.md)
 > **Epic:** [EP0007: GitHub Repository Sync](../epics/EP0007-github-repository-sync.md)
 > **Owner:** Darren

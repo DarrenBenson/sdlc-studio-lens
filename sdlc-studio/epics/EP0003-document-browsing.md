@@ -1,6 +1,7 @@
 # EP0003: Document Browsing
 
 > **Status:** Done
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Owner:** Darren
 > **Created:** 2026-02-17
 > **Target Release:** Phase 2 (Browsing & Dashboard)

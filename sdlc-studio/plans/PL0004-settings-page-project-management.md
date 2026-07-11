@@ -1,6 +1,7 @@
 # PL0004: Settings Page - Project Management - Implementation Plan
 
 > **Status:** Complete
+> **Raised-by:** Darren; human; v1 (inferred)
 > **Story:** [US0004: Settings Page - Project Management](../stories/US0004-settings-page-project-management.md)
 > **Epic:** [EP0001: Project Management](../epics/EP0001-project-management.md)
 > **Created:** 2026-02-17
