@@ -29,6 +29,14 @@ function findByPrefix(
   return undefined;
 }
 
+function containsNode(node: TreeNode, target: TreeNode): boolean {
+  if (node === target) return true;
+  for (const child of node.children) {
+    if (containsNode(child, target)) return true;
+  }
+  return false;
+}
+
 function sortNodes(nodes: TreeNode[]): void {
   nodes.sort((a, b) => {
     const ap = TYPE_PRIORITY[a.type] ?? 99;
@@ -64,9 +72,15 @@ export function buildTree(docs: DocumentListItem[]): TreeNode[] {
       parentNode = findByPrefix(nodes, doc.epic);
     }
 
-    if (parentNode) {
-      parentNode.children.push(nodes.get(doc.doc_id)!);
-      placed.add(doc.doc_id);
+    if (parentNode && parentNode.doc_id !== doc.doc_id) {
+      const childNode = nodes.get(doc.doc_id)!;
+      // Skip an edge that would make the node an ancestor of itself: if the
+      // resolved parent already sits within the child's subtree, attaching
+      // the child here would form a cycle and make sortNodes recurse forever.
+      if (!containsNode(childNode, parentNode)) {
+        parentNode.children.push(childNode);
+        placed.add(doc.doc_id);
+      }
     }
   }
 

@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     port: int = 8000
     database_url: str = "sqlite+aiosqlite:///data/db/sdlc_lens.db"
     log_level: str = "INFO"
+    # Optional allowlist base for local project sdlc_path values. When set, any
+    # local sdlc_path must resolve to a location within this directory. When
+    # None (default), no restriction is applied (backward compatible).
+    allowed_project_base: str | None = None
 
 
 settings = Settings()

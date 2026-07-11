@@ -102,37 +102,72 @@ async def get_aggregate_stats(session: AsyncSession) -> dict:
             "projects": [],
         }
 
+    # Bounded number of grouped queries across ALL projects (independent of
+    # project count), aggregated in Python afterwards. This replaces the old
+    # per-project loop that issued ~3 queries per project.
+
+    # Documents grouped by (project, type): drives total_documents, by_type
+    # and per-project totals.
+    type_rows = await session.execute(
+        select(Document.project_id, Document.doc_type, func.count()).group_by(
+            Document.project_id, Document.doc_type
+        )
+    )
     total_documents = 0
     by_type: dict[str, int] = {}
+    project_totals: dict[int, int] = {}
+    for project_id, doc_type, count in type_rows:
+        total_documents += count
+        by_type[doc_type] = by_type.get(doc_type, 0) + count
+        project_totals[project_id] = project_totals.get(project_id, 0) + count
+
+    # Documents grouped by (project, status): drives by_status.
+    status_rows = await session.execute(
+        select(Document.project_id, Document.status, func.count()).group_by(
+            Document.project_id, Document.status
+        )
+    )
     by_status: dict[str, int] = {}
-    total_done_stories = 0
+    for _project_id, status_val, count in status_rows:
+        key = status_val if status_val is not None else "null"
+        by_status[key] = by_status.get(key, 0) + count
+
+    # Story documents grouped by (project, status): drives per-project and
+    # aggregate completion from TRUE integer counts, never reconstructed from
+    # a rounded percentage.
+    story_rows = await session.execute(
+        select(Document.project_id, Document.status, func.count())
+        .where(Document.doc_type == "story")
+        .group_by(Document.project_id, Document.status)
+    )
+    project_total_stories: dict[int, int] = {}
+    project_done_stories: dict[int, int] = {}
     total_stories = 0
+    total_done_stories = 0
+    for project_id, status_val, count in story_rows:
+        project_total_stories[project_id] = project_total_stories.get(project_id, 0) + count
+        total_stories += count
+        # Strip parenthesised detail before matching, e.g.
+        # "Complete (81/88 ...)" → "Complete"
+        base = status_val.split("(")[0].strip() if status_val else ""
+        if base in _TERMINAL_STATUSES:
+            project_done_stories[project_id] = project_done_stories.get(project_id, 0) + count
+            total_done_stories += count
+
     project_summaries = []
-
     for proj in projects:
-        stats = await get_project_stats(session, proj)
-        total_documents += stats["total_documents"]
-
-        for t, c in stats["by_type"].items():
-            by_type[t] = by_type.get(t, 0) + c
-        for s, c in stats["by_status"].items():
-            by_status[s] = by_status.get(s, 0) + c
-
-        # Track story counts for weighted completion
-        story_count = stats["by_type"].get("story", 0)
-        done_count = 0
-        if story_count > 0:
-            done_count = int(round(stats["completion_percentage"] / 100 * story_count))
-        total_stories += story_count
-        total_done_stories += done_count
-
+        p_total_stories = project_total_stories.get(proj.id, 0)
+        p_done_stories = project_done_stories.get(proj.id, 0)
+        p_completion = (
+            round(p_done_stories / p_total_stories * 100, 1) if p_total_stories > 0 else 0.0
+        )
         project_summaries.append(
             {
-                "slug": stats["slug"],
-                "name": stats["name"],
-                "total_documents": stats["total_documents"],
-                "completion_percentage": stats["completion_percentage"],
-                "last_synced_at": stats["last_synced_at"],
+                "slug": proj.slug,
+                "name": proj.name,
+                "total_documents": project_totals.get(proj.id, 0),
+                "completion_percentage": p_completion,
+                "last_synced_at": proj.last_synced_at,
             }
         )
 

@@ -312,6 +312,45 @@ class TestAggregateCompletion:
         assert data["completion_percentage"] == expected
 
 
+# Aggregate completion must derive from true integer counts, not a value
+# reconstructed from a lossy rounded per-project completion_percentage.
+class TestAggregateCompletionExactIntegers:
+    async def test_aggregate_uses_true_done_counts(
+        self,
+        session: AsyncSession,
+        project_a: Project,
+        project_b: Project,
+    ) -> None:
+        """Regression: reconstructing done counts from a rounded percentage
+        can be off by one when a project has many stories.
+
+        Project A: 1001 stories - 501 Done, 500 In Progress. Its rounded
+        completion_percentage is 50.0, so the old
+        ``round(pct / 100 * story_count)`` reconstruction yields 500, not 501.
+        Project B: 1 In Progress story.
+
+        True aggregate: 501 done / 1002 total = 50.0%. The buggy
+        reconstruction gives 500 / 1002 = 49.9%.
+        """
+        from sdlc_lens.services.stats import get_aggregate_stats
+
+        docs: list[Document] = []
+        for i in range(501):
+            docs.append(_make_doc(project_a.id, "story", f"USA{i:04d}", "Done"))
+        for i in range(501, 1001):
+            docs.append(_make_doc(project_a.id, "story", f"USA{i:04d}", "In Progress"))
+        docs.append(_make_doc(project_b.id, "story", "USB0001", "In Progress"))
+        session.add_all(docs)
+        await session.commit()
+
+        stats = await get_aggregate_stats(session)
+
+        # Total stories across both projects.
+        assert stats["by_type"]["story"] == 1002
+        # 501 true Done out of 1002 total = exactly 50.0%, not 49.9%.
+        assert stats["completion_percentage"] == 50.0
+
+
 # Aggregate with zero projects
 class TestAggregateZeroProjects:
     async def test_zero_projects(self, client: AsyncClient) -> None:

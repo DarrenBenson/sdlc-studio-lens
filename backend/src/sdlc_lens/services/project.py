@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sdlc_lens.config import settings
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.utils.slug import generate_slug
@@ -46,6 +47,28 @@ class ProjectNotFoundError(Exception):
         super().__init__(self.message)
 
 
+def _resolve_local_path(sdlc_path: str) -> Path:
+    """Resolve and validate a local sdlc_path.
+
+    Ensures the path is an existing directory and, when an allowlist base is
+    configured, that it resolves within that base.
+
+    Raises:
+        PathNotFoundError: If the path is not a directory, or is outside the
+            configured allowed base.
+    """
+    resolved = Path(sdlc_path).resolve()
+    if not resolved.is_dir():
+        raise PathNotFoundError
+
+    if settings.allowed_project_base is not None:
+        base = Path(settings.allowed_project_base).resolve()
+        if not resolved.is_relative_to(base):
+            raise PathNotFoundError(message="sdlc_path must be within the allowed base")
+
+    return resolved
+
+
 async def create_project(
     session: AsyncSession,
     name: str,
@@ -76,10 +99,7 @@ async def create_project(
     if source_type == "local":
         if not sdlc_path:
             raise PathNotFoundError(message="sdlc_path is required for local projects")
-        resolved = Path(sdlc_path).resolve()
-        if not resolved.is_dir():
-            raise PathNotFoundError
-        resolved_path = str(resolved)
+        resolved_path = str(_resolve_local_path(sdlc_path))
 
     # Check for existing slug
     existing = await session.execute(select(Project).where(Project.slug == slug))
@@ -164,10 +184,7 @@ async def update_project(
 
     if sdlc_path is not None:
         if effective_source == "local":
-            resolved = Path(sdlc_path).resolve()
-            if not resolved.is_dir():
-                raise PathNotFoundError
-            project.sdlc_path = str(resolved)
+            project.sdlc_path = str(_resolve_local_path(sdlc_path))
         else:
             # For non-local, store as-is (no validation)
             project.sdlc_path = sdlc_path

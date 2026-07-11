@@ -277,6 +277,99 @@ class TestRunSyncTask:
 
 
 # ---------------------------------------------------------------------------
+# BG-01KX8BFP: empty source must not wipe existing documents
+# ---------------------------------------------------------------------------
+
+
+class TestEmptySourceGuard:
+    """A source returning zero files must not silently delete every document.
+
+    A wrong repo_path/branch, an emptied local directory, or a partial fetch
+    returning ``{}`` should be treated as a sync failure - the existing
+    documents are preserved and the status is set to "error".
+    """
+
+    async def test_empty_source_preserves_existing_docs(self, session: AsyncSession) -> None:
+        project = await _create_github_project(session)
+
+        content = b"# EP0001\n\n> **Status:** Draft\n\nEpic content"
+        seed_files = {
+            "epics/EP0001-test-epic.md": (hashlib.sha256(content).hexdigest(), content),
+        }
+
+        # First sync: seed one document.
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=seed_files,
+        ):
+            r1 = await sync_project(project, session)
+        assert r1.added == 1
+
+        # Second sync: source returns nothing (misconfigured repo / partial fetch).
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value={},
+        ):
+            r2 = await sync_project(project, session)
+
+        # (a) Existing documents must be preserved, not wiped.
+        assert r2.deleted == 0
+        docs = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert len(docs) == 1
+
+        # (b) Status must reflect the failure with a clear message.
+        refreshed = await session.get(Project, project.id)
+        assert refreshed.sync_status == "error"
+        assert refreshed.sync_error is not None
+        assert "no documents" in refreshed.sync_error.lower()
+
+    async def test_single_file_deletion_still_works(self, session: AsyncSession) -> None:
+        """A source missing one of two files must delete exactly that one."""
+        project = await _create_github_project(session)
+
+        c1 = b"# EP0001\n\n> **Status:** Draft\n\nEpic one"
+        c2 = b"# US0001\n\n> **Status:** Draft\n\nStory one"
+        seed_files = {
+            "epics/EP0001-one.md": (hashlib.sha256(c1).hexdigest(), c1),
+            "stories/US0001-one.md": (hashlib.sha256(c2).hexdigest(), c2),
+        }
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=seed_files,
+        ):
+            await sync_project(project, session)
+
+        # Second sync: one of the two files removed, the other unchanged.
+        remaining = {"epics/EP0001-one.md": (hashlib.sha256(c1).hexdigest(), c1)}
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=remaining,
+        ):
+            r2 = await sync_project(project, session)
+
+        assert r2.deleted == 1
+        assert r2.skipped == 1
+        docs = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert len(docs) == 1
+        assert docs[0].doc_id == "EP0001-one"
+
+        refreshed = await session.get(Project, project.id)
+        assert refreshed.sync_status == "synced"
+
+
+# ---------------------------------------------------------------------------
 # TC0316: sync_project works with pre-built files dict from any source
 # ---------------------------------------------------------------------------
 

@@ -648,7 +648,10 @@ class TestFileMoved:
         assert result.added >= 1
 
 
-# TC0134: All files deleted = zero documents
+# TC0134: All files gone from source is treated as a failure, not a wipe
+# (BG-01KX8BFP): an empty source is indistinguishable from a misconfigured
+# repo/branch or a partial fetch, so the sync engine refuses to delete every
+# document and instead reports an error. Existing documents are preserved.
 class TestAllFilesDeleted:
     @pytest.mark.asyncio
     async def test_all_deleted(self, session: AsyncSession, tmp_path: Path) -> None:
@@ -669,17 +672,20 @@ class TestAllFilesDeleted:
         shutil.rmtree(sdlc / "stories")
 
         result = await sync_project(project, session)
-        assert result.deleted == 5
+        # Guard engaged: nothing deleted despite the source being empty.
+        assert result.deleted == 0
 
         docs = (
             (await session.execute(select(Document).where(Document.project_id == project.id)))
             .scalars()
             .all()
         )
-        assert len(docs) == 0
+        # Existing documents are preserved.
+        assert len(docs) == 5
 
         await session.refresh(project)
-        assert project.sync_status == "synced"
+        assert project.sync_status == "error"
+        assert project.sync_error is not None
 
 
 # TC0135: No deletion without sync

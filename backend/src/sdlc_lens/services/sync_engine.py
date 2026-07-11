@@ -275,6 +275,19 @@ async def sync_project(
         )
         existing_docs = {doc.file_path: doc for doc in db_result.scalars().all()}
 
+        # Guard: refuse to wipe existing documents when the source yields nothing.
+        # An empty result usually means a misconfigured repo_path/branch, an
+        # emptied local directory, or a partial fetch - not a genuine deletion of
+        # every document. Deleting all records here would be silent data loss, so
+        # treat it as a sync failure and preserve the existing documents.
+        if not fs_files and existing_docs:
+            project.sync_status = "error"
+            project.sync_error = (
+                "source returned no documents - refusing to delete existing documents"
+            )
+            await session.commit()
+            return result
+
         # Step 3: Process collected files
         for rel_path, (file_hash, raw) in fs_files.items():
             doc = existing_docs.get(rel_path)
