@@ -276,6 +276,40 @@ describe("TC0372: Hierarchy breadcrumbs for plan (3 levels)", () => {
   });
 });
 
+describe("BG-01KX95CR: ULID ancestor breadcrumb label", () => {
+  it("shows the full ULID id head, not just the 2-letter prefix", async () => {
+    const ulidPlan: DocumentDetail = {
+      ...planDocument,
+      doc_id: "PL-01KX8C10-database-plan",
+      file_path: "plans/PL-01KX8C10-database-plan.md",
+    };
+    mockFetchDocument.mockResolvedValueOnce(ulidPlan);
+    mockFetchRelated.mockResolvedValueOnce({
+      doc_id: "PL-01KX8C10-database-plan",
+      type: "plan",
+      title: "Database Plan",
+      parents: [
+        {
+          doc_id: "US-01JQK3F8-story",
+          type: "story",
+          title: "Database Schema",
+          status: "Done",
+        },
+      ],
+      children: [],
+    });
+    renderDocumentView(
+      "/projects/testproject/documents/plan/PL-01KX8C10-database-plan",
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Database Plan")).toBeInTheDocument();
+    });
+    const nav = screen.getByRole("navigation");
+    expect(within(nav).getByText("US-01JQK3F8")).toBeInTheDocument();
+    expect(within(nav).queryByText("US")).not.toBeInTheDocument();
+  });
+});
+
 describe("TC0373: Breadcrumbs link to correct routes", () => {
   it("ancestor links have correct href", async () => {
     mockFetchDocument.mockResolvedValueOnce(planDocument);

@@ -4,7 +4,7 @@
  * story/epic frontmatter must not recurse infinitely (RangeError).
  */
 import { describe, expect, it } from "vitest";
-import { buildTree, type TreeNode } from "../../src/lib/buildTree";
+import { buildTree, idHead, type TreeNode } from "../../src/lib/buildTree";
 import type { DocumentListItem } from "../../src/types/index.ts";
 
 function makeDoc(
@@ -140,6 +140,13 @@ describe("buildTree", () => {
     expect(story.doc_id).toBe("US-01KX8B90-x");
     expect(story.children).toHaveLength(1);
     expect(story.children[0].doc_id).toBe("PL-01KX8C10-y");
+  });
+
+  // BG-01KX95CR: idHead must expose the full artefact id so breadcrumbs can show
+  // the real id rather than the bare 2-letter prefix.
+  it("idHead returns the full id head for ULID and legacy ids", () => {
+    expect(idHead("US-01JQK3F8-story")).toBe("US-01JQK3F8");
+    expect(idHead("EP0007-x")).toBe("EP0007");
   });
 
   // CR-01KX8YD6: legacy hyphenated display form ("CR-0003" file "CR0003").

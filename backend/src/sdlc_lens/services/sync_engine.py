@@ -328,7 +328,15 @@ async def sync_project(
         for rel_path, (file_hash, raw) in fs_files.items():
             doc = existing_docs.get(rel_path)
 
-            if doc is not None and doc.file_hash == file_hash:
+            # A legacy row from before migration 007's backfill has ref_id=NULL
+            # even though its id resolves to one; reparse it on a matching hash so
+            # the reference-resolution columns populate. Singletons (prd, trd, ...)
+            # have no artefact id head and legitimately keep ref_id=NULL, so they
+            # are not treated as needing a backfill.
+            needs_ref_backfill = (
+                doc is not None and doc.ref_id is None and norm_id(id_head(doc.doc_id)) is not None
+            )
+            if doc is not None and doc.file_hash == file_hash and not needs_ref_backfill:
                 # Skip - unchanged
                 result.skipped += 1
                 continue

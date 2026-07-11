@@ -150,6 +150,53 @@ export function SearchResults(): React.JSX.Element {
   );
 }
 
+// Delimiters used by the backend's FTS5 snippet() call to wrap matched terms
+// (see backend services/search.py: snippet(documents_fts, 1, '<mark>', '</mark>', '...', 32)).
+const MARK_OPEN = "<mark>";
+const MARK_CLOSE = "</mark>";
+
+/**
+ * Render a search snippet as safe React nodes.
+ *
+ * The snippet is the raw document content (an external trust boundary when
+ * synced from a Git repo), so it must never be injected as HTML. Instead we
+ * split on the known `<mark>...</mark>` highlight delimiters and return an array
+ * of nodes: plain substrings are rendered as-is (React escapes them, so any
+ * markup in the document body becomes inert text) and matched substrings are
+ * wrapped in real `<mark>` elements.
+ */
+function renderSnippet(snippet: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  let remaining = snippet;
+  let index = 0;
+
+  while (remaining.length > 0) {
+    const openAt = remaining.indexOf(MARK_OPEN);
+    if (openAt === -1) {
+      nodes.push(remaining);
+      break;
+    }
+
+    if (openAt > 0) {
+      nodes.push(remaining.slice(0, openAt));
+    }
+
+    const afterOpen = remaining.slice(openAt + MARK_OPEN.length);
+    const closeAt = afterOpen.indexOf(MARK_CLOSE);
+    if (closeAt === -1) {
+      // Unbalanced opener: render the remainder (including the literal
+      // "<mark>") as plain escaped text.
+      nodes.push(remaining.slice(openAt));
+      break;
+    }
+
+    nodes.push(<mark key={index++}>{afterOpen.slice(0, closeAt)}</mark>);
+    remaining = afterOpen.slice(closeAt + MARK_CLOSE.length);
+  }
+
+  return nodes;
+}
+
 function ResultCard({ item }: { item: SearchResultItem }): React.JSX.Element {
   return (
     <div className="rounded-lg border border-border-default bg-bg-surface p-4">
@@ -170,10 +217,9 @@ function ResultCard({ item }: { item: SearchResultItem }): React.JSX.Element {
             {item.status && <StatusBadge status={item.status} />}
           </div>
 
-          <p
-            className="mt-2 text-sm text-text-secondary"
-            dangerouslySetInnerHTML={{ __html: item.snippet }}
-          />
+          <p className="mt-2 text-sm text-text-secondary">
+            {renderSnippet(item.snippet)}
+          </p>
         </div>
       </div>
     </div>

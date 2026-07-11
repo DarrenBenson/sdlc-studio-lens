@@ -8,15 +8,10 @@ from sqlalchemy import func, select
 
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
-from sdlc_lens.utils.sdlc_status import canonical_status
+from sdlc_lens.utils.sdlc_status import is_terminal
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-
-# Statuses that count as "complete" for the story-completion percentage. Covers the
-# resolved story states across id eras (Done is v3; Complete/Won't Implement/Closed
-# appear in mixed-era and pre-v3 projects).
-_TERMINAL_STATUSES = {"Done", "Complete", "Won't Implement", "Closed"}
 
 
 async def get_project_stats(
@@ -66,10 +61,10 @@ async def get_project_stats(
     done_stories = 0
     for status_val, count in story_rows:
         total_stories += count
-        # Canonicalise (strips prose/bold/parentheses) before matching, so
+        # A story counts as "done" when it is in a terminal/resolved state.
+        # is_terminal canonicalises (strips prose/bold/parentheses) first, so
         # "Complete (81/88 ...)" and "Done — shipped" both count.
-        base = canonical_status(status_val, "story")
-        if base in _TERMINAL_STATUSES:
+        if is_terminal("story", status_val):
             done_stories += count
 
     completion = round(done_stories / total_stories * 100, 1) if total_stories > 0 else 0.0
@@ -150,10 +145,9 @@ async def get_aggregate_stats(session: AsyncSession) -> dict:
     for project_id, status_val, count in story_rows:
         project_total_stories[project_id] = project_total_stories.get(project_id, 0) + count
         total_stories += count
-        # Strip parenthesised detail before matching, e.g.
-        # "Complete (81/88 ...)" → "Complete"
-        base = status_val.split("(")[0].strip() if status_val else ""
-        if base in _TERMINAL_STATUSES:
+        # A story counts as "done" when it is in a terminal/resolved state,
+        # canonicalised via sdlc_status so prose/bold/parentheses are stripped.
+        if is_terminal("story", status_val):
             project_done_stories[project_id] = project_done_stories.get(project_id, 0) + count
             total_done_stories += count
 

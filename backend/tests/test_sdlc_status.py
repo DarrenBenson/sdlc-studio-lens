@@ -2,7 +2,7 @@
 
 import pytest
 
-from sdlc_lens.utils.sdlc_status import canonical_status, is_done
+from sdlc_lens.utils.sdlc_status import canonical_status, is_done, is_terminal
 
 
 class TestCanonicalStatus:
@@ -61,6 +61,43 @@ class TestIsDone:
     )
     def test_is_done(self, status, doc_type, expected) -> None:
         assert is_done(status, doc_type) is expected
+
+
+class TestIsTerminal:
+    """CR-01KX95HS: single terminal-status source shared by health check and stats."""
+
+    @pytest.mark.parametrize(
+        "doc_type,status,expected",
+        [
+            ("story", "Done", True),
+            ("story", "Won't Implement", True),
+            ("story", "Superseded", True),
+            ("story", "In Progress", False),
+            ("story", "Draft", False),
+            # Regression: workflow's terminal set includes Superseded.
+            ("workflow", "Superseded", True),
+            ("workflow", "Done", True),
+            ("workflow", "Planning", False),
+            # Universal Done/Complete fallback for mixed-era artefacts.
+            ("plan", "Done", True),
+            ("plan", "Complete", True),
+            ("plan", "Superseded", True),
+            ("plan", "Draft", False),
+            ("cr", "Complete", True),
+            ("cr", "Rejected", True),
+            ("bug", "Won't Fix", True),
+            ("epic", "Done", True),
+            # Unknown/None doc_type falls back to the union of all terminal sets.
+            (None, "Superseded", True),
+            (None, "In Progress", False),
+            # Decoration/prose is canonicalised away before matching.
+            ("story", "**Done** — implemented 2026-07-08", True),
+            ("story", None, False),
+            ("story", "", False),
+        ],
+    )
+    def test_is_terminal(self, doc_type, status, expected) -> None:
+        assert is_terminal(doc_type, status) is expected
 
 
 def test_extra_vocab_overrides_prefix_collision() -> None:

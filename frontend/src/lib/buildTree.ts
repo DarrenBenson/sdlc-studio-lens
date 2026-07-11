@@ -51,7 +51,7 @@ const ID_HEAD_RE =
   /^([A-Za-z]{1,6})(?:-[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{8,}|-?\d{4,})/;
 
 /** The artefact id at the start of a doc_id (prefix + tail), stripping any slug. */
-function idHead(text: string): string | null {
+export function idHead(text: string): string | null {
   const match = ID_HEAD_RE.exec(text.trim());
   if (!match) return null;
   if (!ID_PREFIXES.has(match[1].toUpperCase())) return null;

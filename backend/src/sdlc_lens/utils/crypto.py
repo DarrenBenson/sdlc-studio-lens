@@ -11,9 +11,13 @@ database stays plaintext (behaviour unchanged).
 
 from __future__ import annotations
 
-from cryptography.fernet import Fernet
+import logging
+
+from cryptography.fernet import Fernet, InvalidToken
 
 from sdlc_lens.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Marks a stored value as ciphertext produced by this module. The version
 # segment leaves room to rotate the scheme later without ambiguity.
@@ -50,6 +54,11 @@ def decrypt_token(stored: str | None) -> str | None:
     Values carrying the ``enc:v1:`` prefix are decrypted with the configured
     key. Non-prefixed values are legacy plaintext and returned unchanged, even
     when a key is configured. ``None`` passes through as ``None``.
+
+    When the configured key cannot open a prefixed value (the key was rotated
+    or replaced, or the ciphertext is corrupted), decryption fails gracefully:
+    a warning is logged and ``None`` is returned (treated as "no usable token")
+    rather than raising, so one bad row cannot 500 the whole project list.
     """
     if stored is None:
         return None
@@ -61,4 +70,10 @@ def decrypt_token(stored: str | None) -> str | None:
         # Prefixed but no key available: cannot decrypt, return as-is.
         return stored
     ciphertext = stored[len(ENC_PREFIX) :]
-    return fernet.decrypt(ciphertext.encode()).decode()
+    try:
+        return fernet.decrypt(ciphertext.encode()).decode()
+    except InvalidToken:
+        # Wrong key (rotated/replaced) or corrupted ciphertext. Do not leak the
+        # stored value; treat as no usable token so callers degrade gracefully.
+        logger.warning("Stored token could not be decrypted with the configured key")
+        return None

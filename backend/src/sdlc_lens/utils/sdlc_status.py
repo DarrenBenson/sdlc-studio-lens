@@ -82,6 +82,14 @@ ALL_STATUSES: list[str] = sorted(
 # Statuses considered "done" for completion metrics (union of terminal-and-complete).
 DONE_STATUSES = frozenset({"Done", "Complete", "Fixed", "Verified", "Closed", "Accepted"})
 
+# ``Done``/``Complete`` read as terminal for any lifecycle type, so mixed-era
+# projects (a plan marked ``Done`` rather than the v3 ``Complete``) are not
+# falsely flagged as unfinished.
+_UNIVERSAL_TERMINAL = frozenset({"Done", "Complete"})
+
+# Union of every type's terminal set, used when the doc type is unknown.
+_ANY_TERMINAL = frozenset().union(*TERMINAL_STATUS.values())
+
 _LEADING_STRIP = re.compile(r"^[>\s*_`]+")
 
 
@@ -143,3 +151,24 @@ def is_done(status: str | None, doc_type: str | None = None) -> bool:
     """True when the canonical status counts as done/complete for metrics."""
     canonical = canonical_status(status, doc_type)
     return canonical in DONE_STATUSES if canonical else False
+
+
+def is_terminal(doc_type: str | None, status: str | None) -> bool:
+    """True when ``status`` means the artefact of ``doc_type`` is closed/complete.
+
+    Canonicalises the status (stripping bold/blockquote/prose decoration) then
+    checks membership in that type's :data:`TERMINAL_STATUS` set. ``Done`` and
+    ``Complete`` are treated as universally terminal so mixed-era artefacts are not
+    falsely flagged; an unknown ``doc_type`` falls back to the union of every
+    type's terminal statuses. This is the single source of truth for the
+    terminal/stale checks in the health-check and stats services.
+    """
+    canonical = canonical_status(status, doc_type)
+    if not canonical:
+        return False
+    if canonical in _UNIVERSAL_TERMINAL:
+        return True
+    terminal = TERMINAL_STATUS.get(doc_type) if doc_type else None
+    if terminal is None:
+        terminal = _ANY_TERMINAL
+    return canonical in terminal

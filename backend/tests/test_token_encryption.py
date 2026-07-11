@@ -235,3 +235,48 @@ class TestMaskingDecryptsFirst:
         masked = mask_token(stored)
         assert masked == f"****{PLAINTEXT_TOKEN[-4:]}"
         assert ENC_PREFIX not in (masked or "")
+
+
+# ---------------------------------------------------------------------------
+# Graceful degradation: an enc:v1: value that the configured key cannot
+# decrypt (key rotated/changed, or corrupted ciphertext) must NOT raise.
+# A single undecryptable token must not 500 the whole project list.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def with_other_key(monkeypatch: pytest.MonkeyPatch) -> str:
+    """Encrypt with one key, then configure a DIFFERENT key.
+
+    Returns ciphertext produced with a key the currently configured key
+    cannot decrypt, simulating a rotated or replaced encryption key.
+    """
+    other = Fernet.generate_key().decode()
+    token = Fernet(other).encrypt(PLAINTEXT_TOKEN.encode()).decode()
+    stored = f"{ENC_PREFIX}{token}"
+    # Now configure the DIFFERENT (test) key as the active one.
+    monkeypatch.setattr(settings, "token_encryption_key", TEST_KEY)
+    return stored
+
+
+class TestUndecryptableTokenDegradesGracefully:
+    def test_decrypt_returns_none_on_wrong_key(self, with_other_key: str) -> None:
+        # The active key cannot open a value encrypted with a different key.
+        assert decrypt_token(with_other_key) is None
+
+    def test_decrypt_returns_none_on_corrupted_ciphertext(self, with_key: str) -> None:
+        stored = encrypt_token(PLAINTEXT_TOKEN)
+        assert stored is not None
+        # Corrupt the ciphertext body while keeping the enc:v1: prefix.
+        corrupted = f"{ENC_PREFIX}not-a-valid-fernet-token"
+        assert decrypt_token(corrupted) is None
+        # A well-formed value still round-trips (regression guard).
+        assert decrypt_token(stored) == PLAINTEXT_TOKEN
+
+    def test_mask_returns_none_and_leaks_nothing(self, with_other_key: str) -> None:
+        from sdlc_lens.api.schemas.projects import mask_token
+
+        masked = mask_token(with_other_key)
+        # Safe result: no ciphertext, no plaintext, no crash.
+        assert masked is None
+        assert ENC_PREFIX not in (masked or "")
+        assert with_other_key not in (masked or "")

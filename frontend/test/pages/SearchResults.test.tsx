@@ -152,6 +152,81 @@ describe("TC0246: Result card shows type badge, project, snippet", () => {
 });
 
 // ---------------------------------------------------------------------------
+// BG-01KX95WX: Snippet HTML must be escaped (stored XSS prevention)
+// ---------------------------------------------------------------------------
+
+describe("BG-01KX95WX: snippet content is rendered as escaped text", () => {
+  it("renders an HTML/script payload in the snippet as inert visible text", async () => {
+    const payload =
+      '<img src=x onerror="alert(1)"><script>alert(2)</script>';
+    mockFetch.mockResolvedValue({
+      items: [
+        {
+          doc_id: "US0099",
+          type: "story",
+          title: "Malicious Doc",
+          project_slug: "evil-repo",
+          project_name: "Evil Repo",
+          status: null,
+          snippet: `${payload} contains a <mark>match</mark> term`,
+          score: 1.0,
+        },
+      ],
+      total: 1,
+      query: "match",
+      page: 1,
+      per_page: 20,
+    });
+    const { container } = await renderSearchResults("/search?q=match");
+
+    await waitFor(() => {
+      expect(screen.getByText("Malicious Doc")).toBeInTheDocument();
+    });
+
+    // The payload must NOT be parsed into real DOM elements.
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
+
+    // The payload must appear verbatim as escaped text in the document.
+    expect(container.textContent).toContain(payload);
+  });
+
+  it("renders the <mark> highlight as a real mark element", async () => {
+    mockFetch.mockResolvedValue({
+      items: [
+        {
+          doc_id: "US0002",
+          type: "epic",
+          title: "Project Setup",
+          project_slug: "homelabcmd",
+          project_name: "HomelabCmd",
+          status: "In Progress",
+          snippet: "Set up <mark>test</mark> infrastructure",
+          score: 1.2,
+        },
+      ],
+      total: 1,
+      query: "test",
+      page: 1,
+      per_page: 20,
+    });
+    const { container } = await renderSearchResults("/search?q=test");
+
+    await waitFor(() => {
+      expect(screen.getByText("Project Setup")).toBeInTheDocument();
+    });
+
+    const mark = container.querySelector("mark");
+    expect(mark).not.toBeNull();
+    expect(mark).toHaveTextContent("test");
+
+    // The surrounding plain text is present and the raw delimiters are gone.
+    expect(container.textContent).toContain("Set up test infrastructure");
+    expect(container.textContent).not.toContain("<mark>");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // TC0247: Click result navigates to document
 // ---------------------------------------------------------------------------
 

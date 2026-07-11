@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { fetchDocument, fetchRelatedDocuments } from "../api/client.ts";
 import { StatusBadge } from "../components/StatusBadge.tsx";
 import { TypeBadge } from "../components/TypeBadge.tsx";
+import { idHead } from "../lib/buildTree.ts";
 import type {
   DocumentDetail,
   DocumentRelationships,
@@ -157,7 +158,7 @@ export function DocumentView(): React.JSX.Element {
                 state={fromTree ? { from: "tree" } : undefined}
                 className="hover:text-accent"
               >
-                {parent.doc_id.split("-")[0]}
+                {idHead(parent.doc_id) ?? parent.doc_id}
               </Link>
             </span>
           ))}

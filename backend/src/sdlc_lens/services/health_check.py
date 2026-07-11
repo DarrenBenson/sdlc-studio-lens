@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sdlc_lens.utils import sdlc_ids
+from sdlc_lens.utils import sdlc_ids, sdlc_status
 
 if TYPE_CHECKING:
     from sdlc_lens.db.models.document import Document
@@ -21,22 +21,9 @@ if TYPE_CHECKING:
 # Status vocabulary (schema-v3)
 # ---------------------------------------------------------------------------
 #
-# Terminal statuses are those that mean "do not flag this artefact as
-# incomplete". They are per artefact type (a bug is Fixed, a CR is Complete),
-# per the sdlc-studio skill's TERMINAL_STATUS map. ``Done``/``Complete`` are
-# treated as universally terminal so mixed-era projects (a plan marked ``Done``
-# rather than the v3 ``Complete``) are not falsely flagged. A later change
-# request (CR-C) will centralise this canonicalisation.
-_UNIVERSAL_TERMINAL = {"Done", "Complete"}
-_TERMINAL_BY_TYPE: dict[str, set[str]] = {
-    "story": {"Won't Implement", "Superseded"},
-    "epic": set(),
-    "bug": {"Fixed", "Verified", "Closed", "Won't Fix", "Superseded"},
-    "cr": {"Rejected", "Superseded"},
-    "rfc": {"Accepted", "Superseded", "Withdrawn"},
-    "plan": {"Superseded"},
-    "test-spec": {"Superseded"},
-}
+# Terminal-status and canonicalisation logic lives in :mod:`sdlc_lens.utils.sdlc_status`
+# (the single source of truth). The terminal/stale checks below route through
+# ``sdlc_status.is_terminal`` / ``sdlc_status.canonical_status``.
 
 # Untriaged inbox status shared by finding-style artefacts.
 _INBOX_STATUS = "inbox"
@@ -48,37 +35,9 @@ _INBOX_TYPES = {"bug", "cr", "rfc"}
 # Workflow is NOT a record - it is a lifecycle artefact with a full status vocabulary.
 _RECORD_TYPES = {"retro", "review", "decision", "persona", "personas", "pvd"}
 
-# Splits a status off its trailing prose: `Done — implemented 2026-07-08` -> `Done`.
-# Separators are a spaced hyphen/en-dash/em-dash/middot, or an opening bracket.
-_STATUS_SEP_RE = re.compile(r"\s+[-–—·]\s+|\s*\(")
-
 # Matches the **Epic** label (optional colon inside/outside bold); the id on the
 # rest of the line is resolved via sdlc_ids (handles sequential and ULID ids).
 _EPIC_LABEL_RE = re.compile(r"\*\*Epic:?\*\*:?\s*([^\n]*)")
-
-
-def _norm_status(status: str | None) -> str | None:
-    """Reduce a raw status to its bare term for comparison.
-
-    Strips ``**bold**`` markers and any trailing prose after the first spaced
-    dash/middot or opening bracket. ``"**Done**"`` and
-    ``"Done — implemented 2026-07-08"`` both reduce to ``"Done"``.
-    """
-    if not status:
-        return None
-    text = status.replace("**", "").strip()
-    text = _STATUS_SEP_RE.split(text, maxsplit=1)[0].strip()
-    return text or None
-
-
-def _is_terminal(doc_type: str, status: str | None) -> bool:
-    """Whether ``status`` means the artefact of ``doc_type`` is complete/inactive."""
-    norm = _norm_status(status)
-    if not norm:
-        return False
-    if norm in _UNIVERSAL_TERMINAL:
-        return True
-    return norm in _TERMINAL_BY_TYPE.get(doc_type, set())
 
 
 def _doc_key(doc_id: str) -> str:
@@ -222,7 +181,9 @@ def _check_missing_plan(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
+        if d.doc_type == "story"
+        and not _is_archive(d)
+        and not sdlc_status.is_terminal("story", d.status)
     ]
     plans = [d for d in docs if d.doc_type == "plan"]
     plan_stories = {_ref_key(p.story) for p in plans if p.story}
@@ -256,7 +217,9 @@ def _check_missing_test_spec(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
+        if d.doc_type == "story"
+        and not _is_archive(d)
+        and not sdlc_status.is_terminal("story", d.status)
     ]
     test_specs = [d for d in docs if d.doc_type == "test-spec"]
     tested_stories = {_ref_key(ts.story) for ts in test_specs if ts.story}
@@ -448,11 +411,11 @@ def _check_status_mismatch(docs: list[Document]) -> list[HealthFinding]:
 
     findings = []
     for epic in epics:
-        if not _is_terminal("epic", epic.status):
+        if not sdlc_status.is_terminal("epic", epic.status):
             continue
         epic_pfx = _doc_key(epic.doc_id)
         child_stories = [s for s in stories if _ref_key(s.epic) == epic_pfx]
-        incomplete = [s for s in child_stories if not _is_terminal("story", s.status)]
+        incomplete = [s for s in child_stories if not sdlc_status.is_terminal("story", s.status)]
         if incomplete:
             findings.append(
                 HealthFinding(
@@ -490,10 +453,10 @@ def _check_stale_artefact_status(docs: list[Document]) -> list[HealthFinding]:
     for doc in docs:
         if doc.doc_type == "story" or _is_record(doc) or not doc.story:
             continue
-        if _is_terminal(doc.doc_type, doc.status):
+        if sdlc_status.is_terminal(doc.doc_type, doc.status):
             continue
         parent_status = story_status.get(_ref_key(doc.story))
-        if parent_status and _is_terminal("story", parent_status):
+        if parent_status and sdlc_status.is_terminal("story", parent_status):
             findings.append(
                 HealthFinding(
                     rule_id="STALE_ARTEFACT_STATUS",
@@ -522,7 +485,7 @@ def _check_untriaged_inbox(docs: list[Document]) -> list[HealthFinding]:
     for doc in docs:
         if doc.doc_type not in _INBOX_TYPES:
             continue
-        norm = _norm_status(doc.status)
+        norm = sdlc_status.canonical_status(doc.status, doc.doc_type)
         if norm and norm.lower() == _INBOX_STATUS:
             findings.append(
                 HealthFinding(
@@ -617,7 +580,9 @@ def _check_missing_priority(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
+        if d.doc_type == "story"
+        and not _is_archive(d)
+        and not sdlc_status.is_terminal("story", d.status)
     ]
     findings = []
     for story in stories:
@@ -645,7 +610,9 @@ def _check_missing_story_points(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
+        if d.doc_type == "story"
+        and not _is_archive(d)
+        and not sdlc_status.is_terminal("story", d.status)
     ]
     findings = []
     for story in stories:

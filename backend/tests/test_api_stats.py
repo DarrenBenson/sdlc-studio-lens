@@ -351,6 +351,35 @@ class TestAggregateCompletionExactIntegers:
         assert stats["completion_percentage"] == 50.0
 
 
+# CR-01KX95HS: story completion counts terminal stories via sdlc_status,
+# consistent with the health-check terminal view.
+class TestSupersededStoryCompletion:
+    async def test_superseded_story_counts_as_terminal(
+        self,
+        session: AsyncSession,
+        empty_project: Project,
+    ) -> None:
+        """A Superseded story is terminal (resolved), so it counts toward
+        completion just as the health check treats it as terminal."""
+        from sdlc_lens.services.stats import get_project_stats
+        from sdlc_lens.utils.sdlc_status import is_terminal
+
+        # Stats and health check must agree on the terminal verdict.
+        assert is_terminal("story", "Superseded") is True
+
+        docs = [
+            _make_doc(empty_project.id, "story", "US0001", "Done"),
+            _make_doc(empty_project.id, "story", "US0002", "Superseded"),
+            _make_doc(empty_project.id, "story", "US0003", "In Progress"),
+        ]
+        session.add_all(docs)
+        await session.commit()
+
+        stats = await get_project_stats(session, empty_project)
+        # Done + Superseded = 2 terminal of 3.
+        assert stats["completion_percentage"] == round(2 / 3 * 100, 1)
+
+
 # Aggregate with zero projects
 class TestAggregateZeroProjects:
     async def test_zero_projects(self, client: AsyncClient) -> None:

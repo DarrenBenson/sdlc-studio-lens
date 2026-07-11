@@ -918,6 +918,43 @@ class TestUntriagedInbox:
         assert flagged[0].category == "consistency"
 
 
+class TestSupersededWorkflowStale:
+    """CR-01KX95HS: terminal-status logic is centralised in sdlc_status.
+
+    A Superseded workflow is terminal (workflow's terminal set includes
+    Superseded), so a Superseded workflow under a Done story must NOT be flagged
+    STALE_ARTEFACT_STATUS. Previously workflow was missing from health_check's
+    private terminal map, producing a false STALE flag.
+    """
+
+    def test_superseded_workflow_under_done_story_not_stale(self) -> None:
+        docs = [
+            _doc(doc_type="story", doc_id="US0001", status="Done"),
+            _doc(
+                doc_type="workflow",
+                doc_id="WF0001",
+                story="US0001",
+                status="Superseded",
+            ),
+        ]
+        result = _run(docs)
+        assert _find(result, "STALE_ARTEFACT_STATUS") == []
+
+    def test_active_workflow_under_done_story_still_stale(self) -> None:
+        """Guard: a genuinely non-terminal workflow is still flagged."""
+        docs = [
+            _doc(doc_type="story", doc_id="US0001", status="Done"),
+            _doc(
+                doc_type="workflow",
+                doc_id="WF0002",
+                story="US0001",
+                status="Planning",
+            ),
+        ]
+        result = _run(docs)
+        assert len(_find(result, "STALE_ARTEFACT_STATUS")) == 1
+
+
 class TestWorkflowNotExempt:
     """CR-01KX8YMC review fix: workflow is a lifecycle type, not a record."""
 
