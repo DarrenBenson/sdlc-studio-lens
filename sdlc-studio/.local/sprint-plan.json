@@ -1,12 +1,8 @@
 {
-  "generated_at": "2026-07-11T13:20:59Z",
-  "kind": "bug+cr",
-  "status": "Open, Proposed",
+  "generated_at": "2026-07-11T15:59:41Z",
+  "kind": "cr",
+  "status": "Proposed",
   "queries": [
-    {
-      "kind": "bug",
-      "status": "Open"
-    },
     {
       "kind": "cr",
       "status": "Proposed"
@@ -15,145 +11,93 @@
   "order": "priority",
   "batch": [
     {
-      "id": "BG-01KX8B82",
-      "type": "bug",
-      "status": "Open",
+      "id": "CR-01KX8Y32",
+      "type": "cr",
+      "status": "Proposed",
       "priority": "High",
-      "path": "sdlc-studio/bugs/BG-01KX8B82-path-traversal-in-spa-fallback-route-serves-arbitrary.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX8BE8",
-      "type": "bug",
-      "status": "Open",
-      "priority": "High",
-      "path": "sdlc-studio/bugs/BG-01KX8BE8-canonical-error-shape-not-applied-to-validation-422.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX8BFP",
-      "type": "bug",
-      "status": "Open",
-      "priority": "High",
-      "path": "sdlc-studio/bugs/BG-01KX8BFP-sync-deletes-all-documents-when-the-source-returns.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX8B04",
-      "type": "bug",
-      "status": "Open",
-      "priority": "Medium",
-      "path": "sdlc-studio/bugs/BG-01KX8B04-failed-sync-can-leave-a-project-permanently-stuck.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX8BJY",
-      "type": "bug",
-      "status": "Open",
-      "priority": "Medium",
-      "path": "sdlc-studio/bugs/BG-01KX8BJY-unrestricted-sdlc-path-allows-harvesting-arbitrary-md-files.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX8BY1",
-      "type": "bug",
-      "status": "Open",
-      "priority": "Medium",
-      "path": "sdlc-studio/bugs/BG-01KX8BY1-blocking-tarball-extraction-and-filesystem-walk-run-on.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KX8BBH",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KX8BBH-encrypt-the-github-access-token-at-rest.md",
-      "difficulty": {
-        "score": 45,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KX8BYH",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KX8BYH-remove-the-n-1-query-pattern-in-the.md",
-      "difficulty": {
-        "score": 42,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KX8B1W",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "Low",
-      "path": "sdlc-studio/change-requests/CR-01KX8B1W-low-severity-bugs-consolidated.md",
-      "difficulty": {
-        "score": 45,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KX8B83",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "Low",
-      "path": "sdlc-studio/change-requests/CR-01KX8B83-low-severity-crs-consolidated.md",
+      "path": "sdlc-studio/change-requests/CR-01KX8Y32-robust-ingest-id-and-type-recognition-for-schema.md",
       "difficulty": {
         "score": 48,
         "band": "medium",
         "confidence": "low"
       }
+    },
+    {
+      "id": "CR-01KX8Y2G",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "High",
+      "path": "sdlc-studio/change-requests/CR-01KX8Y2G-traceability-resolve-references-and-relationships-across-id-forms.md",
+      "difficulty": {
+        "score": 50,
+        "band": "medium",
+        "confidence": "low"
+      }
+    },
+    {
+      "id": "CR-01KX8Y0M",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "Medium",
+      "path": "sdlc-studio/change-requests/CR-01KX8Y0M-status-vocabulary-v3-and-canonicalisation.md",
+      "difficulty": {
+        "score": 48,
+        "band": "medium",
+        "confidence": "low"
+      }
+    },
+    {
+      "id": "CR-01KX8YD6",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "Medium",
+      "path": "sdlc-studio/change-requests/CR-01KX8YD6-display-new-artefact-types-and-v3-metadata-fields.md",
+      "difficulty": {
+        "score": 48,
+        "band": "medium",
+        "confidence": "low"
+      }
+    },
+    {
+      "id": "CR-01KX8YMC",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "Medium",
+      "path": "sdlc-studio/change-requests/CR-01KX8YMC-health-check-alignment-with-schema-v3-vocabulary-and.md",
+      "difficulty": {
+        "score": 48,
+        "band": "medium",
+        "confidence": "low"
+      }
+    },
+    {
+      "id": "CR-01KX8Y6H",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "Low",
+      "path": "sdlc-studio/change-requests/CR-01KX8Y6H-config-and-schema-version-awareness-config-yaml-and.md",
+      "difficulty": {
+        "score": 50,
+        "band": "medium",
+        "confidence": "low"
+      }
     }
   ],
-  "count": 10,
+  "count": 6,
   "waves": [
     [
-      "BG-01KX8B82",
-      "BG-01KX8BFP",
-      "BG-01KX8BJY",
-      "CR-01KX8BYH",
-      "CR-01KX8B1W"
+      "CR-01KX8Y32"
     ],
     [
-      "BG-01KX8BE8",
-      "BG-01KX8B04",
-      "CR-01KX8BBH"
+      "CR-01KX8Y2G",
+      "CR-01KX8YMC"
     ],
     [
-      "BG-01KX8BY1"
+      "CR-01KX8Y0M"
     ],
     [
-      "CR-01KX8B83"
+      "CR-01KX8YD6",
+      "CR-01KX8Y6H"
     ]
   ],
   "deps_declared": true,
