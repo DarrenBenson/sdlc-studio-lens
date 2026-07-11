@@ -784,3 +784,135 @@ class TestScoreCalculation:
         result = _run(docs)
         assert "high" in result.summary
         assert result.summary["high"] >= 1  # MISSING_STATUS + MISSING_TRD
+
+
+# ---------------------------------------------------------------------------
+# Schema-v3 alignment (CR-01KX8YMC)
+# ---------------------------------------------------------------------------
+
+
+class TestSchemaV3Ids:
+    """ULID and hyphenated ids must resolve the same as sequential ones."""
+
+    def test_ulid_story_resolves_plan_and_test_spec(self):
+        docs = [
+            _doc(doc_type="epic", doc_id="EP0001"),
+            _doc(doc_type="story", doc_id="US-01KX8B90-do-thing", epic="EP0001"),
+            _doc(doc_type="plan", doc_id="PL-01KX8C00-plan", story="US-01KX8B90"),
+            _doc(doc_type="test-spec", doc_id="TS-01KX8C10-spec", story="US-01KX8B90"),
+        ]
+        result = _run(docs)
+        assert _find(result, "MISSING_PLAN") == []
+        assert _find(result, "MISSING_TEST_SPEC") == []
+        assert _find(result, "ORPHAN_REFERENCE") == []
+
+    def test_ulid_epic_finds_child_stories(self):
+        docs = [
+            _doc(doc_type="epic", doc_id="EP-01KX8A00-core"),
+            _doc(doc_type="story", doc_id="US-01KX8B90-do", epic="EP-01KX8A00"),
+        ]
+        result = _run(docs)
+        assert _find(result, "EPIC_NO_STORIES") == []
+        assert _find(result, "ORPHAN_REFERENCE") == []
+
+
+class TestStatusNormalisation:
+    """Statuses carry trailing prose and bold markers that must be stripped."""
+
+    def test_done_with_prose_suffix_is_terminal(self):
+        docs = [
+            _doc(
+                doc_type="story",
+                doc_id="US0001",
+                status="Done — implemented 2026-07-08",
+                priority=None,
+                story_points=None,
+            ),
+        ]
+        result = _run(docs)
+        assert _find(result, "MISSING_PLAN") == []
+        assert _find(result, "MISSING_TEST_SPEC") == []
+        assert _find(result, "MISSING_PRIORITY") == []
+        assert _find(result, "MISSING_STORY_POINTS") == []
+
+    def test_bold_status_is_terminal(self):
+        docs = [_doc(doc_type="story", doc_id="US0001", status="**Done**")]
+        result = _run(docs)
+        assert _find(result, "MISSING_PLAN") == []
+
+    def test_done_epic_with_prose_status_children_no_mismatch(self):
+        docs = [
+            _doc(doc_type="epic", doc_id="EP0001", status="Done"),
+            _doc(
+                doc_type="story",
+                doc_id="US-01KX8B90-do",
+                epic="EP0001",
+                status="Done — implemented 2026-07-08",
+            ),
+        ]
+        result = _run(docs)
+        assert _find(result, "STATUS_MISMATCH") == []
+
+
+class TestV3TerminalStatuses:
+    """New per-type terminal statuses (bug/cr) count as complete."""
+
+    def test_fixed_bug_and_complete_cr_not_flagged(self):
+        docs = [
+            _doc(
+                doc_type="bug",
+                doc_id="BG-01KX8B82-path-traversal",
+                status="Fixed",
+                epic=None,
+                story=None,
+            ),
+            _doc(
+                doc_type="cr",
+                doc_id="CR-01KX8BBH-schema-align",
+                status="Complete",
+                epic=None,
+                story=None,
+            ),
+        ]
+        result = _run(docs)
+        # Terminal artefacts with a valid status are not orphaned nor missing status.
+        assert _find(result, "ORPHAN_REFERENCE") == []
+        assert _find(result, "MISSING_STATUS") == []
+        assert _find(result, "UNTRIAGED_INBOX") == []
+
+
+class TestRecordTypesExempt:
+    """Retros/reviews/decisions/personas are records, not lifecycle artefacts."""
+
+    def test_records_not_missing_status(self):
+        docs = [
+            _doc(doc_type="retro", doc_id="RETRO0001-sprint", status=None),
+            _doc(doc_type="review", doc_id="RV0001-audit", status=None),
+            _doc(doc_type="decision", doc_id="DEC0001", status=None),
+            _doc(doc_type="persona", doc_id="persona-admin", status=None),
+        ]
+        result = _run(docs)
+        assert _find(result, "MISSING_STATUS") == []
+
+    def test_record_bad_reference_not_orphaned(self):
+        docs = [
+            _doc(doc_type="retro", doc_id="RETRO0001", status=None, story="US9999"),
+        ]
+        result = _run(docs)
+        assert _find(result, "ORPHAN_REFERENCE") == []
+
+
+class TestUntriagedInbox:
+    """Bug/CR/RFC with an inbox status are flagged as untriaged."""
+
+    def test_inbox_bug_flagged_but_terminal_not(self):
+        docs = [
+            _doc(doc_type="bug", doc_id="BG-01KX8B82-triage-me", status="inbox"),
+            _doc(doc_type="bug", doc_id="BG-01KX8B83-fixed", status="Fixed"),
+            _doc(doc_type="cr", doc_id="CR-01KX8BBH-done", status="Complete"),
+        ]
+        result = _run(docs)
+        flagged = _find(result, "UNTRIAGED_INBOX")
+        assert len(flagged) == 1
+        assert "BG-01KX8B82" in flagged[0].affected_documents[0].doc_id
+        assert flagged[0].category == "consistency"

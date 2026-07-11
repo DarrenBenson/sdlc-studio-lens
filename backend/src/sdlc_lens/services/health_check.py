@@ -12,15 +12,92 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from sdlc_lens.utils import sdlc_ids
+
 if TYPE_CHECKING:
     from sdlc_lens.db.models.document import Document
 
-_DOC_PREFIX_RE = re.compile(r"^([A-Z]{2}\d{4})")
-_DONE_STATUSES = {"Done", "Complete"}
-_INACTIVE_STATUSES = {"Done", "Complete", "Won't Implement", "Superseded"}
+# ---------------------------------------------------------------------------
+# Status vocabulary (schema-v3)
+# ---------------------------------------------------------------------------
+#
+# Terminal statuses are those that mean "do not flag this artefact as
+# incomplete". They are per artefact type (a bug is Fixed, a CR is Complete),
+# per the sdlc-studio skill's TERMINAL_STATUS map. ``Done``/``Complete`` are
+# treated as universally terminal so mixed-era projects (a plan marked ``Done``
+# rather than the v3 ``Complete``) are not falsely flagged. A later change
+# request (CR-C) will centralise this canonicalisation.
+_UNIVERSAL_TERMINAL = {"Done", "Complete"}
+_TERMINAL_BY_TYPE: dict[str, set[str]] = {
+    "story": {"Won't Implement", "Superseded"},
+    "epic": set(),
+    "bug": {"Fixed", "Verified", "Closed", "Won't Fix", "Superseded"},
+    "cr": {"Rejected", "Superseded"},
+    "rfc": {"Accepted", "Superseded", "Withdrawn"},
+    "plan": {"Superseded"},
+    "test-spec": {"Superseded"},
+}
 
-# Matches **Epic** (with optional colon inside/outside bold) followed by a doc ID
-_CONTENT_EPIC_RE = re.compile(r"\*\*Epic:?\*\*:?\s*.*?([A-Z]{2}\d{4})")
+# Untriaged inbox status shared by finding-style artefacts.
+_INBOX_STATUS = "inbox"
+_INBOX_TYPES = {"bug", "cr", "rfc"}
+
+# Record artefacts: point-in-time notes, not lifecycle documents. They carry no
+# Draft->Done status and reference other docs informally, so they are exempt
+# from status/orphan/staleness rules.
+_RECORD_TYPES = {"retro", "review", "decision", "persona", "personas", "pvd", "workflow"}
+
+# Splits a status off its trailing prose: `Done — implemented 2026-07-08` -> `Done`.
+# Separators are a spaced hyphen/en-dash/em-dash/middot, or an opening bracket.
+_STATUS_SEP_RE = re.compile(r"\s+[-–—·]\s+|\s*\(")
+
+# Matches the **Epic** label (optional colon inside/outside bold); the id on the
+# rest of the line is resolved via sdlc_ids (handles sequential and ULID ids).
+_EPIC_LABEL_RE = re.compile(r"\*\*Epic:?\*\*:?\s*([^\n]*)")
+
+
+def _norm_status(status: str | None) -> str | None:
+    """Reduce a raw status to its bare term for comparison.
+
+    Strips ``**bold**`` markers and any trailing prose after the first spaced
+    dash/middot or opening bracket. ``"**Done**"`` and
+    ``"Done — implemented 2026-07-08"`` both reduce to ``"Done"``.
+    """
+    if not status:
+        return None
+    text = status.replace("**", "").strip()
+    text = _STATUS_SEP_RE.split(text, maxsplit=1)[0].strip()
+    return text or None
+
+
+def _is_terminal(doc_type: str, status: str | None) -> bool:
+    """Whether ``status`` means the artefact of ``doc_type`` is complete/inactive."""
+    norm = _norm_status(status)
+    if not norm:
+        return False
+    if norm in _UNIVERSAL_TERMINAL:
+        return True
+    return norm in _TERMINAL_BY_TYPE.get(doc_type, set())
+
+
+def _doc_key(doc_id: str) -> str:
+    """Normalised comparison key for a document's own id.
+
+    Extracts the artefact id at the head of the id (dropping any descriptive
+    slug) then normalises it, so ``US0001-register`` and ``US-01KX8B90-do`` both
+    collapse to a stable key. Falls back to the raw id if it is not a recognised
+    artefact id (e.g. ``_archive-v1``).
+    """
+    head = sdlc_ids.id_head(doc_id)
+    return sdlc_ids.norm_id(head) or sdlc_ids.norm_id(doc_id) or doc_id
+
+
+def _ref_key(value: str | None) -> str | None:
+    """Normalised comparison key for a reference to another document, or ``None``."""
+    if not value:
+        return None
+    ref = sdlc_ids.extract_ref_id(value)
+    return sdlc_ids.norm_id(ref) if ref else sdlc_ids.norm_id(value)
 
 
 def _is_archive(doc: Document) -> bool:
@@ -32,13 +109,21 @@ def _has_epic_in_content(doc: Document) -> bool:
     """Check if document content contains an **Epic:** field reference."""
     if not doc.content:
         return False
-    return _CONTENT_EPIC_RE.search(doc.content) is not None
+    match = _EPIC_LABEL_RE.search(doc.content)
+    if not match:
+        return False
+    return sdlc_ids.extract_ref_id(match.group(1)) is not None
 
 
 def _is_review_doc(doc: Document) -> bool:
     """Check if a document is a review (misclassified by file path)."""
     path = doc.file_path or ""
     return "/reviews/" in path or path.startswith("reviews/")
+
+
+def _is_record(doc: Document) -> bool:
+    """Check if a document is a record artefact (retro, review, decision, etc.)."""
+    return doc.doc_type in _RECORD_TYPES
 
 
 @dataclass(frozen=True)
@@ -79,18 +164,9 @@ def _affected(doc: Document) -> AffectedDocument:
     return AffectedDocument(doc_id=doc.doc_id, doc_type=doc.doc_type, title=doc.title)
 
 
-def _prefix(doc_id: str) -> str:
-    """Extract clean prefix from doc_id (e.g. 'EP0001' from 'EP0001-git-sync').
-
-    Returns the full doc_id if no prefix pattern matches.
-    """
-    m = _DOC_PREFIX_RE.match(doc_id)
-    return m.group(1) if m else doc_id
-
-
-def _build_prefix_set(docs: list[Document]) -> set[str]:
-    """Build a set of doc_id prefixes for fast lookup."""
-    return {_prefix(d.doc_id) for d in docs}
+def _build_key_set(docs: list[Document]) -> set[str]:
+    """Build a set of normalised doc_id keys for fast lookup."""
+    return {_doc_key(d.doc_id) for d in docs}
 
 
 # ---------------------------------------------------------------------------
@@ -145,14 +221,14 @@ def _check_missing_plan(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
     ]
     plans = [d for d in docs if d.doc_type == "plan"]
-    plan_stories = {p.story for p in plans if p.story}
+    plan_stories = {_ref_key(p.story) for p in plans if p.story}
 
     findings = []
     for story in stories:
-        story_pfx = _prefix(story.doc_id)
+        story_pfx = _doc_key(story.doc_id)
         if story_pfx not in plan_stories:
             findings.append(
                 HealthFinding(
@@ -179,23 +255,23 @@ def _check_missing_test_spec(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
     ]
     test_specs = [d for d in docs if d.doc_type == "test-spec"]
-    tested_stories = {ts.story for ts in test_specs if ts.story}
+    tested_stories = {_ref_key(ts.story) for ts in test_specs if ts.story}
 
     # Build set of epics covered by epic-scoped test-specs
     epics_with_specs: set[str] = set()
     for ts in test_specs:
         if not ts.story and ts.epic:
-            epics_with_specs.add(ts.epic)
+            epics_with_specs.add(_ref_key(ts.epic))
 
     findings = []
     for story in stories:
-        story_pfx = _prefix(story.doc_id)
+        story_pfx = _doc_key(story.doc_id)
         if story_pfx not in tested_stories:
             # Skip if the story's epic has an epic-scoped test-spec
-            if story.epic and story.epic in epics_with_specs:
+            if story.epic and _ref_key(story.epic) in epics_with_specs:
                 continue
             findings.append(
                 HealthFinding(
@@ -217,11 +293,11 @@ def _check_epic_no_stories(docs: list[Document]) -> list[HealthFinding]:
     """EPIC_NO_STORIES: epic has zero child stories."""
     epics = [d for d in docs if d.doc_type == "epic" and not _is_review_doc(d)]
     stories = [d for d in docs if d.doc_type == "story"]
-    epics_with_stories = {s.epic for s in stories if s.epic}
+    epics_with_stories = {_ref_key(s.epic) for s in stories if s.epic}
 
     findings = []
     for epic in epics:
-        epic_pfx = _prefix(epic.doc_id)
+        epic_pfx = _doc_key(epic.doc_id)
         if epic_pfx not in epics_with_stories:
             findings.append(
                 HealthFinding(
@@ -318,12 +394,15 @@ def _check_test_spec_no_story(docs: list[Document]) -> list[HealthFinding]:
 
 def _check_orphan_reference(docs: list[Document]) -> list[HealthFinding]:
     """ORPHAN_REFERENCE: document references non-existent parent."""
-    prefixes = _build_prefix_set(docs)
+    prefixes = _build_key_set(docs)
     findings = []
 
     for doc in docs:
-        # Check epic references (stored as clean prefix e.g. "EP0001")
-        if doc.epic and doc.epic not in prefixes:
+        # Records reference other docs informally - do not treat as broken links.
+        if _is_record(doc):
+            continue
+        # Check epic references (resolved via normalised id key)
+        if doc.epic and _ref_key(doc.epic) not in prefixes:
             findings.append(
                 HealthFinding(
                     rule_id="ORPHAN_REFERENCE",
@@ -337,8 +416,8 @@ def _check_orphan_reference(docs: list[Document]) -> list[HealthFinding]:
                     ),
                 )
             )
-        # Check story references (stored as clean prefix e.g. "US0001")
-        if doc.story and doc.story not in prefixes:
+        # Check story references (resolved via normalised id key)
+        if doc.story and _ref_key(doc.story) not in prefixes:
             findings.append(
                 HealthFinding(
                     rule_id="ORPHAN_REFERENCE",
@@ -368,11 +447,11 @@ def _check_status_mismatch(docs: list[Document]) -> list[HealthFinding]:
 
     findings = []
     for epic in epics:
-        if epic.status not in _DONE_STATUSES:
+        if not _is_terminal("epic", epic.status):
             continue
-        epic_pfx = _prefix(epic.doc_id)
-        child_stories = [s for s in stories if s.epic == epic_pfx]
-        incomplete = [s for s in child_stories if s.status not in _INACTIVE_STATUSES]
+        epic_pfx = _doc_key(epic.doc_id)
+        child_stories = [s for s in stories if _ref_key(s.epic) == epic_pfx]
+        incomplete = [s for s in child_stories if not _is_terminal("story", s.status)]
         if incomplete:
             findings.append(
                 HealthFinding(
@@ -399,21 +478,21 @@ def _check_stale_artefact_status(docs: list[Document]) -> list[HealthFinding]:
     Flags plans, test-specs, workflows, and other artefacts that reference
     a completed story but still have a non-terminal status themselves.
     """
-    # Build lookup of story prefix -> status
+    # Build lookup of story key -> status
     story_status: dict[str, str] = {}
     for d in docs:
         if d.doc_type == "story" and d.status:
-            story_status[_prefix(d.doc_id)] = d.status
+            story_status[_doc_key(d.doc_id)] = d.status
 
     # Check non-story documents that reference a story
     findings = []
     for doc in docs:
-        if doc.doc_type == "story" or not doc.story:
+        if doc.doc_type == "story" or _is_record(doc) or not doc.story:
             continue
-        if doc.status in _INACTIVE_STATUSES:
+        if _is_terminal(doc.doc_type, doc.status):
             continue
-        parent_status = story_status.get(doc.story)
-        if parent_status and parent_status in _INACTIVE_STATUSES:
+        parent_status = story_status.get(_ref_key(doc.story))
+        if parent_status and _is_terminal("story", parent_status):
             findings.append(
                 HealthFinding(
                     rule_id="STALE_ARTEFACT_STATUS",
@@ -426,6 +505,36 @@ def _check_stale_artefact_status(docs: list[Document]) -> list[HealthFinding]:
                     affected_documents=[_affected(doc)],
                     suggested_fix=(
                         f"Update the status of {doc.doc_id} to Done to match its completed story."
+                    ),
+                )
+            )
+    return findings
+
+
+def _check_untriaged_inbox(docs: list[Document]) -> list[HealthFinding]:
+    """UNTRIAGED_INBOX: bug/CR/RFC still sitting in the inbox with no triage.
+
+    Schema-v3 lands new findings with status ``inbox``. Terminal artefacts
+    (Fixed bug, Complete CR) are not flagged.
+    """
+    findings = []
+    for doc in docs:
+        if doc.doc_type not in _INBOX_TYPES:
+            continue
+        norm = _norm_status(doc.status)
+        if norm and norm.lower() == _INBOX_STATUS:
+            findings.append(
+                HealthFinding(
+                    rule_id="UNTRIAGED_INBOX",
+                    severity="low",
+                    category="consistency",
+                    message=(
+                        f"{doc.doc_type.upper()} '{doc.title}' is still in the inbox (untriaged)."
+                    ),
+                    affected_documents=[_affected(doc)],
+                    suggested_fix=(
+                        f"Triage {doc.doc_id}: assign a working status and owner, "
+                        f"or close it if it is not actionable."
                     ),
                 )
             )
@@ -454,7 +563,7 @@ def _check_missing_status(docs: list[Document]) -> list[HealthFinding]:
     """
     findings = []
     for doc in docs:
-        if _is_project_level(doc):
+        if _is_project_level(doc) or _is_record(doc):
             continue
         if not doc.status:
             findings.append(
@@ -507,7 +616,7 @@ def _check_missing_priority(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
     ]
     findings = []
     for story in stories:
@@ -535,7 +644,7 @@ def _check_missing_story_points(docs: list[Document]) -> list[HealthFinding]:
     stories = [
         d
         for d in docs
-        if d.doc_type == "story" and not _is_archive(d) and d.status not in _INACTIVE_STATUSES
+        if d.doc_type == "story" and not _is_archive(d) and not _is_terminal("story", d.status)
     ]
     findings = []
     for story in stories:
@@ -666,6 +775,7 @@ _ALL_RULES = [
     _check_orphan_reference,
     _check_status_mismatch,
     _check_stale_artefact_status,
+    _check_untriaged_inbox,
     # Quality
     _check_missing_status,
     _check_missing_owner,
