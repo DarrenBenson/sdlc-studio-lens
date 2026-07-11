@@ -4,6 +4,8 @@ Test cases: TC0308-TC0316 from TS0030.
 """
 
 import hashlib
+import inspect
+import threading
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -65,13 +67,13 @@ async def _create_github_project(session: AsyncSession) -> Project:
 
 
 class TestCollectLocalFiles:
-    def test_returns_files_dict(self, tmp_path: Path) -> None:
+    async def test_returns_files_dict(self, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "stories/US0001-test-story.md", "# US0001\n\n> **Status:** Draft\n\nHere")
         _write_md(sdlc, "epics/EP0001-test-epic.md", "# EP0001\n\nEpic")
 
-        files, errors = collect_local_files(str(sdlc))
+        files, errors = await collect_local_files(str(sdlc))
 
         assert isinstance(files, dict)
         assert errors == 0
@@ -83,39 +85,71 @@ class TestCollectLocalFiles:
             assert file_hash == expected_hash
             assert isinstance(content, bytes)
 
-    def test_excludes_non_md_files(self, tmp_path: Path) -> None:
+    async def test_excludes_non_md_files(self, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "stories/US0001-test.md", "# US0001\n\nContent")
         (sdlc / "stories").mkdir(exist_ok=True)
         (sdlc / "stories" / "script.py").write_text("print('hello')")
 
-        files, errors = collect_local_files(str(sdlc))
+        files, errors = await collect_local_files(str(sdlc))
 
         for key in files:
             assert key.endswith(".md")
 
-    def test_skips_excluded_dirs(self, tmp_path: Path) -> None:
+    async def test_skips_excluded_dirs(self, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
         sdlc.mkdir()
         _write_md(sdlc, "stories/US0001-test.md", "# US0001\n\nContent")
         _write_md(sdlc, ".git/config.md", "# Git Config")
         _write_md(sdlc, "node_modules/pkg.md", "# Package")
 
-        files, _ = collect_local_files(str(sdlc))
+        files, _ = await collect_local_files(str(sdlc))
 
         assert ".git/config.md" not in files
         assert "node_modules/pkg.md" not in files
 
     # TC0315: collect_local_files raises on missing path
-    def test_missing_path_returns_empty(self, tmp_path: Path) -> None:
-        # collect_local_files doesn't raise, _walk_md_files will fail
-        # on a path that doesn't exist. The sync_project handles this
-        # by checking is_dir() before calling collect_local_files.
-        # For the function itself, it will raise when Path.iterdir() fails.
+    async def test_missing_path_returns_empty(self, tmp_path: Path) -> None:
+        # collect_local_files doesn't raise until awaited; the walk fails
+        # on a path that doesn't exist. sync_project guards this by checking
+        # is_dir() before calling collect_local_files. The offloaded walk
+        # re-raises when Path.iterdir() fails.
         nonexistent = str(tmp_path / "nonexistent")
         with pytest.raises((FileNotFoundError, OSError)):
-            collect_local_files(nonexistent)
+            await collect_local_files(nonexistent)
+
+    # BG-01KX8BY1: the walk + read_bytes work must not block the event loop.
+    async def test_walk_runs_off_main_thread(self, tmp_path: Path) -> None:
+        import sdlc_lens.services.sync_engine as se
+
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "stories/US0001-test.md", "# US0001\n\nContent")
+
+        recorded: dict[str, bool] = {}
+        original = se._walk_md_files
+
+        def wrapper(root):
+            recorded.setdefault(
+                "on_main_thread",
+                threading.current_thread() is threading.main_thread(),
+            )
+            return original(root)
+
+        with patch.object(se, "_walk_md_files", wrapper):
+            res = collect_local_files(str(sdlc))
+            # After the fix this is a coroutine (offloaded); today it is a
+            # plain tuple returned synchronously on the main thread.
+            if inspect.iscoroutine(res):
+                res = await res
+            files, errors = res
+
+        # Offloaded: the blocking walk ran on a NON-main thread.
+        assert recorded["on_main_thread"] is False
+        # Regression: results unchanged - the expected file is still collected.
+        assert "stories/US0001-test.md" in files
+        assert errors == 0
 
 
 # ---------------------------------------------------------------------------

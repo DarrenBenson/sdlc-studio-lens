@@ -8,6 +8,7 @@ Trees + Blobs (N+1 API calls).
 import hashlib
 import io
 import tarfile
+import threading
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -396,3 +397,51 @@ class TestFetchGitHubFiles:
 
         # Only 1 HTTP call (the tarball download)
         assert mock_client.get.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# BG-01KX8BY1: tarball extraction must not block the event loop
+# ---------------------------------------------------------------------------
+
+
+class TestExtractOffloadedToThread:
+    """The gzip-decompress + tarball walk is synchronous CPU/IO work.
+
+    It must run on a worker thread (via ``asyncio.to_thread``) so the event
+    loop stays responsive during a sync, not inline on the loop's thread.
+    """
+
+    @pytest.mark.asyncio
+    async def test_extraction_runs_off_main_thread(self) -> None:
+        import sdlc_lens.services.github_source as gh
+
+        resp = _mock_tarball_response(200, _STANDARD_TARBALL)
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        recorded: dict[str, bool] = {}
+        original = gh._extract_md_from_tarball
+
+        def wrapper(tarball_bytes: bytes, repo_path: str):
+            recorded["on_main_thread"] = threading.current_thread() is threading.main_thread()
+            return original(tarball_bytes, repo_path)
+
+        with (
+            patch.object(gh, "_extract_md_from_tarball", wrapper),
+            patch(
+                "sdlc_lens.services.github_source.httpx.AsyncClient",
+                return_value=mock_client,
+            ),
+        ):
+            result = await gh.fetch_github_files(
+                "https://github.com/owner/repo",
+                repo_path="sdlc-studio",
+            )
+
+        # Offloaded: the blocking extraction ran on a NON-main thread.
+        assert recorded["on_main_thread"] is False
+        # Regression: results are byte-for-byte identical to a direct extraction.
+        assert result == original(_STANDARD_TARBALL, "sdlc-studio")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import logging
@@ -103,17 +104,13 @@ def _walk_md_files(root: Path) -> list[Path]:
     return results
 
 
-def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], int]:
-    """Collect .md files from the local filesystem.
+def _walk_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], int]:
+    """Synchronous filesystem walk + read for local .md files.
 
-    Walks the directory tree, computes SHA-256 hashes, and returns
-    a dict of {relative_path: (hash, raw_bytes)} plus an error count.
-
-    Args:
-        sdlc_path: Absolute path to the sdlc-studio directory.
-
-    Returns:
-        Tuple of (files_dict, error_count).
+    Walks the directory tree, computes SHA-256 hashes, and returns a dict of
+    {relative_path: (hash, raw_bytes)} plus an error count. This is blocking
+    CPU/IO work, so it is invoked from a worker thread (see
+    ``collect_local_files``) rather than inline on the event loop.
     """
     root = Path(sdlc_path)
     fs_files: dict[str, tuple[str, bytes]] = {}
@@ -139,6 +136,22 @@ def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], i
         fs_files[rel_path] = (file_hash, raw)
 
     return fs_files, errors
+
+
+async def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], int]:
+    """Collect .md files from the local filesystem.
+
+    Offloads the blocking directory walk and per-file read to a worker thread
+    so the event loop stays responsive during a sync. Returns a dict of
+    {relative_path: (hash, raw_bytes)} plus an error count.
+
+    Args:
+        sdlc_path: Absolute path to the sdlc-studio directory.
+
+    Returns:
+        Tuple of (files_dict, error_count).
+    """
+    return await asyncio.to_thread(_walk_local_files, sdlc_path)
 
 
 async def collect_github_files(project: Project) -> dict[str, tuple[str, bytes]]:
@@ -261,7 +274,7 @@ async def sync_project(
     try:
         # Step 1: Collect files from configured source
         if project.source_type == "local":
-            fs_files, collect_errors = collect_local_files(project.sdlc_path)
+            fs_files, collect_errors = await collect_local_files(project.sdlc_path)
             result.errors += collect_errors
         elif project.source_type == "github":
             fs_files = await collect_github_files(project)

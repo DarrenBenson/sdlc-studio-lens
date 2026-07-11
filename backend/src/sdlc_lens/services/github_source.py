@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import tarfile
@@ -165,8 +166,10 @@ async def fetch_github_files(
 
         _handle_error_response(response)
 
-        # Extract .md files from the tarball
-        result = _extract_md_from_tarball(response.content, repo_path)
+        # Extract .md files from the tarball. Gzip decompression and the
+        # in-memory tarball walk are synchronous CPU/IO work, so offload them
+        # to a worker thread to keep the event loop responsive during a sync.
+        result = await asyncio.to_thread(_extract_md_from_tarball, response.content, repo_path)
 
         logger.info(
             "Found %d .md files in %s/%s (branch: %s, path: %s)",
