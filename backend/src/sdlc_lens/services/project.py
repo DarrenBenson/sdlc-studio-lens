@@ -62,12 +62,22 @@ def _resolve_local_path(sdlc_path: str) -> Path:
     if not resolved.is_dir():
         raise PathNotFoundError
 
-    if settings.allowed_project_base is not None:
-        base = Path(settings.allowed_project_base).resolve()
-        if not resolved.is_relative_to(base):
-            raise PathNotFoundError(message="sdlc_path must be within the allowed base")
-
+    _enforce_allowlist_membership(resolved)
     return resolved
+
+
+def _enforce_allowlist_membership(sdlc_path: str | Path) -> None:
+    """Raise if sdlc_path is outside the configured allowlist base.
+
+    Membership check only - it does NOT require the directory to exist, so an
+    unrelated metadata edit on a local project never fails merely because the
+    directory is temporarily missing (existence is enforced at sync time).
+    """
+    if settings.allowed_project_base is None:
+        return
+    base = Path(settings.allowed_project_base).resolve()
+    if not Path(sdlc_path).resolve().is_relative_to(base):
+        raise PathNotFoundError(message="sdlc_path must be within the allowed base")
 
 
 async def create_project(
@@ -215,7 +225,15 @@ async def update_project(
     # 'local' that supplies no sdlc_path. Re-resolving is idempotent for a value
     # already validated above.
     if effective_source == "local" and project.sdlc_path is not None:
-        project.sdlc_path = str(_resolve_local_path(project.sdlc_path))
+        if sdlc_path is not None:
+            # A path was supplied this call: it must exist AND satisfy the allowlist.
+            project.sdlc_path = str(_resolve_local_path(project.sdlc_path))
+        else:
+            # No path supplied (metadata edit, or a transition to local): re-validate
+            # allowlist membership only - do not require the directory to exist, so an
+            # unrelated edit does not fail if the dir is temporarily gone. This still
+            # closes the two-step bypass (an out-of-base stored path is refused here).
+            _enforce_allowlist_membership(project.sdlc_path)
 
     await session.commit()
     await session.refresh(project)

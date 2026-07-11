@@ -262,3 +262,40 @@ class TestSyncProjectAllowlistDefence:
         refreshed = await session.get(Project, project.id)
         assert refreshed.sync_status == "synced"
         assert result.added >= 1
+
+
+class TestUpdateDoesNotRequireDirExistence:
+    """Review fix: a metadata edit on a local project must not fail when the dir is
+    temporarily missing (allowlist membership is re-validated, existence is not)."""
+
+    async def test_rename_local_project_with_missing_dir_succeeds(
+        self, session, tmp_path, monkeypatch
+    ) -> None:
+        from sdlc_lens.config import settings
+        from sdlc_lens.services.project import create_project, update_project
+
+        monkeypatch.setattr(settings, "allowed_project_base", None)
+        d = tmp_path / "proj"
+        d.mkdir()
+        p = await create_project(session, name="P", source_type="local", sdlc_path=str(d))
+        d.rmdir()  # directory now gone
+        updated = await update_project(session, p.slug, name="Renamed")
+        assert updated.name == "Renamed"
+
+    async def test_rename_still_enforces_allowlist_membership_when_base_set(
+        self, session, tmp_path, monkeypatch
+    ) -> None:
+        from sdlc_lens.config import settings
+        from sdlc_lens.services.project import PathNotFoundError, create_project, update_project
+
+        base = tmp_path / "base"
+        base.mkdir()
+        inside = base / "proj"
+        inside.mkdir()
+        monkeypatch.setattr(settings, "allowed_project_base", str(base))
+        p = await create_project(session, name="P", source_type="local", sdlc_path=str(inside))
+        # Simulate a stashed out-of-base path (as the two-step bypass would leave), then rename.
+        p.sdlc_path = str(tmp_path / "outside")
+        await session.commit()
+        with __import__("pytest").raises(PathNotFoundError):
+            await update_project(session, p.slug, name="Renamed")
