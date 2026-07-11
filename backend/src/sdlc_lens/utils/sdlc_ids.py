@@ -63,8 +63,11 @@ SINGLETON_STEMS: dict[str, str] = {
     "brand-guide": "brand-guide",
 }
 
-# Crockford base32 tail (excludes I, L, O, U), 8+ chars. Case-insensitive at match time.
-_ULID_TAIL = r"[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{8,}"
+# Crockford base32 tail (excludes I, L, O, U), 8+ chars. Case-insensitive at match
+# time. The leading lookahead requires at least one DIGIT somewhere in the tail: a
+# genuine short-ULID always encodes a timestamp so it is never all-letters, whereas a
+# hyphenated English word (``answered``, ``standby``) would otherwise read as base32.
+_ULID_TAIL = r"(?=[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]*[0-9])[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{8,}"
 
 # An artefact id at the START of a string: PREFIX then either a hyphenated ULID tail
 # or an optional-hyphen 4+ digit sequential tail. The ULID branch is tried first so a
@@ -120,7 +123,9 @@ def norm_id(value: str | None) -> str | None:
 _ID_TOKEN_RE = re.compile(
     r"\b(?P<id>(?P<prefix>"
     + "|".join(sorted(PREFIX_TO_TYPE, key=len, reverse=True))
-    + r")(?:-(?:" + _ULID_TAIL + r")|-?\d{4,}))",
+    + r")(?:-(?:"
+    + _ULID_TAIL
+    + r")|-?\d{4,}))",
 )
 
 

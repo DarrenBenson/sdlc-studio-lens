@@ -18,6 +18,13 @@ _API_BASE = "https://api.github.com"
 _DEFAULT_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 _TARBALL_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
+# Resource bounds guarding against a huge or gzip-bomb repository. An sdlc-studio
+# docs tree is a handful of MB, so these leave generous headroom while capping the
+# blast radius on memory.
+_MAX_TARBALL_BYTES = 50 * 1024 * 1024  # 50 MB compressed download ceiling.
+_MAX_DECOMPRESSED_BYTES = 300 * 1024 * 1024  # 300 MB cumulative decompressed budget.
+_MAX_MEMBER_BYTES = 25 * 1024 * 1024  # 25 MB per-file ceiling (.md files are tiny).
+
 
 class GitHubSourceError(Exception):
     """Base error for GitHub source operations."""
@@ -166,10 +173,26 @@ async def fetch_github_files(
 
         _handle_error_response(response)
 
+        # Reject an oversized download before decompressing it. Check the declared
+        # Content-Length first (cheap, avoids buffering a hostile body), then the
+        # actual buffered length as a backstop when the header is absent or lies.
+        declared = response.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > _MAX_TARBALL_BYTES:
+            raise GitHubSourceError(
+                f"Repository tarball too large: {int(declared)} bytes exceeds the "
+                f"{_MAX_TARBALL_BYTES}-byte download limit"
+            )
+        content = response.content
+        if len(content) > _MAX_TARBALL_BYTES:
+            raise GitHubSourceError(
+                f"Repository tarball too large: {len(content)} bytes exceeds the "
+                f"{_MAX_TARBALL_BYTES}-byte download limit"
+            )
+
         # Extract .md files from the tarball. Gzip decompression and the
         # in-memory tarball walk are synchronous CPU/IO work, so offload them
         # to a worker thread to keep the event loop responsive during a sync.
-        result = await asyncio.to_thread(_extract_md_from_tarball, response.content, repo_path)
+        result = await asyncio.to_thread(_extract_md_from_tarball, content, repo_path)
 
         logger.info(
             "Found %d .md files in %s/%s (branch: %s, path: %s)",
@@ -192,13 +215,34 @@ def _extract_md_from_tarball(
     GitHub tarballs have a top-level directory like `owner-repo-sha/`.
     Files within `repo_path` are extracted with paths relative to that
     subdirectory.
+
+    Iteration is streamed (one member at a time) and bounded: a single member
+    larger than ``_MAX_MEMBER_BYTES`` or a cumulative decompressed size beyond
+    ``_MAX_DECOMPRESSED_BYTES`` aborts with a :class:`GitHubSourceError`, so a
+    gzip-bomb archive cannot exhaust memory.
     """
     result: dict[str, tuple[str, bytes]] = {}
+    total_decompressed = 0
 
     with tarfile.open(fileobj=io.BytesIO(tarball_bytes), mode="r:gz") as tar:
-        for member in tar.getmembers():
+        for member in tar:
             if not member.isfile():
                 continue
+
+            # Bound decompression using each member's declared size, checked before
+            # any data is read, so an oversized member is refused up front.
+            if member.size > _MAX_MEMBER_BYTES:
+                raise GitHubSourceError(
+                    f"Tarball member {member.name!r} too large: {member.size} bytes "
+                    f"exceeds the {_MAX_MEMBER_BYTES}-byte per-file limit"
+                )
+            total_decompressed += member.size
+            if total_decompressed > _MAX_DECOMPRESSED_BYTES:
+                raise GitHubSourceError(
+                    f"Decompressed tarball exceeds the {_MAX_DECOMPRESSED_BYTES}-byte "
+                    "budget - repository too large to sync"
+                )
+
             if not member.name.endswith(".md"):
                 continue
 

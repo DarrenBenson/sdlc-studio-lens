@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
+import sdlc_lens.services.github_source as gh
 from sdlc_lens.services.github_source import (
     AuthenticationError,
     GitHubSourceError,
@@ -445,3 +446,54 @@ class TestExtractOffloadedToThread:
         assert recorded["on_main_thread"] is False
         # Regression: results are byte-for-byte identical to a direct extraction.
         assert result == original(_STANDARD_TARBALL, "sdlc-studio")
+
+
+# ---------------------------------------------------------------------------
+# CR-01KX95FH: bound tarball download + decompression against memory exhaustion
+# ---------------------------------------------------------------------------
+
+
+class TestTarballSizeLimits:
+    """A huge or gzip-bomb repo must be refused, not loaded whole into memory."""
+
+    def test_per_member_size_limit_refuses(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(gh, "_MAX_MEMBER_BYTES", 64)
+        tarball = _build_tarball({"sdlc-studio/big.md": b"x" * 512})
+        with pytest.raises(GitHubSourceError, match="too large"):
+            gh._extract_md_from_tarball(tarball, "sdlc-studio")
+
+    def test_cumulative_decompressed_budget_refuses(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(gh, "_MAX_MEMBER_BYTES", 10_000)
+        monkeypatch.setattr(gh, "_MAX_DECOMPRESSED_BYTES", 300)
+        # Five 200-byte members: real decompressed size (1000) exceeds the 300 budget.
+        files = {f"sdlc-studio/f{i}.md": b"y" * 200 for i in range(5)}
+        tarball = _build_tarball(files)
+        with pytest.raises(GitHubSourceError, match="[Dd]ecompress"):
+            gh._extract_md_from_tarball(tarball, "sdlc-studio")
+
+    @pytest.mark.asyncio
+    async def test_download_size_cap_refuses(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(gh, "_MAX_TARBALL_BYTES", 128)
+        big_tarball = _build_tarball({"sdlc-studio/big.md": b"z" * 4096})
+        assert len(big_tarball) > 128
+        resp = _mock_tarball_response(200, big_tarball)
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch("sdlc_lens.services.github_source.httpx.AsyncClient", return_value=mock_client),
+            pytest.raises(GitHubSourceError, match="too large"),
+        ):
+            await gh.fetch_github_files(
+                "https://github.com/owner/repo",
+                repo_path="sdlc-studio",
+            )
+
+    def test_within_limits_still_extracts(self) -> None:
+        # Regression: a normal tarball under the default limits extracts unchanged.
+        result = gh._extract_md_from_tarball(_STANDARD_TARBALL, "sdlc-studio")
+        assert "stories/US001.md" in result
+        assert "epics/EP001.md" in result

@@ -45,6 +45,23 @@ class TestCanonicalStatus:
     def test_extra_vocab_none_keeps_two_arg_behaviour(self) -> None:
         assert canonical_status("Done", "story", extra_vocab=None) == "Done"
 
+    def test_extra_vocab_token_with_internal_separator(self) -> None:
+        # A custom status carrying an internal ' - ' must be matched whole, not
+        # truncated at the separator before the vocab is consulted.
+        assert (
+            canonical_status("Ready - for QA", "story", extra_vocab=["Ready - for QA"])
+            == "Ready - for QA"
+        )
+        # Even wrapped in bold/blockquote decoration the whole token still wins.
+        assert (
+            canonical_status("> **Ready - for QA**", "story", extra_vocab=["Ready - for QA"])
+            == "Ready - for QA"
+        )
+
+    def test_prose_suffix_on_standard_status_still_truncated(self) -> None:
+        # Regression: a standard status with trailing prose still reduces to its token.
+        assert canonical_status("Done - shipped 2026-07-08", "cr") == "Done"
+
 
 class TestIsDone:
     @pytest.mark.parametrize(

@@ -181,15 +181,13 @@ async def update_project(
     """
     project = await get_project_by_slug(session, slug)
 
-    # Determine effective source type for validation
+    # Determine effective (post-update) source type for validation.
     effective_source = source_type if source_type is not None else project.source_type
 
     if sdlc_path is not None:
-        if effective_source == "local":
-            project.sdlc_path = str(_resolve_local_path(sdlc_path))
-        else:
-            # For non-local, store as-is (no validation)
-            project.sdlc_path = sdlc_path
+        # Store the supplied value; the effective-invariant check below validates
+        # (and normalises) it when the resulting project is local.
+        project.sdlc_path = sdlc_path
 
     if name is not None:
         project.name = name
@@ -208,6 +206,16 @@ async def update_project(
 
     if access_token is not None:
         project.access_token = encrypt_token(access_token)
+
+    # Validate the effective post-update invariant: whenever the RESULTING
+    # project is local, its RESULTING sdlc_path must satisfy the allowlist - even
+    # when sdlc_path was not supplied this call. This closes the two-step bypass
+    # where an out-of-base path is stashed on a non-local project (stored
+    # unvalidated) and then made live by a later transition to source_type
+    # 'local' that supplies no sdlc_path. Re-resolving is idempotent for a value
+    # already validated above.
+    if effective_source == "local" and project.sdlc_path is not None:
+        project.sdlc_path = str(_resolve_local_path(project.sdlc_path))
 
     await session.commit()
     await session.refresh(project)

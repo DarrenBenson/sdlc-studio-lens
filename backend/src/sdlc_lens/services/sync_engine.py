@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 from sqlalchemy import text as sql_text
 
+from sdlc_lens.config import settings
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.parser import parse_document
@@ -273,6 +274,18 @@ async def sync_project(
             project.sync_error = f"Path not found: {project.sdlc_path}"
             await session.commit()
             return result
+
+        # Defence in depth: refuse to walk a stored sdlc_path outside the
+        # configured allowlist base, so a path that slipped past registration
+        # cannot be harvested. When allowed_project_base is unset (None), no
+        # restriction applies (backward compatible).
+        if settings.allowed_project_base is not None:
+            base = Path(settings.allowed_project_base).resolve()
+            if not root.resolve().is_relative_to(base):
+                project.sync_status = "error"
+                project.sync_error = "sdlc_path is outside the allowed base"
+                await session.commit()
+                return result
     elif project.source_type == "github":
         if not project.repo_url:
             project.sync_status = "error"

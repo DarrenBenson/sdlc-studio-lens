@@ -42,6 +42,20 @@ class TestIdHead:
     def test_non_ids_rejected(self, stem: str) -> None:
         assert id_head(stem) is None
 
+    @pytest.mark.parametrize(
+        "stem",
+        [
+            "PL-answered",  # known prefix + 8-letter word, no digit - not a ULID
+            "US-abcdefgh",  # 8 base32 letters, no digit
+            "TS-standbys",  # base32 letters only, no digit
+            "BG-defghjkm",  # base32 letters only, no digit
+        ],
+    )
+    def test_hyphenated_word_not_read_as_ulid(self, stem: str) -> None:
+        # A genuine short-ULID tail always contains at least one digit; a
+        # letters-only base32 word must not be mistaken for one.
+        assert id_head(stem) is None
+
 
 class TestTypeForPrefix:
     @pytest.mark.parametrize(
@@ -101,6 +115,11 @@ class TestExtractRefId:
 
     @pytest.mark.parametrize("value", ["-", "—", "", "   ", "no id here"])
     def test_none(self, value: str) -> None:
+        assert extract_ref_id(value) is None
+
+    @pytest.mark.parametrize("value", ["PL-answered", "US-abcdefgh", "see BG-defghjkm here"])
+    def test_hyphenated_word_not_extracted_as_ulid(self, value: str) -> None:
+        # No digit in the tail means it is not a ULID reference.
         assert extract_ref_id(value) is None
 
 

@@ -93,20 +93,47 @@ _ANY_TERMINAL = frozenset().union(*TERMINAL_STATUS.values())
 _LEADING_STRIP = re.compile(r"^[>\s*_`]+")
 
 
+def _strip_light(status: str) -> str:
+    """Remove only bold/blockquote wrapping, keeping any internal prose intact.
+
+    ``> **Ready - for QA**`` -> ``Ready - for QA``. Unlike :func:`_strip_decoration`
+    this does NOT cut at a trailing-prose separator, so a custom vocabulary token
+    that itself contains ``' - '`` survives for a whole-token match.
+    """
+    text = _LEADING_STRIP.sub("", status).strip()
+    return text.strip("*_` ").strip()
+
+
 def _strip_decoration(status: str) -> str:
     """Remove bold/blockquote decoration and any trailing prose after the token.
 
     ``**Done** - implemented`` -> ``Done``; ``Done · **CR:** ...`` -> ``Done``;
     ``Complete (81/88)`` -> ``Complete``.
     """
-    text = _LEADING_STRIP.sub("", status).strip()
-    text = text.strip("*_` ")
+    text = _strip_light(status)
     # Cut at the first separator that introduces trailing prose.
     for sep in (" - ", " — ", " – ", " · ", " | ", " (", "("):
         idx = text.find(sep)
         if idx != -1:
             text = text[:idx]
     return text.strip("*_` ").strip()
+
+
+def _match_token(text: str, candidates: list[str]) -> str | None:
+    """Return the first candidate token that matches ``text`` (case-insensitive).
+
+    A token matches when it equals ``text`` or prefixes it on a word boundary, so
+    ``Done`` matches ``Done - shipped``. Candidates are expected longest-first, so
+    ``In Progress`` wins over ``In``.
+    """
+    lowered = text.strip().lower()
+    if not lowered:
+        return None
+    for token in candidates:
+        lower_token = token.lower()
+        if lowered == lower_token or lowered.startswith(lower_token + " "):
+            return token
+    return None
 
 
 def canonical_status(
@@ -126,10 +153,6 @@ def canonical_status(
     """
     if not status or not status.strip():
         return None
-    stripped = _strip_decoration(status)
-    if not stripped:
-        return None
-    lowered = stripped.lower()
 
     candidates = ALL_STATUSES
     if doc_type in STATUS_VOCAB:
@@ -141,10 +164,20 @@ def canonical_status(
     if extra_vocab:
         candidates = sorted({*candidates, *extra_vocab}, key=len, reverse=True)
 
-    for token in candidates:
-        if lowered == token.lower() or lowered.startswith(token.lower() + " "):
-            return token
-    return stripped
+    # First match against the lightly-cleaned text (wrapping stripped, trailing prose
+    # kept) so a custom token containing an internal ' - ' is matched whole before any
+    # truncation could split it. Longest-first ordering means the full token wins.
+    matched = _match_token(_strip_light(status), candidates)
+    if matched is not None:
+        return matched
+
+    # No token in the lightly-cleaned text: cut trailing prose and re-match. A value
+    # that still matches nothing is returned stripped (never dropped) so custom
+    # project statuses ('Gated — waiting') display as their leading token ('Gated').
+    stripped = _strip_decoration(status)
+    if not stripped:
+        return None
+    return _match_token(stripped, candidates) or stripped
 
 
 def is_done(status: str | None, doc_type: str | None = None) -> bool:
