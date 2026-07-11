@@ -1,13 +1,10 @@
 """Document service - business logic for document queries."""
 
-import re
-
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sdlc_lens.db.models.document import Document
-
-_DOC_PREFIX_RE = re.compile(r"^([A-Z]{2}\d{4})")
+from sdlc_lens.utils.sdlc_ids import id_head, norm_id
 
 
 async def list_documents(
@@ -102,23 +99,36 @@ async def get_document(
     return doc
 
 
-def _extract_doc_prefix(doc_id: str) -> str | None:
-    """Extract clean prefix from a doc_id (e.g. 'EP0007' from 'EP0007-git-repo-sync')."""
-    match = _DOC_PREFIX_RE.match(doc_id)
-    return match.group(1) if match else None
+def _doc_ref(doc: Document) -> str | None:
+    """The document's own normalised reference id (stored, or derived as a fallback)."""
+    return doc.ref_id or norm_id(id_head(doc.doc_id))
 
 
 async def _find_doc_by_clean_id(
     session: AsyncSession,
     project_id: int,
-    clean_id: str,
+    ref: str | None,
 ) -> Document | None:
-    """Find a document by its clean ID prefix (e.g. EP0007)."""
+    """Find a document by any reference form, resolved through the normalised id.
+
+    Matches on the document's ``ref_id`` (so ``CR-0003`` / ``CR0003`` / ``[[CR-0496]]``
+    / a v3 ULID all resolve), then falls back to a migration ``Aliases`` match so an
+    old sequential-id reference finds the renumbered document.
+    """
+    normed = norm_id(ref)
+    if not normed:
+        return None
     stmt = (
         select(Document)
         .where(
             Document.project_id == project_id,
-            Document.doc_id.like(f"{clean_id}%"),
+            or_(
+                Document.ref_id == normed,
+                Document.aliases == normed,
+                Document.aliases.like(f"{normed},%"),
+                Document.aliases.like(f"%,{normed},%"),
+                Document.aliases.like(f"%,{normed}"),
+            ),
         )
         .limit(1)
     )
@@ -130,14 +140,17 @@ async def get_related_documents(
     session: AsyncSession,
     project_id: int,
     doc: Document,
-) -> tuple[list[Document], list[Document]]:
-    """Get parent chain and children for a document.
+) -> tuple[list[Document], list[Document], list[Document], list[Document]]:
+    """Get parents, children, dependencies, and dependents for a document.
 
-    Returns (parents, children) where parents are ordered nearest ancestor first.
+    ``parents`` are ordered nearest ancestor first. ``depends_on`` are the documents
+    this one declares a dependency on; ``dependents`` declare a dependency on this one.
     """
     parents = await _get_parent_chain(session, project_id, doc)
     children = await _get_children(session, project_id, doc)
-    return parents, children
+    depends_on = await _get_dependencies(session, project_id, doc)
+    dependents = await _get_dependents(session, project_id, doc)
+    return parents, children, depends_on, dependents
 
 
 async def _get_parent_chain(
@@ -169,9 +182,9 @@ async def _get_children(
     project_id: int,
     doc: Document,
 ) -> list[Document]:
-    """Find documents that reference this doc as their parent."""
-    prefix = _extract_doc_prefix(doc.doc_id)
-    if not prefix:
+    """Find documents that reference this doc as their parent (by normalised id)."""
+    ref = _doc_ref(doc)
+    if not ref:
         return []
 
     if doc.doc_type == "epic":
@@ -179,7 +192,7 @@ async def _get_children(
             select(Document)
             .where(
                 Document.project_id == project_id,
-                Document.epic == prefix,
+                Document.epic == ref,
                 Document.story.is_(None),
             )
             .order_by(Document.doc_type, Document.doc_id)
@@ -189,12 +202,61 @@ async def _get_children(
             select(Document)
             .where(
                 Document.project_id == project_id,
-                Document.story == prefix,
+                Document.story == ref,
             )
             .order_by(Document.doc_type, Document.doc_id)
         )
     else:
         return []
 
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+def _split_ref_list(value: str | None) -> list[str]:
+    """Split a stored comma-joined normalised id list into individual ids."""
+    if not value:
+        return []
+    return [part for part in value.split(",") if part]
+
+
+async def _get_dependencies(
+    session: AsyncSession,
+    project_id: int,
+    doc: Document,
+) -> list[Document]:
+    """Documents this one declares a `Depends on` dependency upon."""
+    results: list[Document] = []
+    seen: set[int] = set()
+    for dep in _split_ref_list(doc.depends_on):
+        target = await _find_doc_by_clean_id(session, project_id, dep)
+        if target is not None and target.id not in seen:
+            seen.add(target.id)
+            results.append(target)
+    return results
+
+
+async def _get_dependents(
+    session: AsyncSession,
+    project_id: int,
+    doc: Document,
+) -> list[Document]:
+    """Documents that declare a `Depends on` dependency upon this one."""
+    ref = _doc_ref(doc)
+    if not ref:
+        return []
+    stmt = (
+        select(Document)
+        .where(
+            Document.project_id == project_id,
+            or_(
+                Document.depends_on == ref,
+                Document.depends_on.like(f"{ref},%"),
+                Document.depends_on.like(f"%,{ref},%"),
+                Document.depends_on.like(f"%,{ref}"),
+            ),
+        )
+        .order_by(Document.doc_type, Document.doc_id)
+    )
     result = await session.execute(stmt)
     return list(result.scalars().all())

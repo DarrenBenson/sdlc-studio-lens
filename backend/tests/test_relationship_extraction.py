@@ -57,14 +57,22 @@ class TestExtractDocId:
         result = extract_doc_id("[EP0007](../epics/EP0007-git-repository-sync.md)")
         assert result == "EP0007"
 
-    # TC0348: returns raw value for non-matching format
+    # TC0348: returns None for non-matching format (CR-01KX8Y2G: an id or nothing,
+    # never raw prose, so a non-id epic/story value no longer pollutes the column).
     def test_non_matching_format(self) -> None:
-        assert extract_doc_id("Some Random Text") == "Some Random Text"
+        assert extract_doc_id("Some Random Text") is None
 
     def test_malformed_link_no_id(self) -> None:
         # Link text doesn't start with a document ID pattern
         result = extract_doc_id("[No ID here](path)")
-        assert result == "[No ID here](path)"
+        assert result is None
+
+    # CR-01KX8Y2G: new id forms resolve too
+    def test_ulid_id(self) -> None:
+        assert extract_doc_id("[BG-01KX8B82](../bugs/BG-01KX8B82-path.md)") == "BG-01KX8B82"
+
+    def test_wiki_link(self) -> None:
+        assert extract_doc_id("[[CR-0496]]") == "CR-0496"
 
     def test_bug_reference(self) -> None:
         result = extract_doc_id("[BG0001: Login Failure](../bugs/BG0001-login-failure.md)")
@@ -106,7 +114,16 @@ class TestStandardFields:
         assert "epic" in _STANDARD_FIELDS
 
     def test_all_expected_fields(self) -> None:
-        expected = {"status", "owner", "priority", "story_points", "epic", "story"}
+        expected = {
+            "status",
+            "owner",
+            "priority",
+            "story_points",
+            "epic",
+            "story",
+            "depends_on",
+            "aliases",
+        }
         assert expected == _STANDARD_FIELDS
 
 

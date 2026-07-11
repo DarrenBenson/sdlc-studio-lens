@@ -23,6 +23,13 @@ class Document(Base):
     story_points: Mapped[int | None] = mapped_column(nullable=True)
     epic: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     story: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    # Normalised id head of this document (norm_id(id_head(doc_id))), for reference
+    # resolution across id forms (sequential / hyphenated / v3 ULID). None for singletons.
+    ref_id: Mapped[str | None] = mapped_column(String(60), nullable=True, index=True)
+    # Normalised, comma-joined dependency ids (from a `Depends on` field).
+    depends_on: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Normalised, comma-joined prior ids (from a v3 migration `Aliases` field).
+    aliases: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     file_path: Mapped[str] = mapped_column(Text, nullable=False)

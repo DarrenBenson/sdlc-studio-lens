@@ -274,30 +274,22 @@ async def get_document_related(
             },
         )
 
-    parents, children = await get_related_documents(db, project.id, doc)
+    parents, children, depends_on, dependents = await get_related_documents(db, project.id, doc)
+
+    def _items(docs: list) -> list[RelatedDocumentItem]:
+        return [
+            RelatedDocumentItem(doc_id=d.doc_id, type=d.doc_type, title=d.title, status=d.status)
+            for d in docs
+        ]
 
     return DocumentRelationships(
         doc_id=doc.doc_id,
         type=doc.doc_type,
         title=doc.title,
-        parents=[
-            RelatedDocumentItem(
-                doc_id=p.doc_id,
-                type=p.doc_type,
-                title=p.title,
-                status=p.status,
-            )
-            for p in parents
-        ],
-        children=[
-            RelatedDocumentItem(
-                doc_id=c.doc_id,
-                type=c.doc_type,
-                title=c.title,
-                status=c.status,
-            )
-            for c in children
-        ],
+        parents=_items(parents),
+        children=_items(children),
+        depends_on=_items(depends_on),
+        dependents=_items(dependents),
     )
 
 

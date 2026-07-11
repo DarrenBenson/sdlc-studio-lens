@@ -48,6 +48,8 @@ async def hierarchy(session: AsyncSession, project: Project) -> dict[str, Docume
     docs = {}
 
     def _doc(doc_type, doc_id, title, epic=None, story=None, **kw):
+        from sdlc_lens.utils.sdlc_ids import id_head, norm_id
+
         d = Document(
             project_id=project.id,
             doc_type=doc_type,
@@ -57,6 +59,7 @@ async def hierarchy(session: AsyncSession, project: Project) -> dict[str, Docume
             owner="Darren",
             epic=epic,
             story=story,
+            ref_id=norm_id(id_head(doc_id)),
             content=f"# {title}",
             file_path=f"{doc_type}s/{doc_id}.md",
             file_hash=f"{doc_id:<64}"[:64],

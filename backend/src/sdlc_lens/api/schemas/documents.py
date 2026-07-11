@@ -68,3 +68,5 @@ class DocumentRelationships(BaseModel):
     title: str
     parents: list[RelatedDocumentItem]
     children: list[RelatedDocumentItem]
+    depends_on: list[RelatedDocumentItem] = []
+    dependents: list[RelatedDocumentItem] = []

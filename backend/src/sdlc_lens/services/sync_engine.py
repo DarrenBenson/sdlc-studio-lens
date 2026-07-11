@@ -19,6 +19,7 @@ from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.parser import parse_document
 from sdlc_lens.utils.hashing import compute_hash
 from sdlc_lens.utils.inference import infer_type_and_id
+from sdlc_lens.utils.sdlc_ids import extract_ref_id, id_head, norm_id
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,38 +58,34 @@ class SyncResult:
 
 
 # Standard metadata fields stored as dedicated columns
-_STANDARD_FIELDS = frozenset({"status", "owner", "priority", "story_points", "epic", "story"})
+_STANDARD_FIELDS = frozenset(
+    {"status", "owner", "priority", "story_points", "epic", "story", "depends_on", "aliases"}
+)
 
-# Matches the document ID at the start of a markdown link text.
-# e.g. "[EP0007: Git Repository Sync](../epics/...)" captures "EP0007"
-# e.g. "[US0028](../stories/...)" captures "US0028"
-_MD_LINK_ID_RE = re.compile(r"^\[([A-Z]{2}\d{4})")
-
-# Matches a clean document ID prefix in plain text.
-# e.g. "EP0007" or "US0163: Container Service Status" captures the ID prefix.
-_PLAIN_ID_RE = re.compile(r"^([A-Z]{2}\d{4})\b")
+# Reference extraction now lives in utils.sdlc_ids and handles sequential, hyphenated
+# and v3 ULID ids plus wiki-links. Kept under the historical name for callers/tests.
+extract_doc_id = extract_ref_id
 
 
-def extract_doc_id(value: str | None) -> str | None:
-    """Extract a clean document ID from a markdown link or plain text.
+def _norm_ref(value: str | None) -> str | None:
+    """The normalised id of a single reference value (link/plain/bare), or None."""
+    return norm_id(extract_ref_id(value))
 
-    Handles values like:
-      - ``[EP0007: Git Repository Sync](../epics/EP0007-...md)`` → ``EP0007``
-      - ``[US0028](../stories/US0028-...md)`` → ``US0028``
-      - ``US0163: Container Service Status`` → ``US0163``
-      - ``EP0007`` → ``EP0007`` (returned unchanged)
-      - ``None`` or ``""`` → ``None``
+
+def _norm_ref_list(value: str | None) -> str | None:
+    """Normalise a comma/space-separated list of references to a comma-joined string.
+
+    Used for ``Depends on`` and ``Aliases`` (which may name several ids). Returns None
+    when no ids are found.
     """
-    if not value or not value.strip():
+    if not value:
         return None
-    stripped = value.strip()
-    match = _MD_LINK_ID_RE.match(stripped)
-    if match:
-        return match.group(1)
-    match = _PLAIN_ID_RE.match(stripped)
-    if match:
-        return match.group(1)
-    return stripped
+    ids: list[str] = []
+    for chunk in re.split(r"[,\s]+", value):
+        normed = _norm_ref(chunk)
+        if normed and normed not in ids:
+            ids.append(normed)
+    return ",".join(ids) if ids else None
 
 
 def _walk_md_files(root: Path) -> list[Path]:
@@ -201,8 +198,11 @@ def _build_doc_attrs(
         "owner": parsed_meta.get("owner"),
         "priority": parsed_meta.get("priority"),
         "story_points": parsed_meta.get("story_points"),
-        "epic": extract_doc_id(parsed_meta.get("epic")),
-        "story": extract_doc_id(parsed_meta.get("story")),
+        "epic": _norm_ref(parsed_meta.get("epic")),
+        "story": _norm_ref(parsed_meta.get("story")),
+        "ref_id": norm_id(id_head(doc_id)),
+        "depends_on": _norm_ref_list(parsed_meta.get("depends_on")),
+        "aliases": _norm_ref_list(parsed_meta.get("aliases")),
         "metadata_json": json.dumps(extra) if extra else None,
         "content": parsed_body,
         "file_path": file_path,

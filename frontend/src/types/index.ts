@@ -144,6 +144,8 @@ export interface DocumentRelationships {
   title: string;
   parents: RelatedDocumentItem[];
   children: RelatedDocumentItem[];
+  depends_on?: RelatedDocumentItem[];
+  dependents?: RelatedDocumentItem[];
 }
 
 /** A document affected by a health check finding. */
