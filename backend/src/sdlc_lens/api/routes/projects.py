@@ -71,6 +71,8 @@ async def _project_response(db: AsyncSession, project) -> ProjectResponse:
         masked_token=mask_token(project.access_token),
         sync_status=project.sync_status,
         sync_error=project.sync_error,
+        schema_version=project.schema_version,
+        profile=project.profile,
         last_synced_at=project.last_synced_at,
         document_count=doc_count,
         created_at=project.created_at,

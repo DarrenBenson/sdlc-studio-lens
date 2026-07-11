@@ -81,6 +81,8 @@ class ProjectResponse(BaseModel):
     masked_token: str | None = None
     sync_status: str
     sync_error: str | None = None
+    schema_version: str | None = None
+    profile: str | None = None
     last_synced_at: datetime.datetime | None
     document_count: int
     created_at: datetime.datetime

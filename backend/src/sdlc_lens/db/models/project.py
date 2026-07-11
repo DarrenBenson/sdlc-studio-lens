@@ -30,6 +30,10 @@ class Project(Base):
         String(20), nullable=False, server_default="never_synced"
     )
     sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    schema_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    profile: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # JSON string of {doc_type: [status, ...]} custom vocabulary from .config.yaml.
+    status_vocab: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_synced_at: Mapped[datetime.datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         nullable=False, server_default=func.now()

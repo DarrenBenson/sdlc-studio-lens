@@ -37,6 +37,14 @@ class TestCanonicalStatus:
     def test_unknown_type_uses_global_vocab(self) -> None:
         assert canonical_status("Complete", None) == "Complete"
 
+    def test_extra_vocab_canonicalises_project_status(self) -> None:
+        # A project-defined status becomes a first-class token via extra_vocab.
+        assert canonical_status("Gated", "story", extra_vocab=["Gated"]) == "Gated"
+        assert canonical_status("Built - display shipped", "cr", extra_vocab=["Built"]) == "Built"
+
+    def test_extra_vocab_none_keeps_two_arg_behaviour(self) -> None:
+        assert canonical_status("Done", "story", extra_vocab=None) == "Done"
+
 
 class TestIsDone:
     @pytest.mark.parametrize(

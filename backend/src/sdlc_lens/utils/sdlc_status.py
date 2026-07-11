@@ -80,9 +80,7 @@ ALL_STATUSES: list[str] = sorted(
 )
 
 # Statuses considered "done" for completion metrics (union of terminal-and-complete).
-DONE_STATUSES = frozenset(
-    {"Done", "Complete", "Fixed", "Verified", "Closed", "Accepted"}
-)
+DONE_STATUSES = frozenset({"Done", "Complete", "Fixed", "Verified", "Closed", "Accepted"})
 
 _LEADING_STRIP = re.compile(r"^[>\s*_`]+")
 
@@ -103,14 +101,20 @@ def _strip_decoration(status: str) -> str:
     return text.strip("*_` ").strip()
 
 
-def canonical_status(status: str | None, doc_type: str | None = None) -> str | None:
+def canonical_status(
+    status: str | None,
+    doc_type: str | None = None,
+    extra_vocab: list[str] | None = None,
+) -> str | None:
     """Reduce a raw status value to its vocabulary token, or None.
 
     Matches the longest vocabulary token that prefixes the decoration-stripped text
     (case-insensitive), so ``In Progress`` wins over ``In``. When ``doc_type`` names a
     known type, that type's vocabulary (plus ``inbox`` for findings) is tried first;
-    otherwise the global token set is used. A value that matches no token is returned
-    stripped (never dropped), so custom project statuses still display.
+    otherwise the global token set is used. ``extra_vocab`` appends project-defined
+    tokens (e.g. ``Gated``, ``Built``) so they canonicalise to themselves as
+    first-class tokens. A value that matches no token is returned stripped (never
+    dropped), so custom project statuses still display.
     """
     if not status or not status.strip():
         return None
@@ -125,6 +129,9 @@ def canonical_status(status: str | None, doc_type: str | None = None) -> str | N
         if doc_type in FINDING_TYPES:
             vocab.append(INBOX_STATUS)
         candidates = sorted(vocab, key=len, reverse=True)
+
+    if extra_vocab:
+        candidates = sorted({*candidates, *extra_vocab}, key=len, reverse=True)
 
     for token in candidates:
         if lowered == token.lower() or lowered.startswith(token.lower() + " "):

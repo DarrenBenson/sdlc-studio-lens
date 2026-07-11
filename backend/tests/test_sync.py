@@ -129,6 +129,59 @@ class TestSyncAddsNewDocs:
 
 
 # ---------------------------------------------------------------------------
+# CR-01KX8Y6H: sync reads .config.yaml / .version onto the project
+# ---------------------------------------------------------------------------
+
+
+class TestSyncReadsProjectConfig:
+    @pytest.mark.asyncio
+    async def test_config_populates_project_fields(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        (sdlc / ".config.yaml").write_text(
+            "schema_version: 3\nprofile: full\nstatus_vocab:\n  story:\n    - Gated\n",
+            encoding="utf-8",
+        )
+        (sdlc / ".version").write_text("schema_version: 3\n", encoding="utf-8")
+        _write_md(
+            sdlc,
+            "stories/US0001-register.md",
+            "> **Status:** Gated - waiting on review\n\n# US0001: Register\n\nBody.",
+        )
+
+        project = await _create_project(session, str(sdlc))
+        await sync_project(project, session)
+
+        assert project.schema_version == "3"
+        assert project.profile == "full"
+
+        doc = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .one()
+        )
+        # The project-defined "Gated" status canonicalises to itself.
+        assert doc.status == "Gated"
+
+    @pytest.mark.asyncio
+    async def test_missing_config_does_not_fail_sync(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
+
+        project = await _create_project(session, str(sdlc))
+        result = await sync_project(project, session)
+
+        assert result.added == 1
+        assert project.sync_status == "synced"
+        assert project.schema_version is None
+
+
+# ---------------------------------------------------------------------------
 # TC0098: Sync updates documents with changed hash
 # ---------------------------------------------------------------------------
 

@@ -17,6 +17,7 @@ from sqlalchemy import text as sql_text
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.parser import parse_document
+from sdlc_lens.services.project_config import ProjectConfig, read_local_project_config
 from sdlc_lens.utils.hashing import compute_hash
 from sdlc_lens.utils.inference import infer_type_and_id
 from sdlc_lens.utils.sdlc_ids import extract_ref_id, id_head, norm_id
@@ -185,17 +186,24 @@ def _build_doc_attrs(
     file_path: str,
     file_hash: str,
     project_id: int,
+    status_vocab: dict[str, list[str]] | None = None,
 ) -> dict:
-    """Build a dict of Document column values from parsed data."""
+    """Build a dict of Document column values from parsed data.
+
+    ``status_vocab`` is the project's parsed custom vocabulary; the tokens for
+    this ``doc_type`` are fed to :func:`canonical_status` so project-defined
+    statuses canonicalise to themselves.
+    """
     # Separate standard fields from extra metadata
     extra = {k: v for k, v in parsed_meta.items() if k not in _STANDARD_FIELDS}
+    extra_vocab = status_vocab.get(doc_type) if status_vocab else None
 
     return {
         "project_id": project_id,
         "doc_type": doc_type,
         "doc_id": doc_id,
         "title": parsed_title or doc_id,
-        "status": canonical_status(parsed_meta.get("status"), doc_type),
+        "status": canonical_status(parsed_meta.get("status"), doc_type, extra_vocab=extra_vocab),
         "owner": parsed_meta.get("owner"),
         "priority": parsed_meta.get("priority"),
         "story_points": parsed_meta.get("story_points"),
@@ -276,11 +284,19 @@ async def sync_project(
     project.sync_status = "syncing"
     await session.flush()
 
+    config = ProjectConfig()
+
     try:
         # Step 1: Collect files from configured source
         if project.source_type == "local":
             fs_files, collect_errors = await collect_local_files(project.sdlc_path)
             result.errors += collect_errors
+            # Best-effort: read .config.yaml / .version alongside the collected tree.
+            # A missing or malformed config must not fail the sync.
+            config = await asyncio.to_thread(read_local_project_config, project.sdlc_path)
+            project.schema_version = config.schema_version
+            project.profile = config.profile
+            project.status_vocab = json.dumps(config.status_vocab) if config.status_vocab else None
         elif project.source_type == "github":
             fs_files = await collect_github_files(project)
         else:
@@ -340,6 +356,7 @@ async def sync_project(
                 file_path=rel_path,
                 file_hash=file_hash,
                 project_id=project_id,
+                status_vocab=config.status_vocab,
             )
 
             if doc is not None:

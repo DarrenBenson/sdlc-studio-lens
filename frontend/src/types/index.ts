@@ -16,6 +16,8 @@ export interface Project {
   masked_token: string | null;
   sync_status: SyncStatus;
   sync_error: string | null;
+  schema_version?: string | null;
+  profile?: string | null;
   last_synced_at: string | null;
   document_count: number;
   created_at: string;

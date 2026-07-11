@@ -12,17 +12,18 @@ import {
   YAxis,
 } from "recharts";
 
-import { fetchProjectStats } from "../api/client.ts";
+import { fetchProject, fetchProjectStats } from "../api/client.ts";
 import { ProgressRing } from "../components/ProgressRing.tsx";
 import { StatsCard } from "../components/StatsCard.tsx";
 import { ChartTooltip } from "../components/ChartTooltip.tsx";
 import { CHART_THEME, STATUS_COLOURS } from "../lib/chartTheme.ts";
-import type { ProjectStats } from "../types/index.ts";
+import type { Project, ProjectStats } from "../types/index.ts";
 
 export function ProjectDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [stats, setStats] = useState<ProjectStats | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,8 +31,11 @@ export function ProjectDetail() {
     if (!slug) return;
     setLoading(true);
     setError(null);
-    fetchProjectStats(slug)
-      .then(setStats)
+    Promise.all([fetchProjectStats(slug), fetchProject(slug)])
+      .then(([statsData, projectData]) => {
+        setStats(statsData);
+        setProject(projectData);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [slug]);
@@ -130,6 +134,12 @@ export function ProjectDetail() {
           <p className="text-sm text-text-secondary mt-1">
             {stats.total_documents} documents
           </p>
+          {project?.schema_version && (
+            <p className="text-sm text-text-tertiary mt-1">
+              Schema v{project.schema_version}
+              {project.profile ? ` · ${project.profile}` : ""}
+            </p>
+          )}
           <div className="mt-2 flex gap-3">
             <Link
               to={`/projects/${slug}/documents`}
