@@ -361,3 +361,105 @@ describe("TC0378: Story field shown in properties sidebar", () => {
     expect(within(sidebar).getByText("US0028")).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// CR-01KX8YD6: v3 metadata fields and dependency relationships
+// ---------------------------------------------------------------------------
+
+const crDocument: DocumentDetail = {
+  doc_id: "CR-01KX8YD6-display-v3",
+  type: "cr",
+  title: "Display v3 Artefacts",
+  status: "Draft",
+  owner: null,
+  priority: null,
+  story_points: null,
+  epic: null,
+  story: null,
+  metadata: {
+    "raised-by": "Darren",
+    verification_depth: "deep",
+    "triaged-by": "Alex",
+    consolidation: "merged",
+    "created-by": "system",
+    "some-other": "keep me",
+  },
+  content: "# Body",
+  file_path: "change-requests/CR-01KX8YD6-display-v3.md",
+  file_hash: "c".repeat(64),
+  synced_at: "2026-02-18T12:00:00Z",
+};
+
+describe("CR-01KX8YD6: promoted v3 metadata fields", () => {
+  it("renders known v3 fields with friendly labels", async () => {
+    mockFetchDocument.mockResolvedValueOnce(crDocument);
+    renderDocumentView("/projects/testproject/documents/cr/CR-01KX8YD6-display-v3");
+    await waitFor(() => {
+      expect(screen.getByText("Display v3 Artefacts")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Raised by")).toBeInTheDocument();
+    expect(screen.getByText("Verification depth")).toBeInTheDocument();
+    expect(screen.getByText("Triaged by")).toBeInTheDocument();
+    expect(screen.getByText("Consolidation")).toBeInTheDocument();
+    expect(screen.getByText("Created by")).toBeInTheDocument();
+  });
+
+  it("does not double-render promoted keys in the generic table", async () => {
+    mockFetchDocument.mockResolvedValueOnce(crDocument);
+    renderDocumentView("/projects/testproject/documents/cr/CR-01KX8YD6-display-v3");
+    await waitFor(() => {
+      expect(screen.getByText("Raised by")).toBeInTheDocument();
+    });
+    // Raw header keys for promoted fields must not appear.
+    expect(screen.queryByText("raised-by")).not.toBeInTheDocument();
+    expect(screen.queryByText("triaged-by")).not.toBeInTheDocument();
+    // The remaining generic field is still rendered by its raw key.
+    expect(screen.getByText("some-other")).toBeInTheDocument();
+    expect(screen.getByText("keep me")).toBeInTheDocument();
+  });
+});
+
+describe("CR-01KX8YD6: dependency relationships", () => {
+  it("renders depends_on and dependents as labelled link sections", async () => {
+    mockFetchDocument.mockResolvedValueOnce(crDocument);
+    mockFetchRelated.mockResolvedValueOnce({
+      doc_id: crDocument.doc_id,
+      type: crDocument.type,
+      title: crDocument.title,
+      parents: [],
+      children: [],
+      depends_on: [
+        {
+          doc_id: "US-01AAAAAAAA-a",
+          type: "story",
+          title: "Upstream Story",
+          status: "Done",
+        },
+      ],
+      dependents: [
+        {
+          doc_id: "US-01BBBBBBBB-b",
+          type: "story",
+          title: "Downstream Story",
+          status: "Draft",
+        },
+      ],
+    });
+    renderDocumentView("/projects/testproject/documents/cr/CR-01KX8YD6-display-v3");
+    await waitFor(() => {
+      expect(screen.getByText("Depends on")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Dependents")).toBeInTheDocument();
+
+    const upstream = screen.getByText("Upstream Story").closest("a");
+    expect(upstream).toHaveAttribute(
+      "href",
+      "/projects/testproject/documents/story/US-01AAAAAAAA-a",
+    );
+    const downstream = screen.getByText("Downstream Story").closest("a");
+    expect(downstream).toHaveAttribute(
+      "href",
+      "/projects/testproject/documents/story/US-01BBBBBBBB-b",
+    );
+  });
+});

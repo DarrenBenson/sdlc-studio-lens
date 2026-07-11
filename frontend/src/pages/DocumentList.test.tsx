@@ -167,6 +167,34 @@ describe("TC0172: Type filter", () => {
 });
 
 // ---------------------------------------------------------------------------
+// CR-01KX8YD6: type filter offers the new v3 artefact types
+// ---------------------------------------------------------------------------
+
+describe("CR-01KX8YD6: v3 type filter options", () => {
+  it("offers the new v3 artefact types as filter options", async () => {
+    mockFetchDocuments.mockResolvedValue(sampleResponse);
+    renderDocumentList();
+
+    const typeSelect = await waitFor(() => screen.getByLabelText("Type"));
+    const labels = within(typeSelect)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    for (const label of [
+      "CR",
+      "RFC",
+      "Retro",
+      "Review",
+      "Decision",
+      "PVD",
+      "Persona",
+      "Workflow",
+    ]) {
+      expect(labels).toContain(label);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // TC0173: Status filter calls API with status param
 // ---------------------------------------------------------------------------
 

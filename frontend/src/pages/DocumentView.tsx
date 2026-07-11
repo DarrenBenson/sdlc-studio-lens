@@ -13,6 +13,19 @@ import type {
   RelatedDocumentItem,
 } from "../types/index.ts";
 
+// Known v3 metadata header fields promoted to friendly labelled rows. Any key
+// listed here is rendered explicitly and excluded from the generic table below
+// so it is not shown twice.
+const PROMOTED_METADATA: readonly (readonly [string, string])[] = [
+  ["raised-by", "Raised by"],
+  ["verification_depth", "Verification depth"],
+  ["triaged-by", "Triaged by"],
+  ["consolidation", "Consolidation"],
+  ["created-by", "Created by"],
+];
+
+const PROMOTED_KEYS = new Set(PROMOTED_METADATA.map(([key]) => key));
+
 function RelatedDocLink({
   item,
   slug,
@@ -106,7 +119,20 @@ export function DocumentView(): React.JSX.Element {
 
   const hasParents = related !== null && related.parents.length > 0;
   const hasChildren = related !== null && related.children.length > 0;
-  const hasRelationships = hasParents || hasChildren;
+  const dependsOn = related?.depends_on ?? [];
+  const dependents = related?.dependents ?? [];
+  const hasDependsOn = dependsOn.length > 0;
+  const hasDependents = dependents.length > 0;
+  const hasRelationships =
+    hasParents || hasChildren || hasDependsOn || hasDependents;
+
+  // Split metadata into promoted (known v3 fields) and the remaining generic rows.
+  const promotedMetadata = doc.metadata
+    ? PROMOTED_METADATA.filter(([key]) => doc.metadata?.[key])
+    : [];
+  const genericMetadata = doc.metadata
+    ? Object.entries(doc.metadata).filter(([key]) => !PROMOTED_KEYS.has(key))
+    : [];
 
   return (
     <div className="flex gap-6">
@@ -209,13 +235,19 @@ export function DocumentView(): React.JSX.Element {
               </div>
             )}
 
-            {doc.metadata &&
-              Object.entries(doc.metadata).map(([key, value]) => (
-                <div key={key}>
-                  <dt className="text-text-tertiary capitalize">{key}</dt>
-                  <dd className="text-text-primary">{value}</dd>
-                </div>
-              ))}
+            {promotedMetadata.map(([key, label]) => (
+              <div key={key}>
+                <dt className="text-text-tertiary">{label}</dt>
+                <dd className="text-text-primary">{doc.metadata![key]}</dd>
+              </div>
+            ))}
+
+            {genericMetadata.map(([key, value]) => (
+              <div key={key}>
+                <dt className="text-text-tertiary capitalize">{key}</dt>
+                <dd className="text-text-primary">{value}</dd>
+              </div>
+            ))}
           </dl>
         </div>
 
@@ -240,13 +272,39 @@ export function DocumentView(): React.JSX.Element {
             )}
 
             {hasChildren && (
-              <div>
+              <div className={hasDependsOn || hasDependents ? "mb-3" : ""}>
                 <h4 className="mb-1 text-xs font-medium text-text-tertiary">
                   Children
                 </h4>
                 <div className="-mx-2 space-y-0.5">
                   {related!.children.map((c) => (
                     <RelatedDocLink key={c.doc_id} item={c} slug={slug!} fromTree={fromTree} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasDependsOn && (
+              <div className={hasDependents ? "mb-3" : ""}>
+                <h4 className="mb-1 text-xs font-medium text-text-tertiary">
+                  Depends on
+                </h4>
+                <div className="-mx-2 space-y-0.5">
+                  {dependsOn.map((d) => (
+                    <RelatedDocLink key={d.doc_id} item={d} slug={slug!} fromTree={fromTree} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasDependents && (
+              <div>
+                <h4 className="mb-1 text-xs font-medium text-text-tertiary">
+                  Dependents
+                </h4>
+                <div className="-mx-2 space-y-0.5">
+                  {dependents.map((d) => (
+                    <RelatedDocLink key={d.doc_id} item={d} slug={slug!} fromTree={fromTree} />
                   ))}
                 </div>
               </div>

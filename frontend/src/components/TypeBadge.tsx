@@ -7,6 +7,14 @@ const TYPE_LABELS: Record<string, string> = {
   prd: "PRD",
   trd: "TRD",
   tsd: "TSD",
+  cr: "CR",
+  rfc: "RFC",
+  retro: "Retro",
+  review: "Review",
+  decision: "Decision",
+  pvd: "PVD",
+  persona: "Persona",
+  workflow: "Workflow",
   other: "Other",
 };
 

@@ -16,6 +16,14 @@ const TYPE_OPTIONS = [
   { value: "prd", label: "PRD" },
   { value: "trd", label: "TRD" },
   { value: "tsd", label: "TSD" },
+  { value: "cr", label: "CR" },
+  { value: "rfc", label: "RFC" },
+  { value: "retro", label: "Retro" },
+  { value: "review", label: "Review" },
+  { value: "decision", label: "Decision" },
+  { value: "pvd", label: "PVD" },
+  { value: "persona", label: "Persona" },
+  { value: "workflow", label: "Workflow" },
   { value: "other", label: "Other" },
 ];
 
