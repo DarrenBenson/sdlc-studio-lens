@@ -11,6 +11,29 @@ _KV_PATTERN = re.compile(r"^>\s+\*\*(.+?)\*\*:?\s*(.*?)\s*$")
 # Regex: matches "**Key:** Value" without blockquote prefix
 _PLAIN_KV_PATTERN = re.compile(r"^\*\*(.+?)\*\*:?\s*(.*?)\s*$")
 
+# Splits an inline multi-field header on the "·" separator that precedes a bold key,
+# e.g. "Done · **CR:** CR-0088 · **Points:** 5" -> ["Done", "**CR:** CR-0088", ...].
+_INLINE_SEP_RE = re.compile(r"\s*[·|]\s*(?=\*\*)")
+
+
+def _split_inline_value(raw_value: str) -> tuple[str, list[tuple[str, str]]]:
+    """Split an inline `·`-separated header value into its first value + extra fields.
+
+    Real-world v2 artefacts sometimes collapse a whole header onto one blockquote line:
+    ``> **Status:** Done · **CR:** CR-0088 · **Points:** 5``. Returns the value for the
+    leading key plus any ``(key, value)`` pairs parsed from the trailing segments. A
+    value with no inline fields returns ``(raw_value, [])`` unchanged.
+    """
+    parts = _INLINE_SEP_RE.split(raw_value)
+    if len(parts) == 1:
+        return raw_value, []
+    extras: list[tuple[str, str]] = []
+    for segment in parts[1:]:
+        plain = _PLAIN_KV_PATTERN.match(segment.strip())
+        if plain:
+            extras.append((plain.group(1), plain.group(2).strip()))
+    return parts[0].strip(), extras
+
 
 def _normalise_key(key: str) -> str:
     """Convert Title Case key to snake_case.
@@ -109,8 +132,11 @@ def parse_document(content: str) -> ParseResult:
             raw_key = match.group(1)
             raw_value = match.group(2).strip()
             key = _normalise_key(raw_key)
+            first_value, inline_extras = _split_inline_value(raw_value)
             current_key = key
-            metadata[key] = raw_value
+            metadata[key] = first_value
+            for extra_key, extra_value in inline_extras:
+                metadata[_normalise_key(extra_key)] = extra_value
         elif current_key is not None and idx in is_continuation:
             continuation = re.sub(r"^>\s?", "", line).strip()
             if continuation:

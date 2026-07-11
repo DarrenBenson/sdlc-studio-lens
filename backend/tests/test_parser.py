@@ -276,3 +276,24 @@ class TestHeadingBeforeFrontmatter:
         assert "## Section" in result.body
         assert "Body." in result.body
         assert "> **Status:**" not in result.body
+
+
+class TestInlineSeparatedHeader:
+    """CR-01KX8Y32: a whole header collapsed onto one `·`-separated line."""
+
+    def test_splits_inline_fields(self) -> None:
+        content = (
+            "# US0778: Something\n\n"
+            "> **Status:** Done · **CR:** CR-0088 · **Points:** 5 · **Depends on:** US0638\n\n"
+            "## Body\n"
+        )
+        result = parse_document(content)
+        assert result.metadata["status"] == "Done"
+        assert result.metadata["cr"] == "CR-0088"
+        assert result.metadata["points"] == "5"
+        assert result.metadata["depends_on"] == "US0638"
+
+    def test_plain_value_unaffected(self) -> None:
+        content = "> **Status:** In Progress\n\nBody."
+        result = parse_document(content)
+        assert result.metadata["status"] == "In Progress"

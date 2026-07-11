@@ -135,14 +135,64 @@ class TestTsdSingleton:
 # TC0092: Unknown pattern defaults to type "other"
 class TestUnknownPattern:
     def test_other_type(self) -> None:
-        result = infer_type_and_id("brand-guide.md", "brand-guide.md")
+        result = infer_type_and_id("random-notes.md", "random-notes.md")
         assert result is not None
         assert result.doc_type == "other"
 
     def test_other_id(self) -> None:
-        result = infer_type_and_id("brand-guide.md", "brand-guide.md")
+        result = infer_type_and_id("random-notes.md", "random-notes.md")
         assert result is not None
-        assert result.doc_id == "brand-guide"
+        assert result.doc_id == "random-notes"
+
+
+# CR-01KX8Y32: schema-v3 types, ULID ids, and additional singletons
+class TestV3TypesAndIds:
+    @pytest.mark.parametrize(
+        ("filename", "rel_path", "expected_type"),
+        [
+            ("CR0003-token.md", "change-requests/CR0003-token.md", "cr"),
+            ("CR-01KX8B82-token.md", "change-requests/CR-01KX8B82-token.md", "cr"),
+            ("RFC0001-design.md", "rfcs/RFC0001-design.md", "rfc"),
+            ("RETRO0001-sprint.md", "retros/RETRO0001-sprint.md", "retro"),
+            ("RV0001-review.md", "reviews/RV0001-review.md", "review"),
+            ("BG-01KX8B82-path.md", "bugs/BG-01KX8B82-path.md", "bug"),
+            ("US-01JQK3F8-story.md", "stories/US-01JQK3F8-story.md", "story"),
+            ("critic-verdicts.md", "reviews/critic-verdicts.md", "review"),
+            ("priya-nair.md", "personas/seats/priya-nair.md", "persona"),
+            ("0001-framework.md", "decisions/0001-framework.md", "decision"),
+        ],
+    )
+    def test_type(self, filename: str, rel_path: str, expected_type: str) -> None:
+        result = infer_type_and_id(filename, rel_path)
+        assert result is not None
+        assert result.doc_type == expected_type
+
+    @pytest.mark.parametrize(
+        ("stem", "expected_type"),
+        [
+            ("pvd", "pvd"),
+            ("decisions", "decisions"),
+            ("constitution", "constitution"),
+            ("brand-guide", "brand-guide"),
+        ],
+    )
+    def test_singletons(self, stem: str, expected_type: str) -> None:
+        result = infer_type_and_id(f"{stem}.md", f"{stem}.md")
+        assert result is not None
+        assert result.doc_type == expected_type
+
+    def test_ulid_id_preserved_as_full_stem(self) -> None:
+        result = infer_type_and_id(
+            "BG-01KX8B82-path-traversal.md", "bugs/BG-01KX8B82-path-traversal.md"
+        )
+        assert result is not None
+        assert result.doc_id == "BG-01KX8B82-path-traversal"
+
+    def test_nonstandard_id_falls_back_to_other(self) -> None:
+        # A sprint file with a non-numeric, non-ULID id and no known dir -> other.
+        result = infer_type_and_id("SPR-G-plan.md", "sprints/SPR-G-plan.md")
+        assert result is not None
+        assert result.doc_type == "other"
 
 
 # TC0093: Document ID extracted from prefixed filenames (parametrised)
