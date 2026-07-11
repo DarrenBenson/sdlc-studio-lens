@@ -20,6 +20,7 @@ from sdlc_lens.services.parser import parse_document
 from sdlc_lens.utils.hashing import compute_hash
 from sdlc_lens.utils.inference import infer_type_and_id
 from sdlc_lens.utils.sdlc_ids import extract_ref_id, id_head, norm_id
+from sdlc_lens.utils.sdlc_status import canonical_status
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -194,7 +195,7 @@ def _build_doc_attrs(
         "doc_type": doc_type,
         "doc_id": doc_id,
         "title": parsed_title or doc_id,
-        "status": parsed_meta.get("status"),
+        "status": canonical_status(parsed_meta.get("status"), doc_type),
         "owner": parsed_meta.get("owner"),
         "priority": parsed_meta.get("priority"),
         "story_points": parsed_meta.get("story_points"),

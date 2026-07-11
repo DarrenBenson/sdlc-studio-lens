@@ -172,3 +172,24 @@ describe("TC0144: Badge accessibility", () => {
     expect(badge).not.toHaveAttribute("aria-hidden", "true");
   });
 });
+
+// CR-01KX8Y0M: schema-v3 status vocabulary colours
+describe("v3 status vocabulary", () => {
+  const cases: [string, RegExp][] = [
+    ["Complete", /done/i],
+    ["Fixed", /done/i],
+    ["Verified", /done/i],
+    ["Accepted", /done/i],
+    ["Proposed", /draft/i],
+    ["Approved", /ready/i],
+    ["inbox", /inbox/i],
+    ["Rejected", /blocked/i],
+    ["Won't Implement", /blocked/i],
+    ["Superseded", /draft/i],
+    ["In Review", /progress/i],
+  ];
+  it.each(cases)("colours %s", (status, pattern) => {
+    render(<StatusBadge status={status} />);
+    expect(screen.getByText(status).className).toMatch(pattern);
+  });
+});

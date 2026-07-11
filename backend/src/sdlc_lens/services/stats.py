@@ -8,11 +8,14 @@ from sqlalchemy import func, select
 
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
+from sdlc_lens.utils.sdlc_status import canonical_status
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-# Statuses that count as "complete" for percentage calculation
+# Statuses that count as "complete" for the story-completion percentage. Covers the
+# resolved story states across id eras (Done is v3; Complete/Won't Implement/Closed
+# appear in mixed-era and pre-v3 projects).
 _TERMINAL_STATUSES = {"Done", "Complete", "Won't Implement", "Closed"}
 
 
@@ -63,9 +66,9 @@ async def get_project_stats(
     done_stories = 0
     for status_val, count in story_rows:
         total_stories += count
-        # Strip parenthesised detail before matching, e.g.
-        # "Complete (81/88 ...)" → "Complete"
-        base = status_val.split("(")[0].strip() if status_val else ""
+        # Canonicalise (strips prose/bold/parentheses) before matching, so
+        # "Complete (81/88 ...)" and "Done — shipped" both count.
+        base = canonical_status(status_val, "story")
         if base in _TERMINAL_STATUSES:
             done_stories += count
 

@@ -39,6 +39,7 @@
   --color-badge-review: #f59e0b;
   --color-badge-ready: #86efac;
   --color-badge-planned: #93c5fd;
+  --color-badge-inbox: #a78bfa;
   --color-badge-default: #78909c;
 
   /* Severity colours (health check) */
