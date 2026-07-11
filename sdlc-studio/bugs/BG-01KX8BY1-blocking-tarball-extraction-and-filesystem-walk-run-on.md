@@ -1,9 +1,10 @@
 # BG-01KX8BY1: Blocking tarball extraction and filesystem walk run on the event loop during sync
 
-> **Status:** Open
+> **Status:** Fixed
 > **Depends on:** BG-01KX8B04
 > **Triaged-by:** Darren; human; v3
 > **Severity:** Medium
+> **Verification depth:** functional
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio file
 > **Raised-by:** Priya Nair; persona; v3

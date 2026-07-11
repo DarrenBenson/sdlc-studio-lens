@@ -1,9 +1,10 @@
 # BG-01KX8BE8: Canonical error shape not applied to validation (422) or unhandled (500) responses
 
-> **Status:** Open
+> **Status:** Fixed
 > **Depends on:** BG-01KX8B82
 > **Triaged-by:** Darren; human; v3
 > **Severity:** High
+> **Verification depth:** functional
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio file
 > **Raised-by:** Priya Nair; persona; v3

@@ -1,9 +1,10 @@
 # BG-01KX8B04: Failed sync can leave a project permanently stuck in 'syncing'
 
-> **Status:** Open
+> **Status:** Fixed
 > **Depends on:** BG-01KX8BFP
 > **Triaged-by:** Darren; human; v3
 > **Severity:** Medium
+> **Verification depth:** functional
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio file
 > **Raised-by:** Tomas Reinholt; persona; v3

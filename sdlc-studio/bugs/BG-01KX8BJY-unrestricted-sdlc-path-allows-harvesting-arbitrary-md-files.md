@@ -1,8 +1,9 @@
 # BG-01KX8BJY: Unrestricted sdlc_path allows harvesting arbitrary .md files from the host
 
-> **Status:** Open
+> **Status:** Fixed
 > **Triaged-by:** Darren; human; v3
 > **Severity:** Medium
+> **Verification depth:** functional
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio file
 > **Raised-by:** Priya Nair; persona; v3

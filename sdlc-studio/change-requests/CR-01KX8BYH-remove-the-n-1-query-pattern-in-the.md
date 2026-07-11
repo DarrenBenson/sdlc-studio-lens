@@ -1,6 +1,6 @@
 # CR-01KX8BYH: Remove the N+1 query pattern in the aggregate stats endpoint
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Triaged-by:** Darren; human; v3
 > **Priority:** Medium
 > **Type:** Improvement
