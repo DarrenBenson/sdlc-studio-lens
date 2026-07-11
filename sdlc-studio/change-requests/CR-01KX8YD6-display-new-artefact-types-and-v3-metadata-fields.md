@@ -1,6 +1,6 @@
 # CR-01KX8YD6: Display new artefact types and v3 metadata fields
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KX8Y0M, CR-01KX8Y2G
 > **Created:** 2026-07-11

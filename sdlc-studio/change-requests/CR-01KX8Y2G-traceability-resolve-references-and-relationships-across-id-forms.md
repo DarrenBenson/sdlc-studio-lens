@@ -1,6 +1,6 @@
 # CR-01KX8Y2G: Traceability: resolve references and relationships across id forms and new relations
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KX8Y32
 > **Created:** 2026-07-11

@@ -1,6 +1,6 @@
 # CR-01KX8Y32: Robust ingest: id and type recognition for schema v3 and mixed real-world artefacts
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Triaged-by:** Darren; human; v3
 > **Created:** 2026-07-11
 > **Created-by:** sdlc-studio new

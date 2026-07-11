@@ -1,6 +1,6 @@
 # CR-01KX8YMC: Health-check alignment with schema v3 vocabulary and types
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KX8Y32
 > **Created:** 2026-07-11

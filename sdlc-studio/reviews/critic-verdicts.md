@@ -16,3 +16,9 @@
 | CR01KX8BYH | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial full-diff review: SOUND; tests proven to bite via revert-and-red |
 | CR01KX8B1W | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial full-diff review: SOUND; tests proven to bite via revert-and-red |
 | CR01KX8B83 | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial full-diff review: SOUND; tests proven to bite via revert-and-red |
+| CR01KX8Y32 | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
+| CR01KX8Y2G | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
+| CR01KX8Y0M | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
+| CR01KX8YD6 | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
+| CR01KX8YMC | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
+| CR01KX8Y6H | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 2 defects (workflow record-type, self-ref) fixed; E2E verified on real v3 + v2 projects |
