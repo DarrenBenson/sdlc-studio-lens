@@ -25,6 +25,9 @@ _MAX_TARBALL_BYTES = 50 * 1024 * 1024  # 50 MB compressed download ceiling.
 _MAX_DECOMPRESSED_BYTES = 300 * 1024 * 1024  # 300 MB cumulative decompressed budget.
 _MAX_MEMBER_BYTES = 25 * 1024 * 1024  # 25 MB per-file ceiling (.md files are tiny).
 
+# Project metadata files pulled from the repo_path root alongside the .md tree.
+_CONFIG_FILENAMES = (".config.yaml", ".version")
+
 
 class GitHubSourceError(Exception):
     """Base error for GitHub source operations."""
@@ -149,6 +152,33 @@ async def fetch_github_files(
         AuthenticationError: If token is invalid.
         RateLimitError: If rate limit is exceeded.
     """
+    md_files, _config = await fetch_github_files_and_config(
+        repo_url,
+        branch=branch,
+        repo_path=repo_path,
+        access_token=access_token,
+        timeout=timeout,
+    )
+    return md_files
+
+
+async def fetch_github_files_and_config(
+    repo_url: str,
+    branch: str = "main",
+    repo_path: str = "sdlc-studio",
+    access_token: str | None = None,
+    timeout: httpx.Timeout | None = None,
+) -> tuple[dict[str, tuple[str, bytes]], dict[str, bytes]]:
+    """Fetch .md files and the project config files in a single tarball download.
+
+    Returns a tuple of ``(md_files, config_files)`` where ``md_files`` is the
+    same ``{relative_path: (hash, raw_bytes)}`` mapping as
+    :func:`fetch_github_files` and ``config_files`` maps each present
+    ``.config.yaml`` / ``.version`` at the ``repo_path`` root to its raw bytes.
+    The config mapping is empty when neither file is present.
+
+    Raises the same errors as :func:`fetch_github_files` for the download.
+    """
     owner, repo = parse_github_url(repo_url)
     headers = _build_headers(access_token)
     effective_timeout = timeout or _TARBALL_TIMEOUT
@@ -189,21 +219,33 @@ async def fetch_github_files(
                 f"{_MAX_TARBALL_BYTES}-byte download limit"
             )
 
-        # Extract .md files from the tarball. Gzip decompression and the
-        # in-memory tarball walk are synchronous CPU/IO work, so offload them
-        # to a worker thread to keep the event loop responsive during a sync.
-        result = await asyncio.to_thread(_extract_md_from_tarball, content, repo_path)
+        # Extract .md and config files from the tarball. Gzip decompression and
+        # the in-memory tarball walk are synchronous CPU/IO work, so offload
+        # them to a worker thread to keep the event loop responsive during a sync.
+        md_files, config_files = await asyncio.to_thread(
+            _extract_all_from_tarball, content, repo_path
+        )
 
         logger.info(
             "Found %d .md files in %s/%s (branch: %s, path: %s)",
-            len(result),
+            len(md_files),
             owner,
             repo,
             branch,
             repo_path,
         )
 
-        return result
+        return md_files, config_files
+
+
+def _extract_all_from_tarball(
+    tarball_bytes: bytes,
+    repo_path: str,
+) -> tuple[dict[str, tuple[str, bytes]], dict[str, bytes]]:
+    """Extract both the .md tree and the root config files from one tarball."""
+    md_files = _extract_md_from_tarball(tarball_bytes, repo_path)
+    config_files = _extract_config_from_tarball(tarball_bytes, repo_path)
+    return md_files, config_files
 
 
 def _extract_md_from_tarball(
@@ -270,5 +312,52 @@ def _extract_md_from_tarball(
 
             file_hash = compute_hash(raw)
             result[rel_path] = (file_hash, raw)
+
+    return result
+
+
+def _extract_config_from_tarball(
+    tarball_bytes: bytes,
+    repo_path: str,
+) -> dict[str, bytes]:
+    """Extract the ``.config.yaml`` / ``.version`` files at the repo_path root.
+
+    Mirrors :func:`_extract_md_from_tarball`'s path handling but targets the two
+    project-metadata files sitting at the root of ``repo_path``. Returns a
+    ``{filename: raw_bytes}`` mapping containing only the files that are present.
+    The per-member size bound is applied for parity with the .md walk; these
+    files are tiny in practice.
+    """
+    result: dict[str, bytes] = {}
+
+    with tarfile.open(fileobj=io.BytesIO(tarball_bytes), mode="r:gz") as tar:
+        for member in tar:
+            if not member.isfile():
+                continue
+
+            # Strip the top-level directory (e.g. "owner-repo-abc1234/")
+            parts = member.name.split("/", 1)
+            if len(parts) < 2:
+                continue
+            inner_path = parts[1]
+
+            prefix = f"{repo_path}/" if repo_path else ""
+            if prefix and not inner_path.startswith(prefix):
+                continue
+
+            rel_path = inner_path[len(prefix) :] if prefix else inner_path
+            if rel_path not in _CONFIG_FILENAMES:
+                continue
+
+            if member.size > _MAX_MEMBER_BYTES:
+                raise GitHubSourceError(
+                    f"Tarball member {member.name!r} too large: {member.size} bytes "
+                    f"exceeds the {_MAX_MEMBER_BYTES}-byte per-file limit"
+                )
+
+            file_obj = tar.extractfile(member)
+            if file_obj is None:
+                continue
+            result[rel_path] = file_obj.read()
 
     return result

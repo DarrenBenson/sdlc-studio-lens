@@ -227,14 +227,53 @@ async def _get_dependencies(
     project_id: int,
     doc: Document,
 ) -> list[Document]:
-    """Documents this one declares a `Depends on` dependency upon."""
+    """Documents this one declares a `Depends on` dependency upon.
+
+    Resolves every declared id in a single query - a ``ref_id`` match plus a
+    supplementary ``aliases`` match so an old sequential id still finds its
+    renumbered document - then reorders the results to the declared order,
+    dedupes, and excludes the document itself.
+    """
+    dep_ids: list[str] = []
+    for dep in _split_ref_list(doc.depends_on):
+        normed = norm_id(dep)
+        if normed and normed not in dep_ids:
+            dep_ids.append(normed)
+    if not dep_ids:
+        return []
+
+    conditions = [Document.ref_id.in_(dep_ids)]
+    for dep_id in dep_ids:
+        conditions.extend(
+            (
+                Document.aliases == dep_id,
+                Document.aliases.like(f"{dep_id},%"),
+                Document.aliases.like(f"%,{dep_id},%"),
+                Document.aliases.like(f"%,{dep_id}"),
+            )
+        )
+
+    stmt = select(Document).where(
+        Document.project_id == project_id,
+        Document.id != doc.id,  # a doc naming its own id is not its own dependency
+        or_(*conditions),
+    )
+    result = await session.execute(stmt)
+    candidates = list(result.scalars().all())
+
+    # Reorder to the declared dependency order, deduping so each target appears
+    # once even when named twice or reachable by both its ref_id and an alias.
     results: list[Document] = []
     seen: set[int] = set()
-    for dep in _split_ref_list(doc.depends_on):
-        target = await _find_doc_by_clean_id(session, project_id, dep)
-        if target is not None and target.id != doc.id and target.id not in seen:
-            seen.add(target.id)
-            results.append(target)
+    for dep_id in dep_ids:
+        for target in candidates:
+            if target.id in seen:
+                continue
+            aliases = set(_split_ref_list(target.aliases))
+            if target.ref_id == dep_id or dep_id in aliases:
+                seen.add(target.id)
+                results.append(target)
+                break
     return results
 
 

@@ -18,7 +18,11 @@ from sdlc_lens.config import settings
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.parser import parse_document
-from sdlc_lens.services.project_config import ProjectConfig, read_local_project_config
+from sdlc_lens.services.project_config import (
+    ProjectConfig,
+    parse_project_config,
+    read_local_project_config,
+)
 from sdlc_lens.utils.hashing import compute_hash
 from sdlc_lens.utils.inference import infer_type_and_id
 from sdlc_lens.utils.sdlc_ids import extract_ref_id, id_head, norm_id
@@ -154,27 +158,55 @@ async def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, byte
     return await asyncio.to_thread(_walk_local_files, sdlc_path)
 
 
-async def collect_github_files(project: Project) -> dict[str, tuple[str, bytes]]:
-    """Collect .md files from a GitHub repository.
+async def collect_github_files(
+    project: Project,
+) -> tuple[dict[str, tuple[str, bytes]], ProjectConfig]:
+    """Collect .md files and project config from a GitHub repository.
 
-    Delegates to the github_source module which uses the GitHub REST API
-    (Trees + Blobs) to fetch files.
+    Delegates to the github_source module which downloads the repository
+    tarball once and extracts both the .md tree and the ``.config.yaml`` /
+    ``.version`` metadata sitting at the repo_path root.
 
     Args:
         project: Project with source_type="github" and repo fields set.
 
     Returns:
-        Dict mapping relative file paths to (hash, content) tuples.
+        Tuple of ({relative_path: (hash, content)}, parsed ProjectConfig). The
+        config is parsed best-effort; a missing or malformed one yields an
+        empty :class:`ProjectConfig`.
     """
-    from sdlc_lens.services.github_source import fetch_github_files
+    from sdlc_lens.services.github_source import fetch_github_files_and_config
     from sdlc_lens.utils.crypto import decrypt_token
 
-    return await fetch_github_files(
+    fs_files, config_files = await fetch_github_files_and_config(
         repo_url=project.repo_url,
         branch=project.repo_branch,
         repo_path=project.repo_path,
         # Decrypt the at-rest token back to the real PAT for the API call.
         access_token=decrypt_token(project.access_token),
+    )
+    return fs_files, _parse_github_config(config_files)
+
+
+def _decode_config_bytes(raw: bytes | None) -> str | None:
+    """Decode raw config bytes to text, tolerating a BOM; None if undecodable."""
+    if raw is None:
+        return None
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return None
+
+
+def _parse_github_config(config_files: dict[str, bytes]) -> ProjectConfig:
+    """Parse ``.config.yaml`` / ``.version`` bytes into a :class:`ProjectConfig`.
+
+    Best-effort: missing or unparseable config yields an empty config so a
+    github sync is never failed by bad metadata.
+    """
+    return parse_project_config(
+        _decode_config_bytes(config_files.get(".config.yaml")),
+        _decode_config_bytes(config_files.get(".version")),
     )
 
 
@@ -311,7 +343,13 @@ async def sync_project(
             project.profile = config.profile
             project.status_vocab = json.dumps(config.status_vocab) if config.status_vocab else None
         elif project.source_type == "github":
-            fs_files = await collect_github_files(project)
+            # collect_github_files reads .config.yaml / .version from the tarball
+            # alongside the .md tree. Best-effort, exactly like the local branch:
+            # a missing or malformed config yields an empty ProjectConfig.
+            fs_files, config = await collect_github_files(project)
+            project.schema_version = config.schema_version
+            project.profile = config.profile
+            project.status_vocab = json.dumps(config.status_vocab) if config.status_vocab else None
         else:
             project.sync_status = "error"
             project.sync_error = f"Unknown source_type: {project.source_type}"

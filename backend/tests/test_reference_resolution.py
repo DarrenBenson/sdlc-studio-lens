@@ -75,6 +75,39 @@ async def test_depends_on_and_dependents(session: AsyncSession) -> None:
     assert [d.doc_id for d in dependents] == ["CR-01KX8B22-builds-on-a"]
 
 
+async def test_multiple_dependencies_resolve_in_order(session: AsyncSession) -> None:
+    """CR-01KX95WV: several deps resolve in one query, keeping declared order.
+
+    Exercises order preservation, deduplication (a dep named twice appears once),
+    alias resolution (an old id resolves to its renumbered document), and
+    self-exclusion (a doc naming its own id never depends on itself).
+    """
+    p = await _project(session)
+    alpha = _doc(p.id, "cr", "CR-01KX8A11-alpha")
+    bravo = _doc(p.id, "cr", "CR-01KX8B22-bravo")
+    charlie = _doc(p.id, "cr", "CR-01KX8C33-charlie", aliases=norm_id("CR0099"))
+    # Declared order: bravo, alpha, charlie-by-old-alias, bravo again (dup), self.
+    deps = ",".join(
+        [
+            norm_id("CR-01KX8B22"),
+            norm_id("CR-01KX8A11"),
+            norm_id("CR0099"),
+            norm_id("CR-01KX8B22"),
+            norm_id("CR-01KX8D44"),  # the dependent's own id - must be excluded
+        ]
+    )
+    dependent = _doc(p.id, "cr", "CR-01KX8D44-dependent", depends_on=deps)
+    session.add_all([alpha, bravo, charlie, dependent])
+    await session.commit()
+
+    _p, _c, depends_on, _dd = await get_related_documents(session, p.id, dependent)
+    assert [d.doc_id for d in depends_on] == [
+        "CR-01KX8B22-bravo",
+        "CR-01KX8A11-alpha",
+        "CR-01KX8C33-charlie",
+    ]
+
+
 async def test_alias_reference_resolves(session: AsyncSession) -> None:
     p = await _project(session)
     # renumbered story keeps its old sequential id as an alias

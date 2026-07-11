@@ -137,9 +137,9 @@ class TestSyncReceivesPlaintext:
         mock_files = {"epics/EP0001-x.md": (hashlib.sha256(content).hexdigest(), content)}
 
         with patch(
-            "sdlc_lens.services.github_source.fetch_github_files",
+            "sdlc_lens.services.github_source.fetch_github_files_and_config",
             new_callable=AsyncMock,
-            return_value=mock_files,
+            return_value=(mock_files, {}),
         ) as mock_fetch:
             result = await sync_project(project, session)
 
@@ -174,9 +174,9 @@ class TestNoKeyBackwardCompat:
         mock_files = {"epics/EP0001-x.md": (hashlib.sha256(content).hexdigest(), content)}
 
         with patch(
-            "sdlc_lens.services.github_source.fetch_github_files",
+            "sdlc_lens.services.github_source.fetch_github_files_and_config",
             new_callable=AsyncMock,
-            return_value=mock_files,
+            return_value=(mock_files, {}),
         ) as mock_fetch:
             result = await sync_project(project, session)
 
@@ -211,9 +211,9 @@ class TestLegacyPlaintextRow:
         mock_files = {"epics/EP0001-x.md": (hashlib.sha256(content).hexdigest(), content)}
 
         with patch(
-            "sdlc_lens.services.github_source.fetch_github_files",
+            "sdlc_lens.services.github_source.fetch_github_files_and_config",
             new_callable=AsyncMock,
-            return_value=mock_files,
+            return_value=(mock_files, {}),
         ) as mock_fetch:
             result = await sync_project(project, session)
 
@@ -242,6 +242,7 @@ class TestMaskingDecryptsFirst:
 # decrypt (key rotated/changed, or corrupted ciphertext) must NOT raise.
 # A single undecryptable token must not 500 the whole project list.
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def with_other_key(monkeypatch: pytest.MonkeyPatch) -> str:

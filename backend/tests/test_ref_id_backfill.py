@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.documents import get_related_documents
+from sdlc_lens.services.project_config import ProjectConfig
 from sdlc_lens.services.sync_engine import sync_project
 from sdlc_lens.utils.sdlc_ids import id_head, norm_id
 
@@ -117,7 +118,7 @@ class TestSyncSelfHealsNullRefId:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value={rel_path: (file_hash, content)},
+            return_value=({rel_path: (file_hash, content)}, ProjectConfig()),
         ):
             await sync_project(p, session)
 

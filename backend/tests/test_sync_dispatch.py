@@ -5,10 +5,13 @@ Test cases: TC0308-TC0316 from TS0030.
 
 import hashlib
 import inspect
+import io
+import tarfile
 import threading
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +19,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.github_source import GitHubSourceError, RepoNotFoundError
+from sdlc_lens.services.project_config import ProjectConfig
 from sdlc_lens.services.sync_engine import SyncResult, collect_local_files, sync_project
+
+
+def _build_github_tarball(files: dict[str, bytes]) -> bytes:
+    """Build an in-memory gzipped tarball with a GitHub-style top-level dir."""
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for path, content in files.items():
+            info = tarfile.TarInfo(name=f"owner-repo-abc1234/{path}")
+            info.size = len(content)
+            tar.addfile(info, io.BytesIO(content))
+    return buf.getvalue()
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -225,7 +241,7 @@ class TestSyncDispatchGitHub:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=mock_files,
+            return_value=(mock_files, ProjectConfig()),
         ) as mock_collect:
             result = await sync_project(project, session)
             mock_collect.assert_called_once_with(project)
@@ -265,6 +281,88 @@ class TestSyncDispatchGitHub:
         refreshed = await session.get(Project, project.id)
         assert refreshed.sync_status == "error"
         assert refreshed.sync_error is not None
+
+
+# ---------------------------------------------------------------------------
+# CR-01KX95WV: github sync reads .config.yaml / .version from the tarball
+# ---------------------------------------------------------------------------
+
+
+class TestSyncDispatchGitHubConfig:
+    """A github project's ``.config.yaml`` must be honoured just like a local one:
+    schema_version/profile land on the project and the custom status vocabulary
+    canonicalises project-defined statuses to themselves."""
+
+    async def test_github_config_populates_project_and_vocab(self, session: AsyncSession) -> None:
+        project = await _create_github_project(session)
+
+        tarball = _build_github_tarball(
+            {
+                "sdlc-studio/.config.yaml": (
+                    b"schema_version: 3\nprofile: full\nstatus_vocab:\n  story:\n    - Gated\n"
+                ),
+                "sdlc-studio/.version": b"schema_version: 3\n",
+                "sdlc-studio/stories/US0001-register.md": (
+                    b"> **Status:** Gated - waiting on review\n\n# US0001: Register\n\nBody."
+                ),
+            }
+        )
+        resp = httpx.Response(
+            status_code=200,
+            content=tarball,
+            request=httpx.Request("GET", "https://api.github.com/repos/owner/repo/tarball/main"),
+        )
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            return_value=mock_client,
+        ):
+            await sync_project(project, session)
+
+        assert project.schema_version == "3"
+        assert project.profile == "full"
+
+        doc = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .one()
+        )
+        # The project-defined "Gated" status canonicalises to itself.
+        assert doc.status == "Gated"
+
+    async def test_github_missing_config_does_not_fail_sync(self, session: AsyncSession) -> None:
+        project = await _create_github_project(session)
+
+        tarball = _build_github_tarball(
+            {
+                "sdlc-studio/stories/US0001-register.md": (
+                    b"> **Status:** Draft\n\n# US0001: Register\n\nBody."
+                ),
+            }
+        )
+        resp = httpx.Response(
+            status_code=200,
+            content=tarball,
+            request=httpx.Request("GET", "https://api.github.com/repos/owner/repo/tarball/main"),
+        )
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            return_value=mock_client,
+        ):
+            result = await sync_project(project, session)
+
+        assert result.added == 1
+        assert project.sync_status == "synced"
+        assert project.schema_version is None
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +542,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=seed_files,
+            return_value=(seed_files, ProjectConfig()),
         ):
             r1 = await sync_project(project, session)
         assert r1.added == 1
@@ -453,7 +551,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value={},
+            return_value=({}, ProjectConfig()),
         ):
             r2 = await sync_project(project, session)
 
@@ -485,7 +583,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=seed_files,
+            return_value=(seed_files, ProjectConfig()),
         ):
             await sync_project(project, session)
 
@@ -494,7 +592,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=remaining,
+            return_value=(remaining, ProjectConfig()),
         ):
             r2 = await sync_project(project, session)
 
@@ -529,7 +627,7 @@ class TestSyncPrebuiltDict:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=mock_files,
+            return_value=(mock_files, ProjectConfig()),
         ):
             result = await sync_project(project, session)
 
