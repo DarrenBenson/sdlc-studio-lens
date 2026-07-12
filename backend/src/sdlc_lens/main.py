@@ -15,6 +15,7 @@ from sdlc_lens.api.routes.search import router as search_router
 from sdlc_lens.api.routes.stats import router as stats_router
 from sdlc_lens.api.routes.system import router as system_router
 from sdlc_lens.db.session import async_session_factory
+from sdlc_lens.version import get_version
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
         title="SDLC Studio Lens",
-        version="0.2.1",
+        version=get_version(),
         lifespan=lifespan,
     )
     app.state.session_factory = async_session_factory

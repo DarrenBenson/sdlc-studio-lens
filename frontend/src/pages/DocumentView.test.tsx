@@ -6,7 +6,7 @@
 
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DocumentDetail } from "../types/index.ts";
 import { DocumentView } from "./DocumentView.tsx";
@@ -19,6 +19,7 @@ vi.mock("../api/client.ts", () => ({
   deleteProject: vi.fn(),
   triggerSync: vi.fn(),
   fetchDocuments: vi.fn(),
+  fetchAllDocuments: vi.fn(),
   fetchDocument: vi.fn(),
   fetchRelatedDocuments: vi.fn(),
   fetchAggregateStats: vi.fn(),
@@ -26,11 +27,11 @@ vi.mock("../api/client.ts", () => ({
   fetchSearchResults: vi.fn(),
 }));
 
-const { fetchDocument, fetchRelatedDocuments } = await import(
-  "../api/client.ts"
-);
+const { fetchDocument, fetchRelatedDocuments, fetchAllDocuments } =
+  await import("../api/client.ts");
 const mockFetchDocument = vi.mocked(fetchDocument);
 const mockFetchRelated = vi.mocked(fetchRelatedDocuments);
+const mockFetchAll = vi.mocked(fetchAllDocuments);
 
 const sampleDocument: DocumentDetail = {
   doc_id: "US0001-register-project",
@@ -60,6 +61,12 @@ function setupDefaultRelatedMock() {
     children: [],
   });
 }
+
+// Default: no sibling documents, so the id-reference map is empty and inline
+// ids stay as plain text unless a test overrides this with a document list.
+beforeEach(() => {
+  mockFetchAll.mockResolvedValue([]);
+});
 
 function renderDocumentView(path = "/projects/testproject/documents/story/US0001-register-project") {
   setupDefaultRelatedMock();
@@ -494,6 +501,104 @@ describe("CR-01KX8YD6: dependency relationships", () => {
     expect(downstream).toHaveAttribute(
       "href",
       "/projects/testproject/documents/story/US-01BBBBBBBB-b",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CR-01KXASF9: read-only document view typography and enrichment
+// ---------------------------------------------------------------------------
+
+describe("CR-01KXASF9: prose typography", () => {
+  it("applies a bounded prose measure to the article", async () => {
+    mockFetchDocument.mockResolvedValueOnce(sampleDocument);
+    const { container } = renderDocumentView();
+    await waitFor(() => {
+      expect(screen.getByText("Register a New Project")).toBeInTheDocument();
+    });
+    const article = container.querySelector("article")!;
+    expect(article.className).toContain("prose");
+    expect(article.className).toContain("prose-lens");
+    expect(article.className).not.toContain("max-w-none");
+  });
+
+  it("renders markdown structure as semantic heading and list elements", async () => {
+    mockFetchDocument.mockResolvedValueOnce(sampleDocument);
+    const { container } = renderDocumentView();
+    await waitFor(() => {
+      expect(screen.getByText("Description")).toBeInTheDocument();
+    });
+    const article = container.querySelector("article")!;
+    expect(article.querySelector("h2")).not.toBeNull();
+    expect(article.querySelector("ul")).not.toBeNull();
+    expect(article.querySelectorAll("li").length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("CR-01KXASF9: metadata header card", () => {
+  const metaDoc: DocumentDetail = {
+    ...sampleDocument,
+    metadata: null,
+    content:
+      "# US0001: Register a New Project\n\n" +
+      "> **Status:** Done\n> **Owner:** Darren\n> **Raised by:** Alex\n\n" +
+      "## Description\n\nBody prose here.\n",
+  };
+
+  it("renders leading blockquote metadata as a structured card", async () => {
+    mockFetchDocument.mockResolvedValueOnce(metaDoc);
+    renderDocumentView();
+    await waitFor(() => {
+      expect(screen.getByTestId("doc-metadata-card")).toBeInTheDocument();
+    });
+    const card = screen.getByTestId("doc-metadata-card");
+    expect(within(card).getByText("Status")).toBeInTheDocument();
+    expect(within(card).getByText("Done")).toBeInTheDocument();
+    expect(within(card).getByText("Owner")).toBeInTheDocument();
+    expect(within(card).getByText("Raised by")).toBeInTheDocument();
+    expect(within(card).getByText("Alex")).toBeInTheDocument();
+  });
+
+  it("does not dump the raw blockquote metadata into the prose body", async () => {
+    mockFetchDocument.mockResolvedValueOnce(metaDoc);
+    const { container } = renderDocumentView();
+    await waitFor(() => {
+      expect(screen.getByTestId("doc-metadata-card")).toBeInTheDocument();
+    });
+    const article = container.querySelector("article")!;
+    expect(article.querySelector("blockquote")).toBeNull();
+    expect(article.textContent).not.toContain("Raised by");
+    // Body prose after the metadata is preserved.
+    expect(within(article).getByText("Body prose here.")).toBeInTheDocument();
+  });
+});
+
+describe("CR-01KXASF9: clickable id references", () => {
+  it("turns an inline artefact id into a link to that document", async () => {
+    const refDoc: DocumentDetail = {
+      ...sampleDocument,
+      content: "## Related\n\nSee US0001 for the registration flow.\n",
+    };
+    mockFetchDocument.mockResolvedValueOnce(refDoc);
+    mockFetchAll.mockResolvedValue([
+      {
+        doc_id: "US0001-register-project",
+        type: "story",
+        title: "Register a New Project",
+        status: "Done",
+        owner: "Darren",
+        priority: "P0",
+        story_points: 5,
+        epic: "EP0001",
+        story: null,
+        updated_at: "2026-02-17T10:30:00Z",
+      },
+    ]);
+    renderDocumentView();
+    const link = await screen.findByRole("link", { name: "US0001" });
+    expect(link).toHaveAttribute(
+      "href",
+      "/projects/testproject/documents/story/US0001-register-project",
     );
   });
 });
