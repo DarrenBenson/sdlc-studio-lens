@@ -4,6 +4,7 @@ import type {
   DocumentDetail,
   DocumentListItem,
   DocumentRelationships,
+  GitHubConnection,
   GitHubRepoItem,
   HealthCheckResponse,
   PaginatedDocuments,
@@ -185,21 +186,107 @@ export async function fetchHealthCheck(
   return res.json() as Promise<HealthCheckResponse>;
 }
 
+/** List the stored GitHub connections. */
+export async function fetchConnections(): Promise<GitHubConnection[]> {
+  const res = await fetch(`${BASE}/connections`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<GitHubConnection[]>;
+}
+
 /**
- * List the GitHub repositories the supplied token can see.
+ * Store a GitHub credential under a label.
  *
- * The token travels in the POST body, never in the URL. Returns ALL visible
- * repos; the sdlc-studio flag per repo is fetched lazily via
+ * The raw token travels in the POST body once, on registration; the API never
+ * returns it again (only `masked_token`).
+ */
+export async function createConnection(
+  label: string,
+  accessToken: string,
+): Promise<GitHubConnection> {
+  const res = await fetch(`${BASE}/connections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label, access_token: accessToken }),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<GitHubConnection>;
+}
+
+/**
+ * Replace a stored connection's token with a new one.
+ *
+ * The new token is validated against GitHub before it is stored, so a rejected
+ * token leaves the old (still working) credential in place. Rotation works while
+ * projects still use the connection - that is the point of storing it once.
+ */
+export async function rotateConnection(
+  id: number,
+  accessToken: string,
+): Promise<GitHubConnection> {
+  const res = await fetch(`${BASE}/connections/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<GitHubConnection>;
+}
+
+/** Re-check a stored connection against GitHub, refreshing last_validated_at. */
+export async function validateConnection(
+  id: number,
+): Promise<GitHubConnection> {
+  const res = await fetch(`${BASE}/connections/${id}/validate`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<GitHubConnection>;
+}
+
+/** Delete a stored connection. Refused (409) while a project still uses it. */
+export async function deleteConnection(id: number): Promise<void> {
+  const res = await fetch(`${BASE}/connections/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+}
+
+/**
+ * Credential for a GitHub browse call: either a raw one-off token, or a
+ * reference to a stored connection. The API accepts exactly one of the two.
+ */
+export type GitHubCredential = string | { connectionId: number };
+
+/** Turn a credential into the body fields the API expects. */
+function credentialBody(credential: GitHubCredential): Record<string, unknown> {
+  return typeof credential === "string"
+    ? { access_token: credential }
+    : { connection_id: credential.connectionId };
+}
+
+/**
+ * List the GitHub repositories the supplied credential can see.
+ *
+ * The credential travels in the POST body, never in the URL. Returns ALL
+ * visible repos; the sdlc-studio flag per repo is fetched lazily via
  * {@link checkRepoHasSdlcStudio}.
  */
 export async function fetchGitHubRepos(
-  accessToken: string,
+  credential: GitHubCredential,
   search?: string,
 ): Promise<GitHubRepoItem[]> {
   const res = await fetch(`${BASE}/projects/github/repos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ access_token: accessToken, search }),
+    body: JSON.stringify({ ...credentialBody(credential), search }),
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -217,7 +304,7 @@ export async function fetchGitHubRepos(
 export async function checkRepoHasSdlcStudio(
   owner: string,
   repo: string,
-  accessToken: string,
+  credential: GitHubCredential,
   branch?: string,
 ): Promise<boolean> {
   const res = await fetch(
@@ -225,7 +312,7 @@ export async function checkRepoHasSdlcStudio(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ access_token: accessToken, branch }),
+      body: JSON.stringify({ ...credentialBody(credential), branch }),
     },
   );
   if (!res.ok) {

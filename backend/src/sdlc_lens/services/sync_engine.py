@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy import text as sql_text
+from sqlalchemy.ext.asyncio import async_object_session
 
 from sdlc_lens.config import settings
 from sdlc_lens.db.models.document import Document
@@ -167,6 +168,49 @@ async def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, byte
     return await asyncio.to_thread(_walk_local_files, sdlc_path)
 
 
+async def resolve_sync_token(project: Project) -> str | None:
+    """The token a GitHub sync should authenticate with, decrypted.
+
+    Precedence (CR-01KXAZX9): a stored connection's token when the project has a
+    ``connection_id``, otherwise the project's own ``access_token``. Existing
+    projects therefore keep working untouched - no stored secret is migrated.
+
+    A ``connection_id`` that cannot be resolved is a hard failure, never a
+    fallback. In production the column carries no foreign key (migration 011 adds
+    a plain nullable column, since SQLite cannot ALTER-add an FK), so an orphaned
+    reference is genuinely possible - and falling back would sync a private repo
+    unauthenticated and report the misleading "Repository not found".
+
+    Raises:
+        ConnectionNotFoundError: If ``connection_id`` names no stored connection.
+        AuthenticationError: If the connection's token cannot be decrypted.
+    """
+    from sdlc_lens.services.github_connection import (
+        ConnectionNotFoundError,
+        resolve_connection_token,
+    )
+    from sdlc_lens.utils.crypto import decrypt_token
+
+    if project.connection_id is None:
+        return decrypt_token(project.access_token)
+
+    session = async_object_session(project)
+    if session is None:
+        raise ConnectionNotFoundError(
+            f"Project {project.slug} uses GitHub connection {project.connection_id}, "
+            "which could not be loaded (the project is detached from its session)"
+        )
+
+    try:
+        return await resolve_connection_token(session, project.connection_id)
+    except ConnectionNotFoundError as exc:
+        raise ConnectionNotFoundError(
+            f"Project {project.slug} uses GitHub connection {project.connection_id}, "
+            "which no longer exists. Re-point the project at a stored connection, "
+            "or detach it and give the project its own token."
+        ) from exc
+
+
 async def collect_github_files(
     project: Project,
 ) -> tuple[dict[str, tuple[str, bytes]], ProjectConfig]:
@@ -185,14 +229,14 @@ async def collect_github_files(
         empty :class:`ProjectConfig`.
     """
     from sdlc_lens.services.github_source import fetch_github_files_and_config
-    from sdlc_lens.utils.crypto import decrypt_token
 
     fs_files, config_files = await fetch_github_files_and_config(
         repo_url=project.repo_url,
         branch=project.repo_branch,
         repo_path=project.repo_path,
-        # Decrypt the at-rest token back to the real PAT for the API call.
-        access_token=decrypt_token(project.access_token),
+        # The real PAT for the API call: the connection's token when one is
+        # attached, else the project's own - decrypted either way.
+        access_token=await resolve_sync_token(project),
     )
     return fs_files, _parse_github_config(config_files)
 

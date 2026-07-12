@@ -488,6 +488,53 @@ async def list_repositories(
     return sorted(repos.values(), key=lambda r: r["full_name"].lower())
 
 
+async def get_authenticated_login(
+    access_token: str,
+    timeout: httpx.Timeout | None = None,
+) -> str:
+    """Return the GitHub login the supplied token authenticates as.
+
+    A single ``GET /user`` call, used to validate a token before it is stored as
+    a connection (CR-01KXAZX9) and to re-validate it later. An expired or revoked
+    token comes back as 401 and is surfaced as :class:`AuthenticationError`, so
+    an invalid credential is never persisted.
+
+    Raises:
+        AuthenticationError: If no token is supplied, or the token is rejected.
+        RateLimitError: If the API rate limit is exceeded.
+        GitHubSourceError: On other API/transport errors, or if GitHub returns
+            no login for the token.
+    """
+    if not access_token:
+        raise AuthenticationError("An access token is required")
+
+    headers = _build_headers(access_token)
+    effective_timeout = timeout or _DEFAULT_TIMEOUT
+
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=effective_timeout,
+        follow_redirects=True,
+    ) as client:
+        try:
+            response = await client.get(f"{_API_BASE}/user")
+        except httpx.TimeoutException as exc:
+            raise GitHubSourceError(f"Timeout validating access token: {exc}") from exc
+        except httpx.ConnectError as exc:
+            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+
+        # /user has no repository to be "not found"; a 404 here means the token
+        # cannot see the endpoint at all, which is an authentication failure.
+        if response.status_code == 404:
+            raise AuthenticationError("Authentication failed - check your access token")
+        _handle_error_response(response)
+
+        login = (response.json() or {}).get("login")
+        if not login:
+            raise GitHubSourceError("GitHub returned no login for this access token")
+        return str(login)
+
+
 async def repo_has_sdlc_studio(
     access_token: str | None,
     owner: str,

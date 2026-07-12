@@ -10,11 +10,11 @@
 | Proposed | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Complete | 17 |
+| Complete | 18 |
 | Rejected | 0 |
 | Deferred | 0 |
 | inbox | 0 |
-| **Total** | **17** |
+| **Total** | **18** |
 
 ## By Priority
 
@@ -42,6 +42,7 @@
 | [CR-01KXARM8](CR-01KXARM8-enrich-system-health-endpoint-with-readiness-depth-and.md) | Enrich system health endpoint with readiness depth and single-source the version | Medium | Complete | Feature | -- | 2026-07-12 |
 | [CR-01KXAS75](CR-01KXAS75-github-repo-selector-browse-repos-and-orgs-to.md) | GitHub repo selector: browse repos and orgs to add, flagging sdlc-studio workspaces | Medium | Complete | Feature | -- | 2026-07-12 |
 | [CR-01KXASF9](CR-01KXASF9-prettify-the-read-only-document-view-working-typography.md) | Prettify the read-only document view: working typography plus sdlc-studio-aware presentation | Medium | Complete | Feature | -- | 2026-07-12 |
+| [CR-01KXAZX9](CR-01KXAZX9-stored-github-connections-register-credentials-once-then-browse.md) | Stored GitHub connections: register credentials once, then browse and add repos in two clicks | Medium | Complete | Feature | -- | 2026-07-12 |
 
 ## Dependencies
 
