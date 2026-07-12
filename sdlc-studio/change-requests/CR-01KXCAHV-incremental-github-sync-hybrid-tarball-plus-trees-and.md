@@ -38,6 +38,12 @@ behaviours sit directly in that blast radius:
    fetches zero files.** A guard that reads that as "the source is empty" either wipes the corpus or throws
    a false error - *on the happy path*. It must key off the **manifest**, not the fetched subset.
 
+   **This guard is not merely defensive code - it is the fix for BG-01KX8BFP** ("Sync deletes all documents
+   when the source returns empty (silent data loss)"), a **High**-severity finding from RV-0001, Fixed on
+   2026-07-11. Getting this wrong does not introduce a new bug; it **regresses a known High-severity
+   data-loss bug**, and does so on the most common code path there is - the sync where nothing changed.
+   Treat it accordingly.
+
 Per RETRO-0006 ("a CR that names only one mode is an incomplete spec"), every mode is enumerated below and
 each carries its own acceptance criterion.
 
@@ -55,7 +61,7 @@ mandatory rather than optional.
 
 - [ ] **`documents.blob_sha` (nullable) is added and populated on both paths** (RFC D1). The tarball path computes it from the raw bytes it already extracts (`sha1("blob {len}\0" + bytes)`); the incremental path takes it from the Trees response. The existing `file_hash` (sha256) is not reused - it cannot be compared to a git blob SHA-1. Alembic migration; NULL means "unknown"
 - [ ] **Hybrid path selection** (RFC D3). A **full tarball sync** runs when it is the first sync, *or* any document in the project has a NULL `blob_sha`, *or* a full resync is explicitly requested, *or* the changed-blob count exceeds the cap. **Incremental** runs otherwise. An upgraded install (every `blob_sha` NULL) therefore self-heals via one tarball that backfills every SHA
-- [ ] **MODE - nothing changed: zero blobs fetched, zero documents touched, and critically ZERO DELETED.** The empty-source guard keys off the **manifest**, not the fetched subset (RFC D6). A no-op incremental sync must never be mistaken for an empty source. Proven by a test that **fails** against a fetch-subset-keyed guard
+- [ ] **MODE - nothing changed: zero blobs fetched, zero documents touched, and critically ZERO DELETED.** The empty-source guard keys off the **manifest**, not the fetched subset (RFC D6). A no-op incremental sync must never be mistaken for an empty source. Proven by a test that **fails** against a fetch-subset-keyed guard. **BG-01KX8BFP's existing regression test must still pass unmodified** - if satisfying this CR requires weakening that test, the design is wrong
 - [ ] **MODE - K files changed:** exactly those K blobs are fetched and exactly those K documents re-parse. Unchanged documents are neither re-parsed nor re-written
 - [ ] **MODE - blob unchanged but `parser_epoch` stale:** the document **re-parses from its stored `content`** with no network fetch, so the BG-01KXARHJ fix survives the contract change. Proven by a test that bumps `PARSER_EPOCH` and asserts the derived fields (`doc_type`, `status`, `ref_id`, `epic`/`story`, `depends_on`, `aliases`) recompute while **zero blob requests** are issued
 - [ ] **MODE - files deleted upstream:** paths absent from the **manifest** are deleted locally. Deletion is manifest-keyed, never fetch-keyed

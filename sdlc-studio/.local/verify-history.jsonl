@@ -1,0 +1,3 @@
+{"at": "2026-07-12T23:56:23Z", "dry_run": false, "story": "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every", "verified": 3, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-12T23:56:23Z", "dry_run": false, "story": "US-01KXCB7V-make-the-review-index-and-the-lint-baseline", "verified": 3, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-12T23:56:23Z", "dry_run": false, "story": "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci", "verified": 1, "failed": 0, "stale": 0, "passed": ["AC1"], "failed_acs": [], "exit": 0}

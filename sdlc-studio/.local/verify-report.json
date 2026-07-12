@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-07-12T23:56:23Z",
+  "dry_run": false,
+  "stories": {
+    "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every": {
+      "ac_count": 4,
+      "verified": 3,
+      "failed": 0,
+      "stale": 0,
+      "manual": 1,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC4"
+      ],
+      "failures": [],
+      "flips": [
+        {
+          "ac": "AC1",
+          "old_state": "none",
+          "new_state": "yes"
+        },
+        {
+          "ac": "AC2",
+          "old_state": "none",
+          "new_state": "yes"
+        },
+        {
+          "ac": "AC4",
+          "old_state": "none",
+          "new_state": "yes"
+        }
+      ],
+      "verified_at": "2026-07-12T23:56:23Z"
+    },
+    "US-01KXCB7V-make-the-review-index-and-the-lint-baseline": {
+      "ac_count": 3,
+      "verified": 3,
+      "failed": 0,
+      "stale": 0,
+      "manual": 0,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3"
+      ],
+      "failures": [],
+      "flips": [
+        {
+          "ac": "AC1",
+          "old_state": "none",
+          "new_state": "yes"
+        },
+        {
+          "ac": "AC2",
+          "old_state": "none",
+          "new_state": "yes"
+        },
+        {
+          "ac": "AC3",
+          "old_state": "none",
+          "new_state": "yes"
+        }
+      ],
+      "verified_at": "2026-07-12T23:56:23Z"
+    },
+    "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci": {
+      "ac_count": 4,
+      "verified": 1,
+      "failed": 0,
+      "stale": 0,
+      "manual": 3,
+      "passed": [
+        "AC1"
+      ],
+      "failures": [],
+      "flips": [
+        {
+          "ac": "AC1",
+          "old_state": "none",
+          "new_state": "yes"
+        }
+      ],
+      "verified_at": "2026-07-12T23:56:23Z"
+    }
+  }
+}

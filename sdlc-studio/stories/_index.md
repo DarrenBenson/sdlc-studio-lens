@@ -7,7 +7,7 @@
 
 | Status | Count |
 |--------|-------|
-| Draft | 0 |
+| Draft | 3 |
 | Ready | 0 |
 | Planned | 0 |
 | In Progress | 0 |
@@ -15,7 +15,7 @@
 | Done | 37 |
 | Not Started | 0 |
 | Superseded | 2 |
-| **Total** | **39** |
+| **Total** | **42** |
 
 ## Stories by Epic
 
@@ -146,6 +146,9 @@
 | [US0037](US0037-health-check-rules-engine.md) | Health Check Rules Engine | [EP0009](../epics/EP0009-project-health-check.md) | Done | 5 | Darren |
 | [US0038](US0038-health-check-api-endpoint.md) | Health Check API Endpoint | [EP0009](../epics/EP0009-project-health-check.md) | Done | 3 | Darren |
 | [US0039](US0039-health-check-dashboard-page.md) | Health Check Dashboard Page | [EP0009](../epics/EP0009-project-health-check.md) | Done | 5 | Darren |
+| [US-01KXCBB5](US-01KXCBB5-run-backend-frontend-types-and-lint-on-every.md) | Run backend, frontend, types and lint on every push and pull request | EP-01KXCBC9 | Draft | -- | -- |
+| [US-01KXCBHJ](US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci.md) | Settle the E2E suite: run it in CI and repair it against the new add-project card | EP-01KXCBC9 | Draft | -- | -- |
+| [US-01KXCB7V](US-01KXCB7V-make-the-review-index-and-the-lint-baseline.md) | Make the review index and the lint baseline tell the truth | EP-01KXCBC9 | Draft | -- | -- |
 
 ## Notes
 
