@@ -16,6 +16,13 @@ from sdlc_lens.api.schemas.documents import (
     RelatedDocumentItem,
     SortField,
 )
+from sdlc_lens.api.schemas.github import (
+    GitHubRepoItem,
+    GitHubReposRequest,
+    GitHubReposResponse,
+    HasSdlcStudioRequest,
+    HasSdlcStudioResponse,
+)
 from sdlc_lens.api.schemas.health_check import (
     AffectedDocumentSchema,
     HealthCheckResponse,
@@ -35,6 +42,13 @@ from sdlc_lens.services.documents import (
     get_document,
     get_related_documents,
     list_documents,
+)
+from sdlc_lens.services.github_source import (
+    AuthenticationError,
+    GitHubSourceError,
+    RateLimitError,
+    list_repositories,
+    repo_has_sdlc_studio,
 )
 from sdlc_lens.services.health_check import run_health_check
 from sdlc_lens.services.project import (
@@ -110,6 +124,75 @@ async def register_project(body: ProjectCreate, db: DbDep) -> ProjectResponse | 
         )
 
     return await _project_response(db, project)
+
+
+def _github_error_response(exc: GitHubSourceError) -> JSONResponse:
+    """Map a GitHub source error to the canonical error response."""
+    if isinstance(exc, RateLimitError):
+        return JSONResponse(
+            status_code=429,
+            content={"error": {"code": "RATE_LIMITED", "message": exc.message}},
+        )
+    if isinstance(exc, AuthenticationError):
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"code": "AUTH_FAILED", "message": exc.message}},
+        )
+    return JSONResponse(
+        status_code=502,
+        content={"error": {"code": "GITHUB_ERROR", "message": exc.message}},
+    )
+
+
+@router.post("/github/repos", response_model=GitHubReposResponse)
+async def list_github_repositories(
+    body: GitHubReposRequest,
+    search: str | None = Query(None),
+) -> GitHubReposResponse | JSONResponse:
+    """List the repositories the supplied token can see.
+
+    Returns ALL visible repos (the user's own plus their orgs') without checking
+    each for an sdlc-studio workspace - that per-repo flag is fetched lazily via
+    the has-sdlc-studio endpoint, so a large account does not fan out into
+    hundreds of Contents calls and exhaust the rate limit. Optional case-
+    insensitive ``search`` filters by full_name / description server-side.
+    """
+    try:
+        repos = await list_repositories(body.access_token)
+    except GitHubSourceError as exc:
+        return _github_error_response(exc)
+
+    term = (search if search is not None else body.search) or ""
+    term = term.strip().lower()
+    if term:
+        repos = [
+            r
+            for r in repos
+            if term in r["full_name"].lower() or term in (r.get("description") or "").lower()
+        ]
+
+    return GitHubReposResponse(repositories=[GitHubRepoItem(**r) for r in repos])
+
+
+@router.post(
+    "/github/repos/{owner}/{repo}/has-sdlc-studio",
+    response_model=HasSdlcStudioResponse,
+)
+async def check_repo_has_sdlc_studio(
+    owner: str,
+    repo: str,
+    body: HasSdlcStudioRequest,
+) -> HasSdlcStudioResponse | JSONResponse:
+    """Lazy per-repo flag: does this repo already contain an sdlc-studio/ tree?
+
+    A single cheap Contents call, invoked on demand for the rows the operator is
+    actually looking at - never for every repo in the list.
+    """
+    try:
+        has = await repo_has_sdlc_studio(body.access_token, owner, repo, body.branch)
+    except GitHubSourceError as exc:
+        return _github_error_response(exc)
+    return HasSdlcStudioResponse(has_sdlc_studio=has)
 
 
 @router.get("", response_model=list[ProjectResponse])

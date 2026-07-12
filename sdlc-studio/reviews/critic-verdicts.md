@@ -30,3 +30,7 @@
 | CR01KX95HS | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
 | CR01KX95FH | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
 | CR01KX95WV | APPROVE | Tomas Reinholt; persona; v3 | Priya Nair; persona; v3 | 2026-07-11 | closing adversarial review: 1 defect (allowlist dir-existence coupling) fixed; E2E verified on real v3+v2 |
+| BG01KXARHJ | PASS | Tomas Reinholt | Darren | 2026-07-12 | - |
+| CR01KXARM8 | PASS | Tomas Reinholt | Darren | 2026-07-12 | - |
+| CR01KXASF9 | PASS | Tomas Reinholt | Darren | 2026-07-12 | - |
+| CR01KXAS75 | PASS | Tomas Reinholt | Darren | 2026-07-12 | - |

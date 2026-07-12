@@ -22,7 +22,7 @@ from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.documents import get_related_documents
 from sdlc_lens.services.project_config import ProjectConfig
-from sdlc_lens.services.sync_engine import sync_project
+from sdlc_lens.services.sync_engine import PARSER_EPOCH, sync_project
 from sdlc_lens.utils.sdlc_ids import id_head, norm_id
 
 
@@ -127,3 +127,106 @@ class TestSyncSelfHealsNullRefId:
         ).scalar_one()
         # The row must have been reparsed, not skipped: ref_id is now populated.
         assert doc.ref_id == "EP0001"
+
+
+# ---------------------------------------------------------------------------
+# (c) BG-01KXARHJ: a parser-epoch bump must self-heal document-derived fields.
+#     A byte-unchanged file whose row predates the current PARSER_EPOCH is
+#     reparsed even though its hash matches AND its ref_id is already set, so
+#     stale doc_type / canonical status recompute after an app upgrade. A row
+#     already at the current epoch still hash-skips (no perpetual re-parse).
+# ---------------------------------------------------------------------------
+
+
+class TestSyncSelfHealsStaleParserEpoch:
+    @pytest.mark.asyncio
+    async def test_legacy_epoch_row_is_reparsed_even_with_ref_id_set(
+        self, session: AsyncSession
+    ) -> None:
+        p = await _project(session)
+
+        # A plan file, byte-for-byte unchanged since it was last synced by an
+        # older parser. Its status carries a parenthetical the old canonicaliser
+        # kept verbatim; the current one reduces it to the "Complete" token.
+        content = b"# PL0001\n\n> **Status:** Complete (81/88 tests passing)\n\nPlan body"
+        file_hash = hashlib.sha256(content).hexdigest()
+        rel_path = "plans/PL0001-migrate.md"
+
+        # Seed a legacy (epoch 0) row: correct hash and a populated ref_id (so the
+        # ref_id-null guard does NOT fire), but a stale stored doc_type ("other")
+        # and a stale raw status string.
+        legacy = Document(
+            project_id=p.id,
+            doc_type="other",
+            doc_id="PL0001-migrate",
+            title="PL0001",
+            status="Complete (81/88 tests passing)",
+            ref_id=norm_id(id_head("PL0001-migrate")),
+            parser_epoch=0,
+            content="Plan body",
+            file_path=rel_path,
+            file_hash=file_hash,
+            synced_at=datetime.datetime.now(tz=datetime.UTC),
+        )
+        session.add(legacy)
+        await session.commit()
+
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=({rel_path: (file_hash, content)}, ProjectConfig()),
+        ):
+            result = await sync_project(p, session)
+
+        doc = (
+            await session.execute(select(Document).where(Document.project_id == p.id))
+        ).scalar_one()
+        # Re-parsed, not hash-skipped: epoch advanced, status canonicalised,
+        # doc_type corrected from the stale "other" to the inferred "plan".
+        assert doc.parser_epoch == PARSER_EPOCH
+        assert doc.status == "Complete"
+        assert doc.doc_type == "plan"
+        assert result.updated == 1
+        assert result.skipped == 0
+
+    @pytest.mark.asyncio
+    async def test_current_epoch_unchanged_row_is_skipped(self, session: AsyncSession) -> None:
+        p = await _project(session)
+
+        content = b"# PL0002\n\n> **Status:** Complete\n\nPlan body"
+        file_hash = hashlib.sha256(content).hexdigest()
+        rel_path = "plans/PL0002-other.md"
+
+        # A row already at the current epoch with a matching hash and a set
+        # ref_id. Its doc_type is deliberately "other": if it were reparsed the
+        # sync would correct it to "plan", so an unchanged doc_type proves a skip.
+        current = Document(
+            project_id=p.id,
+            doc_type="other",
+            doc_id="PL0002-other",
+            title="PL0002",
+            status="Complete",
+            ref_id=norm_id(id_head("PL0002-other")),
+            parser_epoch=PARSER_EPOCH,
+            content="Plan body",
+            file_path=rel_path,
+            file_hash=file_hash,
+            synced_at=datetime.datetime.now(tz=datetime.UTC),
+        )
+        session.add(current)
+        await session.commit()
+
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=({rel_path: (file_hash, content)}, ProjectConfig()),
+        ):
+            result = await sync_project(p, session)
+
+        doc = (
+            await session.execute(select(Document).where(Document.project_id == p.id))
+        ).scalar_one()
+        assert result.skipped == 1
+        assert result.updated == 0
+        # Not reparsed: the deliberately-stale doc_type survives.
+        assert doc.doc_type == "other"

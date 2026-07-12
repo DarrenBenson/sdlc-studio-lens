@@ -31,6 +31,11 @@ class Document(Base):
     # Normalised, comma-joined prior ids (from a v3 migration `Aliases` field).
     aliases: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)
+    # Parser/schema epoch that produced this row's derived fields (doc_type, status,
+    # epic/story, depends_on, aliases). Bumped in sync_engine.PARSER_EPOCH whenever the
+    # parsing/inference/canonicalisation logic changes; a row below the current epoch is
+    # re-parsed on the next sync even if its content hash is unchanged. 0 = pre-epoch.
+    parser_epoch: Mapped[int | None] = mapped_column(nullable=True, default=0)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     file_hash: Mapped[str] = mapped_column(String(64), nullable=False)

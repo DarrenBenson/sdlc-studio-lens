@@ -1,15 +1,28 @@
-import { useEffect, useState } from "react";
-import Markdown from "react-markdown";
+import { useEffect, useMemo, useState } from "react";
+import Markdown, { type Components } from "react-markdown";
 import { Link, useLocation, useParams } from "react-router";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
-import { fetchDocument, fetchRelatedDocuments } from "../api/client.ts";
+import {
+  fetchAllDocuments,
+  fetchDocument,
+  fetchRelatedDocuments,
+} from "../api/client.ts";
+import { DocumentMetaCard } from "../components/DocumentMetaCard.tsx";
 import { StatusBadge } from "../components/StatusBadge.tsx";
 import { TypeBadge } from "../components/TypeBadge.tsx";
 import { idHead } from "../lib/buildTree.ts";
+import { extractMetadataHeader } from "../lib/docMetadata.ts";
+import {
+  buildRefMap,
+  rehypeIdLinks,
+  resolveRef,
+  type IdTarget,
+} from "../lib/idLinkPlugin.ts";
 import type {
   DocumentDetail,
+  DocumentListItem,
   DocumentRelationships,
   RelatedDocumentItem,
 } from "../types/index.ts";
@@ -63,6 +76,7 @@ export function DocumentView(): React.JSX.Element {
 
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
   const [related, setRelated] = useState<DocumentRelationships | null>(null);
+  const [siblings, setSiblings] = useState<DocumentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +99,89 @@ export function DocumentView(): React.JSX.Element {
       })
       .finally(() => setLoading(false));
   }, [slug, type, docId]);
+
+  // Load the project's documents to resolve inline id references to real routes.
+  // Best-effort: an empty list simply leaves ids as plain text.
+  useEffect(() => {
+    if (!slug) return;
+    let active = true;
+    Promise.resolve(fetchAllDocuments(slug))
+      .then((docs) => {
+        if (active) setSiblings(docs ?? []);
+      })
+      .catch(() => {
+        if (active) setSiblings([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  const refMap = useMemo(() => buildRefMap(siblings), [siblings]);
+
+  // Split the leading blockquote metadata out of the body once per document.
+  const parsed = useMemo(
+    () => extractMetadataHeader(doc?.content ?? ""),
+    [doc?.content],
+  );
+
+  const markdownComponents = useMemo<Components>(() => {
+    return {
+      // Internal links (id references and any `/`-rooted link) use the router;
+      // external links open in a new tab.
+      a({ href, children, ...rest }) {
+        if (href && href.startsWith("/")) {
+          const isIdRef = (rest as { "data-id-ref"?: string })["data-id-ref"];
+          return (
+            <Link
+              to={href}
+              state={fromTree ? { from: "tree" } : undefined}
+              className={
+                isIdRef
+                  ? "font-mono text-accent hover:text-accent-hover"
+                  : "text-accent hover:text-accent-hover"
+              }
+            >
+              {children}
+            </Link>
+          );
+        }
+        return (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent hover:text-accent-hover"
+          >
+            {children}
+          </a>
+        );
+      },
+      // Wide tables scroll horizontally inside their own container so the page
+      // body never scrolls sideways.
+      table({ children }) {
+        return (
+          <div className="not-prose my-6 overflow-x-auto rounded-lg border border-border-default">
+            <table className="w-full min-w-max border-collapse text-sm">
+              {children}
+            </table>
+          </div>
+        );
+      },
+    };
+  }, [fromTree]);
+
+  const rehypePlugins = useMemo(() => {
+    const href = (target: IdTarget): string =>
+      `/projects/${slug}/documents/${target.type}/${target.doc_id}`;
+    return [
+      rehypeHighlight,
+      [
+        rehypeIdLinks,
+        { resolve: (ref: string) => resolveRef(refMap, ref), href },
+      ],
+    ] as const;
+  }, [refMap, slug]);
 
   if (loading) {
     return (
@@ -175,13 +272,17 @@ export function DocumentView(): React.JSX.Element {
           <span>Synced {formattedSync}</span>
         </div>
 
+        {/* Parsed metadata header card */}
+        <DocumentMetaCard fields={parsed.fields} />
+
         {/* Markdown content */}
-        <article className="prose prose-invert mt-6 max-w-none">
+        <article className="prose prose-lens mt-6 max-w-[75ch]">
           <Markdown
             remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
+            rehypePlugins={rehypePlugins as never}
+            components={markdownComponents}
           >
-            {doc.content}
+            {parsed.body}
           </Markdown>
         </article>
       </div>

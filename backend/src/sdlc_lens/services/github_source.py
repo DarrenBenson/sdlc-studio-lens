@@ -28,6 +28,16 @@ _MAX_MEMBER_BYTES = 25 * 1024 * 1024  # 25 MB per-file ceiling (.md files are ti
 # Project metadata files pulled from the repo_path root alongside the .md tree.
 _CONFIG_FILENAMES = (".config.yaml", ".version")
 
+# Repo-listing bounds. The Contents/repo-listing calls are cheap individually,
+# but an account with hundreds of repos would burn through the rate limit if we
+# paginated without end, so cap the aggregate at a sensible ceiling.
+_REPOS_PER_PAGE = 100
+_MAX_REPOS = 200
+
+# The workspace directory whose presence flags a repo as already following the
+# sdlc-studio process.
+_SDLC_STUDIO_DIR = "sdlc-studio"
+
 
 class GitHubSourceError(Exception):
     """Base error for GitHub source operations."""
@@ -108,9 +118,11 @@ def _handle_error_response(response: httpx.Response) -> None:
     if response.status_code == 401:
         raise AuthenticationError("Authentication failed - check your access token")
     if response.status_code == 403:
-        # Check if rate limited
+        # A 403 is a rate limit when the primary quota is spent
+        # (x-ratelimit-remaining: 0) or a secondary/abuse limit is hit
+        # (signalled by a Retry-After header); otherwise it is access-denied.
         remaining = response.headers.get("x-ratelimit-remaining", "")
-        if remaining == "0":
+        if remaining == "0" or "retry-after" in response.headers:
             raise RateLimitError(
                 "GitHub API rate limit exceeded - use an access token for higher limits"
             )
@@ -361,3 +373,161 @@ def _extract_config_from_tarball(
             result[rel_path] = file_obj.read()
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Repository browsing (CR-01KXAS75)
+# ---------------------------------------------------------------------------
+
+
+def _repo_item(raw: dict) -> dict:
+    """Normalise a GitHub repository object to the fields we expose.
+
+    Returns ``{full_name, owner, name, private, default_branch, description}``.
+    """
+    owner = (raw.get("owner") or {}).get("login") or ""
+    name = raw.get("name") or ""
+    full_name = raw.get("full_name") or (f"{owner}/{name}" if owner and name else name)
+    return {
+        "full_name": full_name,
+        "owner": owner,
+        "name": name,
+        "private": bool(raw.get("private", False)),
+        "default_branch": raw.get("default_branch") or "main",
+        "description": raw.get("description"),
+    }
+
+
+async def _collect_repos(
+    client: httpx.AsyncClient,
+    url: str,
+    into: dict[str, dict],
+    params: dict,
+) -> None:
+    """Paginate a repo-listing endpoint into ``into`` (keyed by full_name).
+
+    Stops at the ``_MAX_REPOS`` aggregate cap, when a short page signals the end,
+    or when a page comes back empty. De-duplicates against whatever is already in
+    ``into`` so overlapping user/org listings collapse to a single entry.
+    """
+    page = 1
+    while len(into) < _MAX_REPOS:
+        resp = await client.get(url, params={**params, "page": page})
+        _handle_error_response(resp)
+        batch = resp.json()
+        if not batch:
+            break
+        for raw in batch:
+            item = _repo_item(raw)
+            if item["full_name"]:
+                into.setdefault(item["full_name"], item)
+        if len(batch) < params["per_page"]:
+            break
+        page += 1
+
+
+async def _fetch_org_logins(client: httpx.AsyncClient) -> list[str]:
+    """Return the login names of the orgs the authenticated user belongs to."""
+    resp = await client.get(f"{_API_BASE}/user/orgs", params={"per_page": _REPOS_PER_PAGE})
+    _handle_error_response(resp)
+    return [org.get("login") for org in resp.json() if org.get("login")]
+
+
+async def list_repositories(
+    access_token: str,
+    timeout: httpx.Timeout | None = None,
+) -> list[dict]:
+    """List the repositories the authenticated user can see.
+
+    Aggregates the user's own repos (``GET /user/repos``) with the repos of each
+    org they belong to (``GET /user/orgs`` then ``GET /orgs/{org}/repos``),
+    de-duplicated by ``full_name`` and capped at ``_MAX_REPOS`` to stay within
+    the rate limit. Pagination stops early on a short/empty page.
+
+    Each entry is ``{full_name, owner, name, private, default_branch,
+    description}``. Results are sorted case-insensitively by ``full_name``.
+
+    Raises:
+        AuthenticationError: If no token is supplied, or the token is rejected.
+        RateLimitError: If the API rate limit is exceeded.
+        GitHubSourceError: On other API/transport errors.
+    """
+    if not access_token:
+        raise AuthenticationError("An access token is required to list repositories")
+
+    headers = _build_headers(access_token)
+    effective_timeout = timeout or _DEFAULT_TIMEOUT
+    repos: dict[str, dict] = {}
+
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=effective_timeout,
+        follow_redirects=True,
+    ) as client:
+        try:
+            await _collect_repos(
+                client,
+                f"{_API_BASE}/user/repos",
+                repos,
+                params={"per_page": _REPOS_PER_PAGE, "sort": "full_name"},
+            )
+            for org in await _fetch_org_logins(client):
+                if len(repos) >= _MAX_REPOS:
+                    break
+                await _collect_repos(
+                    client,
+                    f"{_API_BASE}/orgs/{org}/repos",
+                    repos,
+                    params={"per_page": _REPOS_PER_PAGE},
+                )
+        except httpx.TimeoutException as exc:
+            raise GitHubSourceError(f"Timeout listing repositories: {exc}") from exc
+        except httpx.ConnectError as exc:
+            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+
+    return sorted(repos.values(), key=lambda r: r["full_name"].lower())
+
+
+async def repo_has_sdlc_studio(
+    access_token: str | None,
+    owner: str,
+    repo: str,
+    branch: str | None = None,
+    timeout: httpx.Timeout | None = None,
+) -> bool:
+    """Check whether a repo contains an ``sdlc-studio/`` workspace directory.
+
+    A single cheap Contents API call
+    (``GET /repos/{owner}/{repo}/contents/sdlc-studio``). This is the per-repo
+    flag, meant to be called lazily for visible rows only - never for every repo
+    in a listing, which would blow the rate limit.
+
+    Returns True on 200 (the directory exists), False on 404 (absent, or the repo
+    is not accessible).
+
+    Raises:
+        AuthenticationError: If the token is rejected.
+        RateLimitError: If the API rate limit is exceeded.
+        GitHubSourceError: On other API/transport errors.
+    """
+    headers = _build_headers(access_token)
+    effective_timeout = timeout or _DEFAULT_TIMEOUT
+    params = {"ref": branch} if branch else None
+
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=effective_timeout,
+        follow_redirects=True,
+    ) as client:
+        url = f"{_API_BASE}/repos/{owner}/{repo}/contents/{_SDLC_STUDIO_DIR}"
+        try:
+            response = await client.get(url, params=params)
+        except httpx.TimeoutException as exc:
+            raise GitHubSourceError(f"Timeout checking repository contents: {exc}") from exc
+        except httpx.ConnectError as exc:
+            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+
+        if response.status_code == 404:
+            return False
+        _handle_error_response(response)
+        return True

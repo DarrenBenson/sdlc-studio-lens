@@ -45,6 +45,16 @@ export interface ProjectUpdate {
   access_token?: string;
 }
 
+/** A repository returned by the GitHub repo selector. */
+export interface GitHubRepoItem {
+  full_name: string;
+  owner: string;
+  name: string;
+  private: boolean;
+  default_branch: string;
+  description: string | null;
+}
+
 /** Response from POST /api/v1/projects/{slug}/sync. */
 export interface SyncTriggerResponse {
   slug: string;

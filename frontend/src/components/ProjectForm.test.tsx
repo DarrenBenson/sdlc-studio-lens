@@ -6,7 +6,17 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { checkRepoHasSdlcStudio, fetchGitHubRepos } from "../api/client.ts";
+import type { GitHubRepoItem } from "../types/index.ts";
 import { ProjectForm } from "./ProjectForm.tsx";
+
+vi.mock("../api/client.ts", () => ({
+  fetchGitHubRepos: vi.fn(),
+  checkRepoHasSdlcStudio: vi.fn(),
+}));
+
+const mockFetchRepos = vi.mocked(fetchGitHubRepos);
+const mockCheckSdlc = vi.mocked(checkRepoHasSdlcStudio);
 
 afterEach(() => {
   cleanup();
@@ -14,6 +24,25 @@ afterEach(() => {
 });
 
 const mockOnSubmit = vi.fn().mockResolvedValue(undefined);
+
+const REPOS: GitHubRepoItem[] = [
+  {
+    full_name: "alice/app",
+    owner: "alice",
+    name: "app",
+    private: false,
+    default_branch: "trunk",
+    description: null,
+  },
+  {
+    full_name: "acme/service",
+    owner: "acme",
+    name: "service",
+    private: true,
+    default_branch: "main",
+    description: "svc",
+  },
+];
 
 // TC0331: ProjectForm renders source type toggle
 describe("TC0331: Source type toggle renders", () => {
@@ -162,6 +191,72 @@ describe("TC0338: Access token is password type", () => {
 
     const tokenInput = screen.getByTestId("access-token-input");
     expect(tokenInput).toHaveAttribute("type", "password");
+  });
+});
+
+// CR-01KXAS75: Repo selector - browse the repos a token can see
+describe("CR-01KXAS75: GitHub repo selector", () => {
+  it("browsing lists the repositories the token can see", async () => {
+    mockFetchRepos.mockResolvedValue(REPOS);
+    mockCheckSdlc.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(<ProjectForm mode="add" onSubmit={mockOnSubmit} error={null} />);
+
+    await user.click(screen.getByText("GitHub"));
+    await user.type(screen.getByTestId("access-token-input"), "ghp_token");
+    await user.click(screen.getByTestId("browse-repos-button"));
+
+    expect(await screen.findByText("alice/app")).toBeInTheDocument();
+    expect(screen.getByText("acme/service")).toBeInTheDocument();
+    expect(mockFetchRepos).toHaveBeenCalledWith("ghp_token", undefined);
+  });
+
+  it("shows an sdlc-studio badge only for a flagged repo", async () => {
+    mockFetchRepos.mockResolvedValue(REPOS);
+    mockCheckSdlc.mockImplementation((_owner, repo) =>
+      Promise.resolve(repo === "app"),
+    );
+    const user = userEvent.setup();
+    render(<ProjectForm mode="add" onSubmit={mockOnSubmit} error={null} />);
+
+    await user.click(screen.getByText("GitHub"));
+    await user.type(screen.getByTestId("access-token-input"), "ghp_token");
+    await user.click(screen.getByTestId("browse-repos-button"));
+
+    expect(
+      await screen.findByTestId("sdlc-badge-alice/app"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("sdlc-badge-acme/service"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("selecting a repo fills repo_url and repo_branch", async () => {
+    mockFetchRepos.mockResolvedValue(REPOS);
+    mockCheckSdlc.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(<ProjectForm mode="add" onSubmit={mockOnSubmit} error={null} />);
+
+    await user.click(screen.getByText("GitHub"));
+    await user.type(screen.getByTestId("access-token-input"), "ghp_token");
+    await user.click(screen.getByTestId("browse-repos-button"));
+
+    await user.click(await screen.findByTestId("repo-row-alice/app"));
+
+    expect(screen.getByTestId("repo-url-input")).toHaveValue(
+      "https://github.com/alice/app",
+    );
+    expect(screen.getByTestId("repo-branch-input")).toHaveValue("trunk");
+  });
+
+  it("keeps manual repo URL entry available", async () => {
+    const user = userEvent.setup();
+    render(<ProjectForm mode="add" onSubmit={mockOnSubmit} error={null} />);
+
+    await user.click(screen.getByText("GitHub"));
+    // The manual URL field is present without browsing.
+    expect(screen.getByTestId("repo-url-input")).toBeInTheDocument();
+    expect(screen.getByTestId("browse-repos-button")).toBeInTheDocument();
   });
 });
 

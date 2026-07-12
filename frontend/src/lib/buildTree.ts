@@ -59,7 +59,7 @@ export function idHead(text: string): string | null {
 }
 
 /** Normalise an id for equality: strip non-alphanumerics, upper-case. */
-function normId(value: string): string {
+export function normId(value: string): string {
   return value.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
 }
 

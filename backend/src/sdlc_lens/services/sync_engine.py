@@ -33,6 +33,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Parser/schema epoch. Bump this whenever the parsing, inference or
+# canonicalisation logic that feeds a document's derived columns (doc_type,
+# status, epic/story, ref_id, depends_on, aliases) changes. A stored row below
+# the current epoch is re-parsed on the next sync even when its content hash is
+# unchanged, so a byte-identical document heals its derived fields after an app
+# upgrade instead of keeping the values an older build computed. Existing rows
+# default to 0 (pre-epoch) and re-parse once to reach the current epoch.
+PARSER_EPOCH = 1
+
 # Directories to skip during filesystem walk
 _EXCLUDED_DIRS = frozenset(
     {
@@ -249,6 +258,7 @@ def _build_doc_attrs(
         "content": parsed_body,
         "file_path": file_path,
         "file_hash": file_hash,
+        "parser_epoch": PARSER_EPOCH,
         "synced_at": datetime.datetime.now(datetime.UTC),
     }
 
@@ -379,16 +389,28 @@ async def sync_project(
         for rel_path, (file_hash, raw) in fs_files.items():
             doc = existing_docs.get(rel_path)
 
-            # A legacy row from before migration 007's backfill has ref_id=NULL
-            # even though its id resolves to one; reparse it on a matching hash so
-            # the reference-resolution columns populate. Singletons (prd, trd, ...)
-            # have no artefact id head and legitimately keep ref_id=NULL, so they
-            # are not treated as needing a backfill.
+            # A stored row whose parser_epoch is below the current PARSER_EPOCH was
+            # derived by an older parser/inference/canonicalisation build; reparse it
+            # on a matching hash so doc_type, status, ref_id, epic/story, depends_on
+            # and aliases recompute after an app upgrade rather than staying stale.
+            # This generalises the ref_id-null self-heal: legacy rows (epoch 0) are
+            # reparsed regardless of ref_id, while a singleton with ref_id=NULL still
+            # settles once its epoch is current instead of re-parsing every sync.
+            stale_epoch = doc is not None and (doc.parser_epoch or 0) < PARSER_EPOCH
+            # Belt-and-braces: also reparse a legacy row from before migration 007's
+            # backfill that carries ref_id=NULL even though its id resolves to one.
+            # Singletons (prd, trd, ...) have no artefact id head and legitimately
+            # keep ref_id=NULL, so they are not treated as needing a backfill.
             needs_ref_backfill = (
                 doc is not None and doc.ref_id is None and norm_id(id_head(doc.doc_id)) is not None
             )
-            if doc is not None and doc.file_hash == file_hash and not needs_ref_backfill:
-                # Skip - unchanged
+            if (
+                doc is not None
+                and doc.file_hash == file_hash
+                and not stale_epoch
+                and not needs_ref_backfill
+            ):
+                # Skip - unchanged content and derived state already current
                 result.skipped += 1
                 continue
 
