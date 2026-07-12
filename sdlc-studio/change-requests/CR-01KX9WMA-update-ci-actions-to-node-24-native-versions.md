@@ -1,6 +1,6 @@
 # CR-01KX9WMA: Update CI actions to Node-24-native versions (Node 20 deprecation)
 
-> **Status:** In Progress
+> **Status:** Complete
 > **Triaged-by:** Darren; human; v3
 > **Created:** 2026-07-12
 > **Created-by:** sdlc-studio new
@@ -29,7 +29,7 @@ future-proofs releases; adding Dependabot stops the SHA pins going stale again.
 ## Acceptance Criteria
 
 - [x] Every action in `release.yml` is pinned to a Node-24-native release SHA (with a version comment), verified via `gh api`/the action's releases
-- [ ] The release run produces no Node-20 deprecation annotation *(verifies on the next tag/release run - see below)*
+- [x] The release run produces no Node-20 deprecation annotation *(confirmed: the `v0.2.1` Release run - run 29186332761 - went green with zero Node-20/deprecation annotations across all 3 jobs)*
 - [x] A `.github/dependabot.yml` enables the `github-actions` ecosystem so the pins stay current
 
 ## Implementation (2026-07-12)
@@ -61,3 +61,4 @@ Node-20 annotation - it cannot be verified without a release.
 | --- | --- | --- |
 | 2026-07-12 | Priya Nair | Raised |
 | 2026-07-12 | Darren Benson | Implemented: all 7 actions re-pinned to node24 releases (verified via gh api) + dependabot.yml added. AC1/AC3 done; AC2 verifies on next release. In review. |
+| 2026-07-12 | Darren Benson | Released v0.2.1 - Release run 29186332761 green with **no Node-20 deprecation** (AC2 confirmed). All ACs met; Complete. |
