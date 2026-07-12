@@ -7,14 +7,14 @@
 
 | Status | Count |
 | --- | --- |
-| Proposed | 2 |
+| Proposed | 3 |
 | Approved | 0 |
 | In Progress | 0 |
 | Complete | 14 |
 | Rejected | 0 |
 | Deferred | 0 |
 | inbox | 0 |
-| **Total** | **16** |
+| **Total** | **17** |
 
 ## By Priority
 
@@ -41,6 +41,7 @@
 | [CR-01KX9WMA](CR-01KX9WMA-update-ci-actions-to-node-24-native-versions.md) | Update CI actions to Node-24-native versions (Node 20 deprecation) | Medium | Complete | Feature | -- | 2026-07-12 |
 | [CR-01KXARM8](CR-01KXARM8-enrich-system-health-endpoint-with-readiness-depth-and.md) | Enrich system health endpoint with readiness depth and single-source the version | Medium | Proposed | Feature | -- | 2026-07-12 |
 | [CR-01KXAS75](CR-01KXAS75-github-repo-selector-browse-repos-and-orgs-to.md) | GitHub repo selector: browse repos and orgs to add, flagging sdlc-studio workspaces | Medium | Proposed | Feature | -- | 2026-07-12 |
+| [CR-01KXASF9](CR-01KXASF9-prettify-the-read-only-document-view-working-typography.md) | Prettify the read-only document view: working typography plus sdlc-studio-aware presentation | Medium | Proposed | Feature | -- | 2026-07-12 |
 
 ## Dependencies
 
