@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Keep the SHA-pinned GitHub Actions current so the pins don't silently go
+  # stale again (CR-01KX9WMA - the Node-20 deprecation was caused by frozen pins).
+  # Dependabot bumps the pinned SHA and updates the version comment, preserving
+  # the pin-to-SHA security convention.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
