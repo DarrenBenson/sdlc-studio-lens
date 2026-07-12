@@ -1,6 +1,6 @@
 # RFC-01KXARHK: Incremental GitHub sync: near-realtime without re-downloading the repo
 
-> **Status:** Draft
+> **Status:** Accepted
 > **Triaged-by:** Darren; human; v3
 > **Raised-by:** Priya Nair; persona; v3
 > **Priority:** Medium
@@ -75,29 +75,58 @@ concludes on the fetch strategy + freshness trigger. It is a design decision wit
 2. **B2 - commit-SHA poll trigger:** a short-interval background check of the branch head SHA runs the
    incremental sync only when the repo actually moved - near-realtime, no inbound endpoint.
 3. **C1 - keep the encrypted PAT;** revisit a GitHub App (C2) only if webhooks/private-scope demands grow.
-Net: a GitHub project stays close to live, re-syncs cost a handful of small requests instead of a full
-tarball, and BG-01KXARHJ's staleness disappears because changed files always re-parse. Local-source
-projects are unaffected. A true "live view" (D1) can be added later as browse-path polish.
+Net: a GitHub project stays close to live and re-syncs cost a handful of small requests instead of a full
+tarball. Local-source projects are unaffected. A true "live view" (D1) can be added later as browse-path
+polish.
 
-## Open Decisions
+> **Correction (2026-07-13):** an earlier draft of this section claimed incremental sync would also
+> resolve BG-01KXARHJ's staleness. It does not need to - `PARSER_EPOCH` (`sync_engine.py:44`) already
+> fixed that and **BG-01KXARHJ is Fixed**. The benefit is already banked, so it is not counted here.
+> The obligation runs the other way: the incremental path must **preserve** epoch reparse (see D6).
 
-| # | Decision | Status |
+## Resolved Decisions
+
+Resolved 2026-07-13 (Darren). Axes settled: **A3 + B2 + C1**; D1 (live view) out of scope.
+
+| # | Decision | Resolution |
 | --- | --- | --- |
-| D1 | Store the blob SHA per document, or derive the diff from the existing content hash? | Open |
-| D2 | Poll interval + where the loop lives (in-process timer vs an external scheduler hitting `/sync`) | Open |
-| D3 | Is the first-sync tarball worth keeping (A3), or go incremental-only (A2) for one code path? | Open |
-| D4 | Webhook (B3) - in scope now for internet-reachable deploys, or deferred until there is demand? | Open |
+| D1 | Store the blob SHA per document, or derive it from the existing content hash? | **Store it.** New nullable `documents.blob_sha` column. The stored `file_hash` is a sha256 of the bytes, so it cannot be compared to a git blob SHA-1; and recomputing the blob SHA from stored *text* would require a decode/re-encode round-trip - a fragility class we decline. Populate it on **both** paths: the tarball path computes it from the raw bytes it already extracts (`sha1("blob {len}\0" + bytes)`), the incremental path takes it from the Trees response. **NULL = unknown** → that project takes a full (tarball) sync next, which backfills every `blob_sha` in one call. The tarball path is therefore also the backfill and repair path. |
+| D2 | Poll interval + where the loop lives | **In-process asyncio task** in the FastAPI app. The deployment is a single container running a single Uvicorn worker, so there is no multi-worker duplicate-poll problem and no external scheduler to own. Interval from config (default 300s; `0` disables). Per-project **opt-in** (`projects.auto_sync`). Start jittered so N projects do not poll in lockstep. Poll = branch head SHA (1 call) compared against a stored `last_synced_commit_sha`. |
+| D3 | Keep the first-sync tarball (A3), or go incremental-only (A2)? | **A3 hybrid.** Tarball on: first sync, any NULL `blob_sha` in the project, an explicit full-resync request, or a changed-blob count over the D5 cap. Incremental otherwise. The tarball path earns its keep as cold start, backfill, repair, and the bounded-worst-case escape hatch. |
+| D4 | Webhook (B3) in scope now? | **Deferred.** The lens is LAN-only behind NPM at `lens.home.lan` and is not reachable from GitHub without a tunnel. The poll (B2) gets near-realtime with no inbound endpoint. Revisit only if an internet-reachable deployment appears. |
+| D5 | Rate-limit budget + backoff | **Cap changed blobs per incremental sync** (default 200, configurable). Over the cap → fall back to a tarball full sync, which bounds the worst case at today's cost rather than degrading it. Respect `X-RateLimit-Remaining`; on 403/429 raise the existing `RateLimitError`, set `sync_status=error` with a legible message, and **leave the stored corpus intact** - never partial-wipe on a throttled fetch. |
+| D6 | *(new)* What is the sync engine's contract once content is no longer fetched for every file? | The engine moves from "here is every file **with content**" to "here is the **manifest** (path → blob_sha) plus content for the **changed subset**". Two consequences are load-bearing: (a) the `parser_epoch` reparse of an **unchanged** blob must re-parse from the **stored `content`** column, not a re-fetch; (b) the existing "source returned no documents - refusing to delete existing documents" guard must key off the **manifest**, not the fetched subset - a clean no-op sync legitimately fetches **zero** files, and a guard that reads that as "the source is empty" is a data-loss or false-error bug on the happy path. |
+
+## Modes this change touches
+
+Per RETRO-0006 ("a CR that names only one mode is an incomplete spec"), every mode the sync path
+serves, and what each does after this change. Each gets an acceptance criterion.
+
+| Mode | Behaviour |
+| --- | --- |
+| Local source | Unaffected. No manifest, no blob SHA, no poll. |
+| GitHub, first sync | Tarball. Computes and stores `blob_sha` per file. |
+| GitHub, re-sync, nothing changed | Trees call only. Zero blobs fetched. Zero documents touched, **zero deleted**. |
+| GitHub, re-sync, K files changed | Trees call + K blob fetches. Only those K re-parse. |
+| GitHub, re-sync, blob unchanged but `parser_epoch` stale | Re-parses from **stored content**. No fetch. |
+| GitHub, re-sync, files deleted upstream | Absent from the manifest → deleted locally. Manifest-keyed, not fetch-keyed. |
+| GitHub, re-sync, K over the cap | Falls back to a tarball full sync. |
+| GitHub, upgraded install (NULL `blob_sha`) | Falls back to a tarball full sync, which backfills. |
+| GitHub, token revoked / rate-limited mid-sync | `sync_status=error`, corpus left intact. |
 | D5 | Rate-limit budget + backoff: cap blobs-per-sync and handle 403/rate-limit gracefully | Open |
 
-## Spawned CRs (proposed, once accepted)
+## Spawned CRs
 
-- Incremental Trees+Blobs re-sync path in `github_source` + `sync_engine` (A2/A3), storing per-file
-  blob SHA and fetching only changed blobs. *Also resolves BG-01KXARHJ for GitHub sources.*
-- Commit-SHA poll trigger (B2) so GitHub projects stay fresh without a manual sync.
-- (Optional) live-vs-synced document view (D1); (later) GitHub App auth (C2) / webhook (B3).
+- **CR-01KXCAHV** - Incremental Trees+Blobs re-sync path in `github_source` + `sync_engine` (A3),
+  storing per-file `blob_sha` and fetching only changed blobs. Carries D1, D3, D5, D6.
+- **CR-01KXCAZJ** - Commit-SHA poll trigger (B2) so GitHub projects stay fresh without a manual sync.
+  Carries D2. Depends on the incremental path.
+- Not spawned: live-vs-synced document view (D1 axis 4), GitHub App auth (C2), webhook (B3) - all
+  deferred, see the resolved-decisions table.
 
 ## Revision History
 
 | Date | Author | Change |
 | --- | --- | --- |
 | 2026-07-12 | Priya Nair | Raised from the "realtime remote view" question; concluded on incremental sync + poll |
+| 2026-07-13 | Darren | Resolved D1-D5, added D6 (the sync-engine contract change) and the mode table; corrected the stale BG-01KXARHJ claim; Accepted; spawned CR-01KXCAHV + CR-01KXCAZJ |
