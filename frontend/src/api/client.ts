@@ -1,4 +1,5 @@
 import type {
+  AggregatedRepoResponse,
   AggregateStats,
   ApiError,
   DocumentDetail,
@@ -257,6 +258,26 @@ export async function deleteConnection(id: number): Promise<void> {
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
+}
+
+/**
+ * List every repository visible to ANY stored connection, in one call.
+ *
+ * No credential is sent: the operator asks for their repositories, not for the
+ * repositories of a token they had to choose first. Repos are de-duplicated by
+ * full_name (first connection wins) and each carries the connection that
+ * surfaced it - that is the connection the created project binds to.
+ *
+ * A connection the server could not list contributes no repos and appears in
+ * `degraded`; it never fails the call. No connections at all yields two empty
+ * arrays, not an error.
+ */
+export async function fetchAllConnectionRepos(): Promise<AggregatedRepoResponse> {
+  const res = await fetch(`${BASE}/connections/repos`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<AggregatedRepoResponse>;
 }
 
 /**

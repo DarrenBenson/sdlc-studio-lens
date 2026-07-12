@@ -14,6 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sdlc_lens.api.deps import get_db
 from sdlc_lens.api.schemas.connections import (
     ConnectionCreate,
+    ConnectionDegradation,
+    ConnectionRepoItem,
+    ConnectionReposResponse,
     ConnectionResponse,
     ConnectionUpdate,
 )
@@ -23,6 +26,7 @@ from sdlc_lens.services.github_connection import (
     ConnectionInUseError,
     ConnectionNotFoundError,
     LabelExistsError,
+    browse_all_connection_repos,
     create_connection,
     delete_connection,
     list_connections,
@@ -87,6 +91,28 @@ async def list_all_connections(db: DbDep) -> list[ConnectionResponse]:
     """List the stored GitHub connections. Tokens are masked."""
     connections = await list_connections(db)
     return [_connection_response(c) for c in connections]
+
+
+@router.get("/repos", response_model=ConnectionReposResponse)
+async def browse_repos_across_connections(db: DbDep) -> ConnectionReposResponse:
+    """Browse the repos visible to EVERY stored connection, in one call.
+
+    Carries no credential: that is the point. The operator registers a connection
+    once, and adding a project becomes a pick from a list. Each repo is tagged
+    with the connection that surfaced it (first one wins on a duplicate), which
+    is the credential a project created from it will be bound to.
+
+    Always 200. A connection whose token is dead, throttled or undecryptable
+    contributes no repos and is named in ``degraded`` with a reason, as is one
+    that could only partially be browsed - a single bad credential must not hide
+    everything the others can see. No connections at all is an empty result, not
+    an error.
+    """
+    repos, degraded = await browse_all_connection_repos(db)
+    return ConnectionReposResponse(
+        repos=[ConnectionRepoItem(**r) for r in repos],
+        degraded=[ConnectionDegradation(**d) for d in degraded],
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=ConnectionResponse)

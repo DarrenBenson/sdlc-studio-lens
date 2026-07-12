@@ -6,6 +6,7 @@ import asyncio
 import io
 import logging
 import tarfile
+from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 import httpx
@@ -32,7 +33,11 @@ _CONFIG_FILENAMES = (".config.yaml", ".version")
 # but an account with hundreds of repos would burn through the rate limit if we
 # paginated without end, so cap the aggregate at a sensible ceiling.
 _REPOS_PER_PAGE = 100
-_MAX_REPOS = 200
+MAX_REPOS = 200
+
+# Degradation reason for a token that cannot enumerate the user's organisations -
+# a fine-grained PAT scoped to a single owner, or a classic PAT without read:org.
+ORGS_UNLISTABLE_REASON = "Organisations could not be listed with this token"
 
 # The workspace directory whose presence flags a repo as already following the
 # sdlc-studio process.
@@ -406,12 +411,12 @@ async def _collect_repos(
 ) -> None:
     """Paginate a repo-listing endpoint into ``into`` (keyed by full_name).
 
-    Stops at the ``_MAX_REPOS`` aggregate cap, when a short page signals the end,
+    Stops at the ``MAX_REPOS`` aggregate cap, when a short page signals the end,
     or when a page comes back empty. De-duplicates against whatever is already in
     ``into`` so overlapping user/org listings collapse to a single entry.
     """
     page = 1
-    while len(into) < _MAX_REPOS:
+    while len(into) < MAX_REPOS:
         resp = await client.get(url, params={**params, "page": page})
         _handle_error_response(resp)
         batch = resp.json()
@@ -433,24 +438,59 @@ async def _fetch_org_logins(client: httpx.AsyncClient) -> list[str]:
     return [org.get("login") for org in resp.json() if org.get("login")]
 
 
+@dataclass
+class RepoListing:
+    """A browse result: the repos that were listed, plus what could not be.
+
+    ``degraded`` carries a human-readable reason per part of the browse that
+    failed but did not invalidate the result (BG-01KXB3QF). It is empty when the
+    listing is complete.
+    """
+
+    repos: list[dict] = field(default_factory=list)
+    degraded: list[str] = field(default_factory=list)
+
+
 async def list_repositories(
     access_token: str,
     timeout: httpx.Timeout | None = None,
 ) -> list[dict]:
     """List the repositories the authenticated user can see.
 
-    Aggregates the user's own repos (``GET /user/repos``) with the repos of each
-    org they belong to (``GET /user/orgs`` then ``GET /orgs/{org}/repos``),
-    de-duplicated by ``full_name`` and capped at ``_MAX_REPOS`` to stay within
-    the rate limit. Pagination stops early on a short/empty page.
+    Thin facade over :func:`list_repositories_detailed` for callers that only
+    want the repos. A partially degraded browse still returns the repos it could
+    see; see that function for what "partial" means and what is still fatal.
 
     Each entry is ``{full_name, owner, name, private, default_branch,
     description}``. Results are sorted case-insensitively by ``full_name``.
+    """
+    listing = await list_repositories_detailed(access_token, timeout=timeout)
+    return listing.repos
+
+
+async def list_repositories_detailed(
+    access_token: str,
+    timeout: httpx.Timeout | None = None,
+) -> RepoListing:
+    """List the visible repositories, reporting anything that degraded.
+
+    Aggregates the user's own repos (``GET /user/repos``) with the repos of each
+    org they belong to (``GET /user/orgs`` then ``GET /orgs/{org}/repos``),
+    de-duplicated by ``full_name`` and capped at ``MAX_REPOS`` to stay within
+    the rate limit. Pagination stops early on a short/empty page.
+
+    Only the PRIMARY ``/user/repos`` call is fatal. Enumerating organisations,
+    and listing any individual org's repos, are best-effort: a token that cannot
+    do either - a fine-grained PAT scoped to one owner, a classic PAT without
+    ``read:org`` - yields a PARTIAL result (the repos we did see) plus a reason
+    in :attr:`RepoListing.degraded`, rather than throwing away repos we had
+    already fetched successfully (BG-01KXB3QF).
 
     Raises:
-        AuthenticationError: If no token is supplied, or the token is rejected.
-        RateLimitError: If the API rate limit is exceeded.
-        GitHubSourceError: On other API/transport errors.
+        AuthenticationError: If no token is supplied, or the token is rejected
+            for the primary listing.
+        RateLimitError: If the rate limit is exceeded on the primary listing.
+        GitHubSourceError: On other API/transport errors on the primary listing.
     """
     if not access_token:
         raise AuthenticationError("An access token is required to list repositories")
@@ -458,12 +498,14 @@ async def list_repositories(
     headers = _build_headers(access_token)
     effective_timeout = timeout or _DEFAULT_TIMEOUT
     repos: dict[str, dict] = {}
+    degraded: list[str] = []
 
     async with httpx.AsyncClient(
         headers=headers,
         timeout=effective_timeout,
         follow_redirects=True,
     ) as client:
+        # The user's own repos: a failure here IS the browse failing.
         try:
             await _collect_repos(
                 client,
@@ -471,21 +513,39 @@ async def list_repositories(
                 repos,
                 params={"per_page": _REPOS_PER_PAGE, "sort": "full_name"},
             )
-            for org in await _fetch_org_logins(client):
-                if len(repos) >= _MAX_REPOS:
-                    break
+        except httpx.TimeoutException as exc:
+            raise GitHubSourceError(f"Timeout listing repositories: {exc}") from exc
+        except httpx.ConnectError as exc:
+            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+
+        # Orgs: best-effort from here on.
+        try:
+            orgs = await _fetch_org_logins(client)
+        except (GitHubSourceError, httpx.TimeoutException, httpx.ConnectError) as exc:
+            logger.info("Organisations could not be listed for this token: %s", exc)
+            orgs = []
+            degraded.append(ORGS_UNLISTABLE_REASON)
+
+        for org in orgs:
+            if len(repos) >= MAX_REPOS:
+                break
+            try:
                 await _collect_repos(
                     client,
                     f"{_API_BASE}/orgs/{org}/repos",
                     repos,
                     params={"per_page": _REPOS_PER_PAGE},
                 )
-        except httpx.TimeoutException as exc:
-            raise GitHubSourceError(f"Timeout listing repositories: {exc}") from exc
-        except httpx.ConnectError as exc:
-            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+            except (GitHubSourceError, httpx.TimeoutException, httpx.ConnectError) as exc:
+                logger.info("Repositories could not be listed for organisation %s: %s", org, exc)
+                degraded.append(
+                    f"Repositories in the organisation '{org}' could not be listed with this token"
+                )
 
-    return sorted(repos.values(), key=lambda r: r["full_name"].lower())
+    return RepoListing(
+        repos=sorted(repos.values(), key=lambda r: r["full_name"].lower()),
+        degraded=degraded,
+    )
 
 
 async def get_authenticated_login(

@@ -6,14 +6,14 @@
 
 | Status | Count |
 | -------- | ------- |
-| Open | 0 |
+| Open | 1 |
 | In Progress | 0 |
 | Fixed | 12 |
 | Verified | 0 |
 | Closed | 0 |
 | Won't Fix | 0 |
 | inbox | 0 |
-| **Total** | **12** |
+| **Total** | **13** |
 
 ## By Severity
 
@@ -36,6 +36,7 @@
 | [BG-01KX95AZ](BG-01KX95AZ-decrypt-token-raises-invalidtoken-on-a-wrong-rotated.md) | decrypt_token raises InvalidToken on a wrong/rotated key, 500-ing the whole project list | Medium | Medium | Fixed | -- | -- | 2026-07-11 |
 | [BG-01KX95QP](BG-01KX95QP-sdlc-path-allowlist-bypassable-via-a-two-step.md) | sdlc_path allowlist bypassable via a two-step source_type update | Medium | Medium | Fixed | -- | -- | 2026-07-11 |
 | [BG-01KXARHJ](BG-01KXARHJ-byte-unchanged-documents-keep-stale-doc-type-and.md) | Byte-unchanged documents keep stale doc_type and status after an upgrade (incomplete reparse) | -- | Medium | Fixed | -- | -- | 2026-07-12 |
+| [BG-01KXB3QF](BG-01KXB3QF-org-listing-failure-aborts-the-entire-repo-browse.md) | Org listing failure aborts the entire repo browse instead of degrading | -- | Medium | Open | -- | -- | 2026-07-12 |
 
 ## Notes
 

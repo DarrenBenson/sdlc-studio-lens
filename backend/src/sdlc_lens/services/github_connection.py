@@ -20,7 +20,13 @@ from sqlalchemy.exc import IntegrityError
 
 from sdlc_lens.db.models.github_connection import GitHubConnection
 from sdlc_lens.db.models.project import Project
-from sdlc_lens.services.github_source import AuthenticationError, get_authenticated_login
+from sdlc_lens.services.github_source import (
+    MAX_REPOS,
+    AuthenticationError,
+    GitHubSourceError,
+    get_authenticated_login,
+    list_repositories_detailed,
+)
 from sdlc_lens.utils.crypto import decrypt_token, encrypt_token
 
 if TYPE_CHECKING:
@@ -92,6 +98,74 @@ async def resolve_connection_token(session: AsyncSession, connection_id: int) ->
             "rotate this connection with a fresh token."
         )
     return token
+
+
+async def browse_all_connection_repos(
+    session: AsyncSession,
+) -> tuple[list[dict], list[dict]]:
+    """Aggregate the repos visible to EVERY stored connection (CR-01KXB377).
+
+    No credential is supplied by the caller: the operator registered them once,
+    so adding a project is a pick from a list rather than another paste of a PAT.
+
+    Each repo entry carries the ``connection_id`` / ``connection_label`` of the
+    connection that surfaced it - the credential a project created from it will
+    be bound to. Repos are de-duplicated by ``full_name``, first connection wins
+    (connections are walked oldest first), and the aggregate is capped at
+    ``MAX_REPOS`` exactly as a single-connection browse is.
+
+    A connection that cannot be used at all - an expired token, a rate-limited
+    or undecryptable credential - contributes no repos and is reported in the
+    second return value; it never fails the whole browse. So does a connection
+    that only partially degrades (see :func:`list_repositories_detailed`), which
+    still contributes the repos it COULD see.
+
+    Returns:
+        ``(repos, degraded)`` where each degraded entry is
+        ``{connection_id, label, reason}``.
+    """
+    connections = await list_connections(session)
+    repos: dict[str, dict] = {}
+    degraded: list[dict] = []
+
+    for connection in connections:
+        try:
+            # Both the decrypt and the GitHub calls raise GitHubSourceError
+            # subclasses; either way this connection degrades rather than
+            # failing the browse.
+            token = await resolve_connection_token(session, connection.id)
+            listing = await list_repositories_detailed(token)
+        except GitHubSourceError as exc:
+            logger.info(
+                "Connection %r contributed no repositories: %s", connection.label, exc.message
+            )
+            degraded.append(_degradation(connection, exc.message))
+            continue
+
+        degraded.extend(_degradation(connection, reason) for reason in listing.degraded)
+
+        for item in listing.repos:
+            if len(repos) >= MAX_REPOS:
+                break
+            if item["full_name"] in repos:
+                continue
+            repos[item["full_name"]] = {
+                **item,
+                "connection_id": connection.id,
+                "connection_label": connection.label,
+            }
+
+    ordered = sorted(repos.values(), key=lambda r: r["full_name"].lower())
+    return ordered, degraded
+
+
+def _degradation(connection: GitHubConnection, reason: str) -> dict:
+    """Build a degradation entry naming the connection and why it degraded."""
+    return {
+        "connection_id": connection.id,
+        "label": connection.label,
+        "reason": reason,
+    }
 
 
 async def create_connection(

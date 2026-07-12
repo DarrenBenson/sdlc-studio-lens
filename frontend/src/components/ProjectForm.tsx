@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { GitHubCredential } from "../api/client.ts";
-import { checkRepoHasSdlcStudio, fetchGitHubRepos } from "../api/client.ts";
+import {
+  checkRepoHasSdlcStudio,
+  fetchAllConnectionRepos,
+  fetchGitHubRepos,
+} from "../api/client.ts";
 import type {
+  DegradedConnection,
   GitHubConnection,
-  GitHubRepoItem,
   ProjectCreate,
   ProjectUpdate,
   SourceType,
@@ -16,6 +20,27 @@ import type {
 // narrowing the filter surfaces more rows on demand.
 const MAX_VISIBLE_REPOS = 30;
 
+const DEFAULT_BRANCH = "main";
+const DEFAULT_REPO_PATH = "sdlc-studio";
+
+/**
+ * A row in the repository list.
+ *
+ * Aggregated rows carry the connection that surfaced them. A one-off raw-token
+ * browse has no stored connection, so those rows carry `null` and fall back to
+ * the typed token for their lazy sdlc-studio check.
+ */
+interface RepoRow {
+  full_name: string;
+  owner: string;
+  name: string;
+  private: boolean;
+  default_branch: string;
+  description: string | null;
+  connection_id: number | null;
+  connection_label: string | null;
+}
+
 interface ProjectFormProps {
   mode: "add" | "edit";
   initialName?: string;
@@ -25,7 +50,7 @@ interface ProjectFormProps {
   initialRepoBranch?: string;
   initialRepoPath?: string;
   initialConnectionId?: number | null;
-  /** Stored GitHub credentials the operator can pick instead of pasting one. */
+  /** Stored GitHub credentials - used only to decide whether to name them. */
   connections?: GitHubConnection[];
   onSubmit: (data: ProjectCreate | ProjectUpdate) => Promise<void>;
   onCancel?: () => void;
@@ -35,14 +60,17 @@ interface ProjectFormProps {
 const inputClass =
   "w-full rounded-md border border-border-default bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-border-strong focus:outline-none";
 
+const secondaryButtonClass =
+  "rounded-md bg-bg-elevated px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-overlay disabled:opacity-50";
+
 export function ProjectForm({
   mode,
   initialName = "",
   initialPath = "",
   initialSourceType = "local",
   initialRepoUrl = "",
-  initialRepoBranch = "main",
-  initialRepoPath = "sdlc-studio",
+  initialRepoBranch = DEFAULT_BRANCH,
+  initialRepoPath = DEFAULT_REPO_PATH,
   initialConnectionId = null,
   connections = [],
   onSubmit,
@@ -61,16 +89,33 @@ export function ProjectForm({
   );
   const [loading, setLoading] = useState(false);
 
-  // Repo selector state (GitHub source only).
-  const [repos, setRepos] = useState<GitHubRepoItem[]>([]);
+  // The name is derived from the picked repo until the operator types one.
+  const [nameTouched, setNameTouched] = useState(initialName !== "");
+
+  // Branch and sdlc path are derived, so they live behind Advanced. An existing
+  // override is never hidden: editing a project that has one opens it.
+  const [showAdvanced, setShowAdvanced] = useState(
+    mode === "edit" &&
+      initialSourceType === "github" &&
+      (initialRepoBranch !== DEFAULT_BRANCH ||
+        initialRepoPath !== DEFAULT_REPO_PATH),
+  );
+  // The one-off raw token is a fallback for an unregistered credential.
+  const [showToken, setShowToken] = useState(false);
+
+  // Repository picker state (GitHub source only).
+  const [repos, setRepos] = useState<RepoRow[]>([]);
+  const [degraded, setDegraded] = useState<DegradedConnection[]>([]);
   const [repoFilter, setRepoFilter] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
+  const [browsed, setBrowsed] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [sdlcFlags, setSdlcFlags] = useState<Record<string, boolean>>({});
   // Repos whose flag check has already been kicked off, so each is fetched once.
   const checkedRepos = useRef<Set<string>>(new Set());
 
-  const matchesFilter = (repo: GitHubRepoItem): boolean => {
+  const matchesFilter = (repo: RepoRow): boolean => {
     const term = repoFilter.trim().toLowerCase();
     if (!term) return true;
     return (
@@ -79,24 +124,85 @@ export function ProjectForm({
     );
   };
 
-  const visibleRepos = repos
-    .filter(matchesFilter)
-    .slice(0, MAX_VISIBLE_REPOS);
+  const visibleRepos = repos.filter(matchesFilter).slice(0, MAX_VISIBLE_REPOS);
 
-  // A saved connection wins over a typed token: picking one means the operator
-  // never has to paste a credential again.
-  const credential: GitHubCredential | null =
-    connectionId !== null
-      ? { connectionId }
-      : accessToken
-        ? accessToken
-        : null;
+  // Which connection surfaced a repo only matters when there is more than one.
+  const showConnectionLabels = connections.length > 1;
 
-  // Lazily resolve the sdlc-studio flag for the currently-visible rows only.
+  /** The credential that can answer for this repo: its connection, or the token. */
+  const credentialFor = (repo: RepoRow): GitHubCredential | null => {
+    if (repo.connection_id !== null) return { connectionId: repo.connection_id };
+    return accessToken ? accessToken : null;
+  };
+
+  /** Clear whatever a previous browse left behind, whichever browse it was. */
+  const startBrowse = () => {
+    setBrowsing(true);
+    setBrowsed(true);
+    setBrowseError(null);
+    setDegraded([]);
+    checkedRepos.current = new Set();
+    setSdlcFlags({});
+  };
+
+  /** Browse every stored connection at once. No credential is chosen or sent. */
+  const browseAll = useCallback(async () => {
+    setBrowsing(true);
+    setBrowsed(true);
+    setBrowseError(null);
+    setDegraded([]);
+    checkedRepos.current = new Set();
+    setSdlcFlags({});
+    try {
+      const data = await fetchAllConnectionRepos();
+      setRepos(data.repos.map((repo) => ({ ...repo })));
+      setDegraded(data.degraded);
+    } catch (err) {
+      setBrowseError(
+        err instanceof Error ? err.message : "Failed to load repositories",
+      );
+      setRepos([]);
+    } finally {
+      setBrowsing(false);
+    }
+  }, []);
+
+  // Opening the GitHub flow IS the request to see your repositories.
   useEffect(() => {
-    if (repos.length === 0 || !credential) return;
+    if (mode !== "add" || sourceType !== "github" || browsed) return;
+    void browseAll();
+  }, [mode, sourceType, browsed, browseAll]);
+
+  /** Fallback browse with a one-off token for a credential nobody registered. */
+  const browseWithToken = async () => {
+    if (!accessToken) return;
+    startBrowse();
+    try {
+      const found = await fetchGitHubRepos(accessToken, undefined);
+      setRepos(
+        found.map((repo) => ({
+          ...repo,
+          connection_id: null,
+          connection_label: null,
+        })),
+      );
+    } catch (err) {
+      setBrowseError(
+        err instanceof Error ? err.message : "Failed to load repositories",
+      );
+      setRepos([]);
+    } finally {
+      setBrowsing(false);
+    }
+  };
+
+  // Lazily resolve the sdlc-studio flag for the currently-visible rows only,
+  // each with the credential that surfaced that row.
+  useEffect(() => {
     for (const repo of visibleRepos) {
       if (checkedRepos.current.has(repo.full_name)) continue;
+      const credential = credentialFor(repo);
+      if (!credential) continue;
       checkedRepos.current.add(repo.full_name);
       void checkRepoHasSdlcStudio(
         repo.owner,
@@ -112,52 +218,19 @@ export function ProjectForm({
           checkedRepos.current.delete(repo.full_name);
         });
     }
-    // visibleRepos is derived from repos + repoFilter, and credential from
-    // accessToken + connectionId; those are the real deps.
+    // visibleRepos is derived from repos + repoFilter, and the fallback
+    // credential from accessToken; those are the real deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repos, repoFilter, accessToken, connectionId]);
+  }, [repos, repoFilter, accessToken]);
 
-  /** Drop any browsed repos - they belong to whichever credential fetched them. */
-  const resetBrowse = () => {
-    checkedRepos.current = new Set();
-    setSdlcFlags({});
-    setRepos([]);
-    setRepoFilter("");
-    setBrowseError(null);
-  };
-
-  const handleConnectionChange = (value: string) => {
-    resetBrowse();
-    if (value === "") {
-      setConnectionId(null);
-      return;
-    }
-    setConnectionId(Number(value));
-    // A stored connection replaces any one-off token that was typed.
-    setAccessToken("");
-  };
-
-  const handleBrowse = async () => {
-    if (!credential) return;
-    setBrowsing(true);
-    setBrowseError(null);
-    checkedRepos.current = new Set();
-    setSdlcFlags({});
-    try {
-      const found = await fetchGitHubRepos(credential, undefined);
-      setRepos(found);
-    } catch (err) {
-      setBrowseError(err instanceof Error ? err.message : "Failed to load repositories");
-      setRepos([]);
-    } finally {
-      setBrowsing(false);
-    }
-  };
-
-  const handleSelectRepo = (repo: GitHubRepoItem) => {
+  /** Picking a repo derives everything the project needs. */
+  const handleSelectRepo = (repo: RepoRow) => {
+    setSelected(repo.full_name);
     setRepoUrl(`https://github.com/${repo.full_name}`);
     setRepoBranch(repo.default_branch);
-    // Leave repo_path at its default/current value.
+    setConnectionId(repo.connection_id);
+    // The name is almost always the repo's own; it stays editable.
+    if (!nameTouched) setName(repo.name);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,8 +246,8 @@ export function ProjectForm({
           data.sdlc_path = sdlcPath;
         } else {
           data.repo_url = repoUrl;
-          if (repoBranch !== "main") data.repo_branch = repoBranch;
-          if (repoPath !== "sdlc-studio") data.repo_path = repoPath;
+          data.repo_branch = repoBranch;
+          data.repo_path = repoPath;
           if (connectionId !== null) {
             data.connection_id = connectionId;
           } else if (accessToken) {
@@ -183,13 +256,16 @@ export function ProjectForm({
         }
         await onSubmit(data);
         setName("");
+        setNameTouched(false);
         setSdlcPath("");
         setRepoUrl("");
-        setRepoBranch("main");
-        setRepoPath("sdlc-studio");
+        setRepoBranch(DEFAULT_BRANCH);
+        setRepoPath(DEFAULT_REPO_PATH);
         setAccessToken("");
         setConnectionId(null);
-        resetBrowse();
+        setSelected(null);
+        setShowAdvanced(false);
+        setShowToken(false);
       } else {
         const update: ProjectUpdate = {};
         if (name !== initialName) update.name = name;
@@ -199,8 +275,7 @@ export function ProjectForm({
         }
         if (sourceType === "github") {
           if (repoUrl !== initialRepoUrl) update.repo_url = repoUrl;
-          if (repoBranch !== initialRepoBranch)
-            update.repo_branch = repoBranch;
+          if (repoBranch !== initialRepoBranch) update.repo_branch = repoBranch;
           if (repoPath !== initialRepoPath) update.repo_path = repoPath;
           if (connectionId !== initialConnectionId) {
             update.connection_id = connectionId;
@@ -232,7 +307,10 @@ export function ProjectForm({
           type="text"
           placeholder="Project Name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameTouched(e.target.value !== "");
+          }}
           required
           className={inputClass}
         />
@@ -261,7 +339,6 @@ export function ProjectForm({
         </div>
       </div>
 
-      {/* Conditional fields */}
       {sourceType === "local" ? (
         <div>
           <input
@@ -275,84 +352,21 @@ export function ProjectForm({
           />
         </div>
       ) : (
-        <div className="space-y-2">
-          <input
-            type="text"
-            placeholder="Repository URL (e.g. https://github.com/owner/repo)"
-            value={repoUrl}
-            onChange={(e) => setRepoUrl(e.target.value)}
-            required
-            className={inputClass}
-            data-testid="repo-url-input"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="text"
-              placeholder="Branch"
-              value={repoBranch}
-              onChange={(e) => setRepoBranch(e.target.value)}
-              className={inputClass}
-              data-testid="repo-branch-input"
-            />
-            <input
-              type="text"
-              placeholder="Subdirectory path"
-              value={repoPath}
-              onChange={(e) => setRepoPath(e.target.value)}
-              className={inputClass}
-              data-testid="repo-path-input"
-            />
-          </div>
-          {/* Saved credential picker - choosing one means no token to paste. */}
-          {connections.length > 0 && (
-            <div>
-              <label
-                htmlFor="connection-select"
-                className="mb-1.5 block text-xs text-text-tertiary"
-              >
-                GitHub connection
-              </label>
-              <select
-                id="connection-select"
-                value={connectionId === null ? "" : String(connectionId)}
-                onChange={(e) => handleConnectionChange(e.target.value)}
-                className={inputClass}
-                data-testid="connection-select"
-              >
-                <option value="">Enter a token manually</option>
-                {connections.map((conn) => (
-                  <option key={conn.id} value={String(conn.id)}>
-                    {conn.label} ({conn.login})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* One-off token entry, the fallback when no connection is chosen. */}
-          {connectionId === null && (
-            <input
-              type="password"
-              placeholder="Access token (optional, for private repos)"
-              value={accessToken}
-              onChange={(e) => setAccessToken(e.target.value)}
-              className={inputClass}
-              data-testid="access-token-input"
-            />
-          )}
-
-          {/* Repo selector - browse the repos a credential can see. Manual URL
-              entry above remains available as a fallback. */}
+        <div className="space-y-3">
+          {/* Repository: pick one, or paste a URL. Nothing asks for a token. */}
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => void handleBrowse()}
-              disabled={!credential || browsing}
-              className="rounded-md bg-bg-elevated px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-overlay disabled:opacity-50"
-              data-testid="browse-repos-button"
-            >
-              {browsing ? "Loading repositories..." : "Browse repositories"}
-            </button>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs text-text-tertiary">Repository</label>
+              <button
+                type="button"
+                onClick={() => void browseAll()}
+                disabled={browsing}
+                className={secondaryButtonClass}
+                data-testid="browse-repos-button"
+              >
+                {browsing ? "Loading..." : "Browse my repositories"}
+              </button>
+            </div>
 
             {browseError && (
               <p
@@ -363,11 +377,23 @@ export function ProjectForm({
               </p>
             )}
 
+            {degraded.length > 0 && (
+              <p
+                className="rounded-md bg-status-blocked/15 px-2.5 py-1.5 text-xs text-text-secondary"
+                data-testid="degraded-notice"
+              >
+                Some connections could not be listed in full:{" "}
+                {degraded
+                  .map((d) => `${d.label} (${d.reason})`)
+                  .join("; ")}
+              </p>
+            )}
+
             {repos.length > 0 && (
               <div className="space-y-2" data-testid="repo-selector">
                 <input
                   type="text"
-                  placeholder="Filter repositories"
+                  placeholder="Search repositories"
                   value={repoFilter}
                   onChange={(e) => setRepoFilter(e.target.value)}
                   className={inputClass}
@@ -379,7 +405,10 @@ export function ProjectForm({
                       <button
                         type="button"
                         onClick={() => handleSelectRepo(repo)}
-                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-text-primary hover:bg-bg-overlay"
+                        aria-pressed={selected === repo.full_name}
+                        className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-text-primary hover:bg-bg-overlay ${
+                          selected === repo.full_name ? "bg-accent-muted" : ""
+                        }`}
                         data-testid={`repo-row-${repo.full_name}`}
                       >
                         <span className="flex min-w-0 items-center gap-2">
@@ -390,18 +419,118 @@ export function ProjectForm({
                             </span>
                           )}
                         </span>
-                        {sdlcFlags[repo.full_name] && (
-                          <span
-                            className="shrink-0 rounded bg-status-done/15 px-1.5 py-0.5 text-xs text-status-done"
-                            data-testid={`sdlc-badge-${repo.full_name}`}
-                          >
-                            sdlc-studio
-                          </span>
-                        )}
+                        <span className="flex shrink-0 items-center gap-2">
+                          {showConnectionLabels && repo.connection_label && (
+                            <span
+                              className="text-xs text-text-tertiary"
+                              data-testid={`repo-connection-${repo.full_name}`}
+                            >
+                              {repo.connection_label}
+                            </span>
+                          )}
+                          {sdlcFlags[repo.full_name] && (
+                            <span
+                              className="rounded bg-status-done/15 px-1.5 py-0.5 text-xs text-status-done"
+                              data-testid={`sdlc-badge-${repo.full_name}`}
+                            >
+                              sdlc-studio
+                            </span>
+                          )}
+                        </span>
                       </button>
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {browsed && !browsing && !browseError && repos.length === 0 && (
+              <p
+                className="text-xs text-text-tertiary"
+                data-testid="no-repos-hint"
+              >
+                No repositories to show. Register a GitHub connection above, or
+                paste a repository URL below.
+              </p>
+            )}
+
+            <input
+              type="text"
+              placeholder="Repository URL (e.g. https://github.com/owner/repo)"
+              value={repoUrl}
+              onChange={(e) => {
+                setRepoUrl(e.target.value);
+                setSelected(null);
+              }}
+              required
+              className={inputClass}
+              data-testid="repo-url-input"
+            />
+          </div>
+
+          {/* Advanced: derived values, editable for the rare override. */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((open) => !open)}
+              aria-expanded={showAdvanced}
+              className="text-xs text-text-tertiary hover:text-text-secondary"
+              data-testid="advanced-toggle"
+            >
+              {showAdvanced ? "Advanced -" : "Advanced +"}
+            </button>
+            {showAdvanced && (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Branch"
+                  value={repoBranch}
+                  onChange={(e) => setRepoBranch(e.target.value)}
+                  className={inputClass}
+                  data-testid="repo-branch-input"
+                />
+                <input
+                  type="text"
+                  placeholder="Subdirectory path"
+                  value={repoPath}
+                  onChange={(e) => setRepoPath(e.target.value)}
+                  className={inputClass}
+                  data-testid="repo-path-input"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Fallback: browse with a credential that was never registered. */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowToken((open) => !open)}
+              aria-expanded={showToken}
+              className="text-xs text-text-tertiary hover:text-text-secondary"
+              data-testid="use-token-toggle"
+            >
+              {showToken ? "Use a one-off token -" : "Use a one-off token +"}
+            </button>
+            {showToken && (
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  placeholder="Access token (for a credential you have not saved)"
+                  value={accessToken}
+                  onChange={(e) => setAccessToken(e.target.value)}
+                  className={inputClass}
+                  data-testid="access-token-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => void browseWithToken()}
+                  disabled={!accessToken || browsing}
+                  className={`shrink-0 ${secondaryButtonClass}`}
+                  data-testid="token-browse-button"
+                >
+                  Browse
+                </button>
               </div>
             )}
           </div>
