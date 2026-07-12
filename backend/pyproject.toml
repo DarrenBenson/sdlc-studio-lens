@@ -1,6 +1,6 @@
 [project]
 name = "sdlc-lens"
-version = "0.2.1"
+version = "0.3.0"
 description = "SDLC Studio Lens - read-only dashboard for sdlc-studio documents"
 requires-python = ">=3.12"
 dependencies = [
