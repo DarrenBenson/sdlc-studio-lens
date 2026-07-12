@@ -108,11 +108,17 @@ test.describe("Settings - Project Management", () => {
     await expect(page.getByTestId("sdlc-path-input")).toBeVisible();
     await expect(page.getByTestId("repo-url-input")).not.toBeVisible();
 
-    // Switch to GitHub
+    // Switch to GitHub. Branch and sdlc path are derived from the chosen repo
+    // (CR-01KXB377), so they live behind Advanced rather than the default flow.
     await page.getByTestId("source-type-toggle").getByText("GitHub").click();
     await expect(page.getByTestId("repo-url-input")).toBeVisible();
-    await expect(page.getByTestId("repo-branch-input")).toBeVisible();
+    await expect(page.getByTestId("repo-branch-input")).not.toBeVisible();
     await expect(page.getByTestId("sdlc-path-input")).not.toBeVisible();
+
+    // The override is still reachable under Advanced.
+    await page.getByTestId("advanced-toggle").click();
+    await expect(page.getByTestId("repo-branch-input")).toBeVisible();
+    await expect(page.getByTestId("repo-path-input")).toBeVisible();
 
     // Switch back to Local
     await page.getByTestId("source-type-toggle").getByText("Local").click();

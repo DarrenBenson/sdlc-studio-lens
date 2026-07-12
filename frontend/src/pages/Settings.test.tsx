@@ -22,6 +22,7 @@ vi.mock("../api/client.ts", () => ({
   deleteConnection: vi.fn(),
   validateConnection: vi.fn(),
   rotateConnection: vi.fn(),
+  fetchAllConnectionRepos: vi.fn(),
   fetchGitHubRepos: vi.fn(),
   checkRepoHasSdlcStudio: vi.fn(),
 }));
@@ -37,6 +38,8 @@ const {
   deleteConnection,
   validateConnection,
   rotateConnection,
+  fetchAllConnectionRepos,
+  checkRepoHasSdlcStudio,
 } = await import("../api/client.ts");
 
 const mockFetchProjects = vi.mocked(fetchProjects);
@@ -49,6 +52,8 @@ const mockCreateConnection = vi.mocked(createConnection);
 const mockDeleteConnection = vi.mocked(deleteConnection);
 const mockValidateConnection = vi.mocked(validateConnection);
 const mockRotateConnection = vi.mocked(rotateConnection);
+const mockFetchAllRepos = vi.mocked(fetchAllConnectionRepos);
+const mockCheckSdlc = vi.mocked(checkRepoHasSdlcStudio);
 
 const savedConnections: GitHubConnection[] = [
   {
@@ -704,18 +709,37 @@ describe("CR-01KXAZX9: GitHub connections section", () => {
     expect(screen.getByTestId("connection-row-1")).toHaveTextContent("****cdef");
   });
 
-  it("offers the saved connections to the project form", async () => {
+  // CR-01KXB377: the card no longer asks which connection to browse with - it
+  // browses every stored connection at once and lists the repos it finds.
+  it("browses every saved connection from the project form, asking for no credential", async () => {
     mockFetchProjects.mockResolvedValue([]);
     mockFetchConnections.mockResolvedValue(savedConnections);
+    mockCheckSdlc.mockResolvedValue(false);
+    mockFetchAllRepos.mockResolvedValue({
+      repos: [
+        {
+          full_name: "alice/app",
+          owner: "alice",
+          name: "app",
+          private: false,
+          default_branch: "trunk",
+          description: null,
+          connection_id: 1,
+          connection_label: "personal",
+        },
+      ],
+      degraded: [],
+    });
     const user = userEvent.setup();
     renderSettings();
 
     await screen.findByTestId("connection-row-1");
     await user.click(screen.getByText("GitHub"));
 
-    expect(
-      await screen.findByRole("option", { name: /personal \(alice\)/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("alice/app")).toBeInTheDocument();
+    expect(mockFetchAllRepos).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("connection-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("access-token-input")).not.toBeInTheDocument();
   });
 });
 

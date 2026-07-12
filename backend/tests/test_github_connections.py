@@ -30,6 +30,7 @@ from sdlc_lens.config import settings
 from sdlc_lens.db.models.github_connection import GitHubConnection
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.github_source import (
+    MAX_REPOS,
     AuthenticationError,
     get_authenticated_login,
 )
@@ -90,12 +91,22 @@ def _client_factory(get_side_effect, captured: dict):
     return factory
 
 
-async def _seed_connection(session: AsyncSession, label: str = "Personal") -> GitHubConnection:
-    """Insert a stored connection directly (token encrypted at rest)."""
+async def _seed_connection(
+    session: AsyncSession,
+    label: str = "Personal",
+    token: str = RAW_TOKEN,
+    login: str = "alice",
+    stored: str | None = None,
+) -> GitHubConnection:
+    """Insert a stored connection directly (token encrypted at rest).
+
+    ``stored`` writes a raw column value verbatim, for the undecryptable-credential
+    case; otherwise ``token`` is encrypted with the configured key.
+    """
     conn = GitHubConnection(
         label=label,
-        login="alice",
-        access_token=encrypt_token(RAW_TOKEN),
+        login=login,
+        access_token=stored if stored is not None else encrypt_token(token),
     )
     session.add(conn)
     await session.commit()
@@ -509,6 +520,331 @@ class TestBrowseByConnection:
         )
         assert resp.status_code == 400
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+# ---------------------------------------------------------------------------
+# Aggregate browse across every stored connection (CR-01KXB377).
+#
+# GET /api/v1/connections/repos carries NO credential: the server walks every
+# stored connection, merges what each can see (de-duplicated by full_name, first
+# connection to surface a repo wins) and reports the ones that could not be used
+# in `degraded` instead of failing the whole call.
+# ---------------------------------------------------------------------------
+
+SECOND_TOKEN = "ghp_workconnectionsecret1234"
+
+
+def _repo(full_name: str, *, private: bool = False, branch: str = "main", description=None):
+    owner, name = full_name.split("/")
+    return {
+        "full_name": full_name,
+        "name": name,
+        "owner": {"login": owner},
+        "private": private,
+        "default_branch": branch,
+        "description": description,
+    }
+
+
+def _routing_client_factory(responder):
+    """An httpx.AsyncClient replacement that routes by the request's Bearer token.
+
+    Each connection's browse builds its own client with its own decrypted token,
+    so ``responder(token, url, params)`` can answer differently per connection.
+    """
+
+    def factory(*args, **kwargs):
+        headers = kwargs.get("headers") or {}
+        token = (headers.get("Authorization") or "").removeprefix("Bearer ")
+        client = AsyncMock()
+        client.get = AsyncMock(side_effect=lambda url, params=None: responder(token, url, params))
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=False)
+        return client
+
+    return factory
+
+
+class TestAggregateConnectionBrowse:
+    async def test_no_connections_returns_empty_lists(self, client: AsyncClient) -> None:
+        resp = await client.get("/api/v1/connections/repos")
+        assert resp.status_code == 200
+        assert resp.json() == {"repos": [], "degraded": []}
+
+    async def test_merges_and_dedupes_across_connections(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        personal = await _seed_connection(session, label="personal")
+        work = await _seed_connection(session, label="work", token=SECOND_TOKEN, login="acme-bot")
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                if token == RAW_TOKEN:
+                    # "Shared/Common" is deliberately visible to BOTH connections.
+                    return _json_response(200, [_repo("alice/app"), _repo("Shared/Common")])
+                if token == SECOND_TOKEN:
+                    return _json_response(
+                        200,
+                        [_repo("Shared/Common"), _repo("acme/service", private=True)],
+                    )
+            raise AssertionError(f"unexpected URL {url} for token {token[:4]}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["degraded"] == []
+        # Sorted case-insensitively by full_name, de-duplicated.
+        assert [r["full_name"] for r in body["repos"]] == [
+            "acme/service",
+            "alice/app",
+            "Shared/Common",
+        ]
+        by_name = {r["full_name"]: r for r in body["repos"]}
+        assert by_name["alice/app"]["connection_id"] == personal.id
+        assert by_name["alice/app"]["connection_label"] == "personal"
+        assert by_name["acme/service"]["connection_id"] == work.id
+        assert by_name["acme/service"]["connection_label"] == "work"
+        assert by_name["acme/service"]["private"] is True
+        # First connection to surface a repo wins the binding.
+        assert by_name["Shared/Common"]["connection_id"] == personal.id
+        assert by_name["Shared/Common"]["connection_label"] == "personal"
+
+    async def test_one_connection_401_degrades_and_others_still_returned(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        expired = await _seed_connection(session, label="expired")
+        good = await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        def responder(token, url, params=None):
+            if token == RAW_TOKEN:
+                return _json_response(401, {"message": "Bad credentials"})
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                return _json_response(200, [_repo("acme/service")])
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert [r["full_name"] for r in body["repos"]] == ["acme/service"]
+        assert body["repos"][0]["connection_id"] == good.id
+        assert len(body["degraded"]) == 1
+        assert body["degraded"][0]["connection_id"] == expired.id
+        assert body["degraded"][0]["label"] == "expired"
+        assert body["degraded"][0]["reason"]
+
+    async def test_every_connection_failing_returns_200_all_degraded(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        await _seed_connection(session, label="expired")
+        await _seed_connection(session, label="throttled", token=SECOND_TOKEN)
+
+        def responder(token, url, params=None):
+            if token == RAW_TOKEN:
+                return _json_response(401, {"message": "Bad credentials"})
+            return _json_response(403, [], headers={"x-ratelimit-remaining": "0"})
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["repos"] == []
+        assert {d["label"] for d in body["degraded"]} == {"expired", "throttled"}
+
+    async def test_partial_org_failure_keeps_repos_and_reports_reason(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        conn = await _seed_connection(session, label="fine-grained")
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/repos"):
+                return _json_response(200, [_repo("alice/app")])
+            if url.endswith("/user/orgs"):
+                # A fine-grained PAT commonly cannot enumerate organisations.
+                return _json_response(403, {"message": "Forbidden"})
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert [r["full_name"] for r in body["repos"]] == ["alice/app"]
+        assert body["degraded"] == [
+            {
+                "connection_id": conn.id,
+                "label": "fine-grained",
+                "reason": "Organisations could not be listed with this token",
+            }
+        ]
+
+    async def test_undecryptable_credential_degrades_without_500(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        # Ciphertext that the configured key cannot open (key rotated or lost).
+        broken = await _seed_connection(session, label="lost-key", stored="enc:v1:not-real")
+        working = await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        def responder(token, url, params=None):
+            assert token == SECOND_TOKEN
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            return _json_response(200, [_repo("acme/service")])
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert [r["full_name"] for r in body["repos"]] == ["acme/service"]
+        assert body["repos"][0]["connection_id"] == working.id
+        assert len(body["degraded"]) == 1
+        assert body["degraded"][0]["connection_id"] == broken.id
+        assert "decrypt" in body["degraded"][0]["reason"].lower()
+
+    async def test_cap_reached_first_degrades_the_connection_never_reached(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        """The aggregate cap must never erase a whole connection in silence.
+
+        Connection 1 alone fills MAX_REPOS, so connection 2 contributes nothing.
+        The old code broke out of the loop with no degradation entry, so the UI
+        showed a complete-looking list that simply did not contain the operator's
+        repo (BG: silent truncation).
+        """
+        await _seed_connection(session, label="personal")
+        starved = await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        first = [_repo(f"alice/app{i:03d}") for i in range(MAX_REPOS)]
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                if (params or {}).get("page", 1) > 1:
+                    return _json_response(200, [])
+                if token == RAW_TOKEN:
+                    return _json_response(200, first)
+                return _json_response(200, [_repo("acme/service")])
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["repos"]) == MAX_REPOS
+        assert "acme/service" not in {r["full_name"] for r in body["repos"]}
+        assert len(body["degraded"]) == 1
+        assert body["degraded"][0]["connection_id"] == starved.id
+        assert body["degraded"][0]["label"] == "work"
+        assert str(MAX_REPOS) in body["degraded"][0]["reason"]
+
+    async def test_cap_reached_mid_connection_degrades_that_connection(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        """A connection whose repos are only partly admitted is reported too."""
+        await _seed_connection(session, label="personal")
+        partial = await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        first = [_repo(f"alice/app{i:03d}") for i in range(MAX_REPOS - 1)]
+        second = [_repo(f"acme/svc{i:03d}") for i in range(5)]
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                if (params or {}).get("page", 1) > 1:
+                    return _json_response(200, [])
+                return _json_response(200, first if token == RAW_TOKEN else second)
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["repos"]) == MAX_REPOS
+        # Exactly one of the second connection's repos fitted; the rest are gone,
+        # so the connection is named as degraded rather than silently truncated.
+        assert len(body["degraded"]) == 1
+        assert body["degraded"][0]["connection_id"] == partial.id
+        assert str(MAX_REPOS) in body["degraded"][0]["reason"]
+
+    async def test_below_the_cap_reports_no_degradation(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        """No truncation, no noise: the cap only speaks when it actually bites."""
+        await _seed_connection(session, label="personal")
+        await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                if token == RAW_TOKEN:
+                    return _json_response(200, [_repo("alice/app")])
+                return _json_response(200, [_repo("acme/service")])
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert [r["full_name"] for r in body["repos"]] == ["acme/service", "alice/app"]
+        assert body["degraded"] == []
+
+    async def test_response_never_carries_a_raw_token(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        await _seed_connection(session, label="personal")
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            return _json_response(200, [_repo("alice/app")])
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        assert RAW_TOKEN not in resp.text
 
 
 # ---------------------------------------------------------------------------

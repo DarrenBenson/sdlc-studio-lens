@@ -72,6 +72,31 @@ export interface GitHubRepoItem {
   description: string | null;
 }
 
+/**
+ * A repository from the aggregate browse across every stored connection.
+ *
+ * It carries the connection that surfaced it, so picking a repo also picks the
+ * credential the project binds to - the operator is never asked which token to
+ * browse with.
+ */
+export interface AggregatedRepo extends GitHubRepoItem {
+  connection_id: number;
+  connection_label: string;
+}
+
+/** A stored connection that could not be listed during an aggregate browse. */
+export interface DegradedConnection {
+  connection_id: number;
+  label: string;
+  reason: string;
+}
+
+/** Response from GET /api/v1/connections/repos. */
+export interface AggregatedRepoResponse {
+  repos: AggregatedRepo[];
+  degraded: DegradedConnection[];
+}
+
 /** Response from POST /api/v1/projects/{slug}/sync. */
 export interface SyncTriggerResponse {
   slug: string;

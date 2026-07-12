@@ -19,6 +19,7 @@ from sdlc_lens.services.github_source import (
     AuthenticationError,
     RateLimitError,
     list_repositories,
+    list_repositories_detailed,
     repo_has_sdlc_studio,
 )
 
@@ -67,6 +68,14 @@ _REPO_C = {
     "private": True,
     "default_branch": "main",
     "description": "svc",
+}
+_REPO_D = {
+    "full_name": "beta/tool",
+    "name": "tool",
+    "owner": {"login": "beta"},
+    "private": False,
+    "default_branch": "main",
+    "description": "tool",
 }
 
 
@@ -147,6 +156,111 @@ class TestListRepositories:
             pytest.raises(RateLimitError),
         ):
             await list_repositories("ghp_token")
+
+
+# ---------------------------------------------------------------------------
+# Partial-failure degradation (BG-01KXB3QF)
+#
+# A token that cannot enumerate organisations - a fine-grained PAT scoped to one
+# owner, or a classic PAT without read:org - used to abort the whole browse and
+# throw away the user's own repos, which had already been fetched successfully.
+# Enumerating orgs, and listing any individual org's repos, are now best-effort:
+# a failure degrades to a partial result carrying a human-readable reason. Only
+# the PRIMARY /user/repos call still fails the browse.
+# ---------------------------------------------------------------------------
+
+
+class TestListRepositoriesDegradation:
+    @pytest.mark.asyncio
+    async def test_org_enumeration_403_still_returns_user_repos(self) -> None:
+        def fake_get(url, params=None):
+            if url.endswith("/user/repos"):
+                return _json_response(200, [_REPO_A, _REPO_B])
+            if url.endswith("/user/orgs"):
+                # Access denied, NOT a rate limit (remaining is non-zero).
+                return _json_response(
+                    403, {"message": "Forbidden"}, headers={"x-ratelimit-remaining": "42"}
+                )
+            raise AssertionError(f"unexpected URL: {url}")
+
+        client = _mock_client(fake_get)
+        with patch("sdlc_lens.services.github_source.httpx.AsyncClient", return_value=client):
+            listing = await list_repositories_detailed("ghp_token")
+
+        assert [r["full_name"] for r in listing.repos] == ["alice/app", "alice/lib"]
+        assert listing.degraded == ["Organisations could not be listed with this token"]
+
+    @pytest.mark.asyncio
+    async def test_org_enumeration_403_does_not_raise_from_list_repositories(self) -> None:
+        # The plain list_repositories facade (used by the per-connection browse
+        # endpoint) must degrade too, not raise.
+        def fake_get(url, params=None):
+            if url.endswith("/user/repos"):
+                return _json_response(200, [_REPO_A])
+            if url.endswith("/user/orgs"):
+                return _json_response(403, {"message": "Forbidden"})
+            raise AssertionError(f"unexpected URL: {url}")
+
+        client = _mock_client(fake_get)
+        with patch("sdlc_lens.services.github_source.httpx.AsyncClient", return_value=client):
+            repos = await list_repositories("ghp_token")
+
+        assert [r["full_name"] for r in repos] == ["alice/app"]
+
+    @pytest.mark.asyncio
+    async def test_single_org_failure_keeps_other_orgs_and_user_repos(self) -> None:
+        def fake_get(url, params=None):
+            if url.endswith("/user/repos"):
+                return _json_response(200, [_REPO_A])
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [{"login": "acme"}, {"login": "beta"}])
+            if url.endswith("/orgs/acme/repos"):
+                return _json_response(403, {"message": "Forbidden"})
+            if url.endswith("/orgs/beta/repos"):
+                return _json_response(200, [_REPO_D])
+            raise AssertionError(f"unexpected URL: {url}")
+
+        client = _mock_client(fake_get)
+        with patch("sdlc_lens.services.github_source.httpx.AsyncClient", return_value=client):
+            listing = await list_repositories_detailed("ghp_token")
+
+        assert [r["full_name"] for r in listing.repos] == ["alice/app", "beta/tool"]
+        assert len(listing.degraded) == 1
+        assert "acme" in listing.degraded[0]
+
+    @pytest.mark.asyncio
+    async def test_primary_user_repos_failure_still_raises(self) -> None:
+        # We never silently return an empty list when the credential itself is
+        # refused: the browse fails loudly.
+        def fake_get(url, params=None):
+            if url.endswith("/user/repos"):
+                return _json_response(401, {"message": "Bad credentials"})
+            raise AssertionError(f"unexpected URL: {url}")
+
+        client = _mock_client(fake_get)
+        with (
+            patch("sdlc_lens.services.github_source.httpx.AsyncClient", return_value=client),
+            pytest.raises(AuthenticationError),
+        ):
+            await list_repositories_detailed("ghp_bad")
+
+    @pytest.mark.asyncio
+    async def test_no_degradation_when_everything_succeeds(self) -> None:
+        def fake_get(url, params=None):
+            if url.endswith("/user/repos"):
+                return _json_response(200, [_REPO_A])
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [{"login": "acme"}])
+            if url.endswith("/orgs/acme/repos"):
+                return _json_response(200, [_REPO_C])
+            raise AssertionError(f"unexpected URL: {url}")
+
+        client = _mock_client(fake_get)
+        with patch("sdlc_lens.services.github_source.httpx.AsyncClient", return_value=client):
+            listing = await list_repositories_detailed("ghp_token")
+
+        assert [r["full_name"] for r in listing.repos] == ["acme/service", "alice/app"]
+        assert listing.degraded == []
 
 
 # ---------------------------------------------------------------------------

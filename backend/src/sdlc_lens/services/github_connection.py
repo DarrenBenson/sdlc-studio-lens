@@ -20,7 +20,13 @@ from sqlalchemy.exc import IntegrityError
 
 from sdlc_lens.db.models.github_connection import GitHubConnection
 from sdlc_lens.db.models.project import Project
-from sdlc_lens.services.github_source import AuthenticationError, get_authenticated_login
+from sdlc_lens.services.github_source import (
+    MAX_REPOS,
+    AuthenticationError,
+    GitHubSourceError,
+    get_authenticated_login,
+    list_repositories_detailed,
+)
 from sdlc_lens.utils.crypto import decrypt_token, encrypt_token
 
 if TYPE_CHECKING:
@@ -92,6 +98,108 @@ async def resolve_connection_token(session: AsyncSession, connection_id: int) ->
             "rotate this connection with a fresh token."
         )
     return token
+
+
+async def browse_all_connection_repos(
+    session: AsyncSession,
+) -> tuple[list[dict], list[dict]]:
+    """Aggregate the repos visible to EVERY stored connection (CR-01KXB377).
+
+    No credential is supplied by the caller: the operator registered them once,
+    so adding a project is a pick from a list rather than another paste of a PAT.
+
+    Each repo entry carries the ``connection_id`` / ``connection_label`` of the
+    connection that surfaced it - the credential a project created from it will
+    be bound to. Repos are de-duplicated by ``full_name``, first connection wins
+    (connections are walked oldest first), and the aggregate is capped at
+    ``MAX_REPOS`` exactly as a single-connection browse is.
+
+    The cap is AGGREGATE, not per-connection: it bounds the one thing that has
+    to stay bounded - the size of this response and the number of rows the
+    picker can then fan out per-repo Contents checks over. A per-connection cap
+    would multiply by the number of registered connections instead.
+
+    But a cap that bites must SAY so. A connection whose repos did not fit (the
+    limit filled up before it was reached, or partway through it) contributes
+    fewer repos than it can see, so it is reported in ``degraded`` exactly like a
+    connection that failed - never truncated in silence, which would show the
+    operator a complete-looking list that quietly omits their repo (BG-01KXBBTB).
+
+    A connection that cannot be used at all - an expired token, a rate-limited
+    or undecryptable credential - contributes no repos and is reported in the
+    second return value; it never fails the whole browse. So does a connection
+    that only partially degrades (see :func:`list_repositories_detailed`), which
+    still contributes the repos it COULD see.
+
+    Returns:
+        ``(repos, degraded)`` where each degraded entry is
+        ``{connection_id, label, reason}``.
+    """
+    connections = await list_connections(session)
+    repos: dict[str, dict] = {}
+    degraded: list[dict] = []
+
+    for connection in connections:
+        if len(repos) >= MAX_REPOS:
+            # The cap filled before this connection was even reached: browsing it
+            # would cost a rate-limited call for repos we could not admit anyway.
+            degraded.append(_degradation(connection, _CAP_UNREACHED_REASON))
+            continue
+
+        try:
+            # Both the decrypt and the GitHub calls raise GitHubSourceError
+            # subclasses; either way this connection degrades rather than
+            # failing the browse.
+            token = await resolve_connection_token(session, connection.id)
+            listing = await list_repositories_detailed(token)
+        except GitHubSourceError as exc:
+            logger.info(
+                "Connection %r contributed no repositories: %s", connection.label, exc.message
+            )
+            degraded.append(_degradation(connection, exc.message))
+            continue
+
+        degraded.extend(_degradation(connection, reason) for reason in listing.degraded)
+
+        for item in listing.repos:
+            if len(repos) >= MAX_REPOS:
+                logger.info(
+                    "The %d-repository limit truncated connection %r",
+                    MAX_REPOS,
+                    connection.label,
+                )
+                degraded.append(_degradation(connection, _CAP_TRUNCATED_REASON))
+                break
+            if item["full_name"] in repos:
+                continue
+            repos[item["full_name"]] = {
+                **item,
+                "connection_id": connection.id,
+                "connection_label": connection.label,
+            }
+
+    ordered = sorted(repos.values(), key=lambda r: r["full_name"].lower())
+    return ordered, degraded
+
+
+_CAP_TRUNCATED_REASON = (
+    f"Not all repositories could be listed: the {MAX_REPOS}-repository limit was "
+    "reached while listing this connection"
+)
+
+_CAP_UNREACHED_REASON = (
+    f"Not all repositories could be listed: the {MAX_REPOS}-repository limit was "
+    "reached before this connection was reached"
+)
+
+
+def _degradation(connection: GitHubConnection, reason: str) -> dict:
+    """Build a degradation entry naming the connection and why it degraded."""
+    return {
+        "connection_id": connection.id,
+        "label": connection.label,
+        "reason": reason,
+    }
 
 
 async def create_connection(
