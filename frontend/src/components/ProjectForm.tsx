@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { checkRepoHasSdlcStudio, fetchGitHubRepos } from "../api/client.ts";
 import type {
+  GitHubRepoItem,
   ProjectCreate,
   ProjectUpdate,
   SourceType,
 } from "../types/index.ts";
+
+// Cap the rows whose sdlc-studio flag we resolve eagerly. Only these visible
+// rows trigger a per-repo Contents call, so a large account (hundreds of repos)
+// never fans out into hundreds of lazy checks and exhausts the rate limit -
+// narrowing the filter surfaces more rows on demand.
+const MAX_VISIBLE_REPOS = 30;
 
 interface ProjectFormProps {
   mode: "add" | "edit";
@@ -42,6 +50,75 @@ export function ProjectForm({
   const [repoPath, setRepoPath] = useState(initialRepoPath);
   const [accessToken, setAccessToken] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Repo selector state (GitHub source only).
+  const [repos, setRepos] = useState<GitHubRepoItem[]>([]);
+  const [repoFilter, setRepoFilter] = useState("");
+  const [browsing, setBrowsing] = useState(false);
+  const [browseError, setBrowseError] = useState<string | null>(null);
+  const [sdlcFlags, setSdlcFlags] = useState<Record<string, boolean>>({});
+  // Repos whose flag check has already been kicked off, so each is fetched once.
+  const checkedRepos = useRef<Set<string>>(new Set());
+
+  const matchesFilter = (repo: GitHubRepoItem): boolean => {
+    const term = repoFilter.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      repo.full_name.toLowerCase().includes(term) ||
+      (repo.description ?? "").toLowerCase().includes(term)
+    );
+  };
+
+  const visibleRepos = repos
+    .filter(matchesFilter)
+    .slice(0, MAX_VISIBLE_REPOS);
+
+  // Lazily resolve the sdlc-studio flag for the currently-visible rows only.
+  useEffect(() => {
+    if (repos.length === 0 || !accessToken) return;
+    for (const repo of visibleRepos) {
+      if (checkedRepos.current.has(repo.full_name)) continue;
+      checkedRepos.current.add(repo.full_name);
+      void checkRepoHasSdlcStudio(
+        repo.owner,
+        repo.name,
+        accessToken,
+        repo.default_branch,
+      )
+        .then((has) => {
+          setSdlcFlags((prev) => ({ ...prev, [repo.full_name]: has }));
+        })
+        .catch(() => {
+          // A failed flag check is non-fatal; allow a later retry.
+          checkedRepos.current.delete(repo.full_name);
+        });
+    }
+    // visibleRepos is derived from repos + repoFilter; those are the real deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repos, repoFilter, accessToken]);
+
+  const handleBrowse = async () => {
+    if (!accessToken) return;
+    setBrowsing(true);
+    setBrowseError(null);
+    checkedRepos.current = new Set();
+    setSdlcFlags({});
+    try {
+      const found = await fetchGitHubRepos(accessToken, undefined);
+      setRepos(found);
+    } catch (err) {
+      setBrowseError(err instanceof Error ? err.message : "Failed to load repositories");
+      setRepos([]);
+    } finally {
+      setBrowsing(false);
+    }
+  };
+
+  const handleSelectRepo = (repo: GitHubRepoItem) => {
+    setRepoUrl(`https://github.com/${repo.full_name}`);
+    setRepoBranch(repo.default_branch);
+    // Leave repo_path at its default/current value.
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +260,71 @@ export function ProjectForm({
             className={inputClass}
             data-testid="access-token-input"
           />
+
+          {/* Repo selector - browse the repos a token can see. Manual URL
+              entry above remains available as a fallback. */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => void handleBrowse()}
+              disabled={!accessToken || browsing}
+              className="rounded-md bg-bg-elevated px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-overlay disabled:opacity-50"
+              data-testid="browse-repos-button"
+            >
+              {browsing ? "Loading repositories..." : "Browse repositories"}
+            </button>
+
+            {browseError && (
+              <p
+                className="text-xs text-status-blocked"
+                data-testid="browse-error"
+              >
+                {browseError}
+              </p>
+            )}
+
+            {repos.length > 0 && (
+              <div className="space-y-2" data-testid="repo-selector">
+                <input
+                  type="text"
+                  placeholder="Filter repositories"
+                  value={repoFilter}
+                  onChange={(e) => setRepoFilter(e.target.value)}
+                  className={inputClass}
+                  data-testid="repo-filter-input"
+                />
+                <ul className="max-h-56 divide-y divide-border-default overflow-y-auto rounded-md border border-border-default">
+                  {visibleRepos.map((repo) => (
+                    <li key={repo.full_name}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRepo(repo)}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-text-primary hover:bg-bg-overlay"
+                        data-testid={`repo-row-${repo.full_name}`}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate">{repo.full_name}</span>
+                          {repo.private && (
+                            <span className="shrink-0 text-xs text-text-muted">
+                              private
+                            </span>
+                          )}
+                        </span>
+                        {sdlcFlags[repo.full_name] && (
+                          <span
+                            className="shrink-0 rounded bg-status-done/15 px-1.5 py-0.5 text-xs text-status-done"
+                            data-testid={`sdlc-badge-${repo.full_name}`}
+                          >
+                            sdlc-studio
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

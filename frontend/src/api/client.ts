@@ -4,6 +4,7 @@ import type {
   DocumentDetail,
   DocumentListItem,
   DocumentRelationships,
+  GitHubRepoItem,
   HealthCheckResponse,
   PaginatedDocuments,
   Project,
@@ -182,6 +183,56 @@ export async function fetchHealthCheck(
     throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<HealthCheckResponse>;
+}
+
+/**
+ * List the GitHub repositories the supplied token can see.
+ *
+ * The token travels in the POST body, never in the URL. Returns ALL visible
+ * repos; the sdlc-studio flag per repo is fetched lazily via
+ * {@link checkRepoHasSdlcStudio}.
+ */
+export async function fetchGitHubRepos(
+  accessToken: string,
+  search?: string,
+): Promise<GitHubRepoItem[]> {
+  const res = await fetch(`${BASE}/projects/github/repos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken, search }),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  const data = (await res.json()) as { repositories: GitHubRepoItem[] };
+  return data.repositories;
+}
+
+/**
+ * Lazy per-repo flag: does this repo already contain an sdlc-studio/ workspace?
+ *
+ * Call this only for the rows the operator is actually viewing, not for every
+ * repo in the list - that would exhaust the GitHub rate limit.
+ */
+export async function checkRepoHasSdlcStudio(
+  owner: string,
+  repo: string,
+  accessToken: string,
+  branch?: string,
+): Promise<boolean> {
+  const res = await fetch(
+    `${BASE}/projects/github/repos/${owner}/${repo}/has-sdlc-studio`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token: accessToken, branch }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  const data = (await res.json()) as { has_sdlc_studio: boolean };
+  return data.has_sdlc_studio;
 }
 
 /** Search documents by query. */
