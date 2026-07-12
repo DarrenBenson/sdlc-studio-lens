@@ -26,5 +26,5 @@ async def health_check(db: DbDep) -> HealthResponse:
     return HealthResponse(
         status="healthy" if db_status == "connected" else "unhealthy",
         database=db_status,
-        version="0.2.0",
+        version="0.2.1",
     )

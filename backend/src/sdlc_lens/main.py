@@ -56,7 +56,7 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
         title="SDLC Studio Lens",
-        version="0.2.0",
+        version="0.2.1",
         lifespan=lifespan,
     )
     app.state.session_factory = async_session_factory
