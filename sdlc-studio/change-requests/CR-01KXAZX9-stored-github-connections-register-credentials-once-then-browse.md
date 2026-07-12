@@ -1,6 +1,7 @@
 # CR-01KXAZX9: Stored GitHub connections: register credentials once, then browse and add repos in two clicks
 
-> **Status:** Proposed
+> **Status:** Complete
+> **Verification depth:** functional
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KXAS75
 > **Created:** 2026-07-12
