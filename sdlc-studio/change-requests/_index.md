@@ -7,13 +7,13 @@
 
 | Status | Count |
 | --- | --- |
-| Proposed | 0 |
+| Proposed | 1 |
 | Approved | 0 |
 | In Progress | 0 |
 | Complete | 14 |
 | Rejected | 0 |
 | Deferred | 0 |
-| inbox | 1 |
+| inbox | 0 |
 | **Total** | **15** |
 
 ## By Priority
@@ -39,7 +39,7 @@
 | [CR-01KX95FH](CR-01KX95FH-low-severity-bugs-consolidated.md) | Low-severity bugs (consolidated) | Low | Complete | Improvement | -- | 2026-07-11 |
 | [CR-01KX95WV](CR-01KX95WV-low-severity-crs-consolidated.md) | Low-severity crs (consolidated) | Low | Complete | Improvement | -- | 2026-07-11 |
 | [CR-01KX9WMA](CR-01KX9WMA-update-ci-actions-to-node-24-native-versions.md) | Update CI actions to Node-24-native versions (Node 20 deprecation) | Medium | Complete | Feature | -- | 2026-07-12 |
-| [CR-01KXARM8](CR-01KXARM8-enrich-system-health-endpoint-with-readiness-depth-and.md) | Enrich system health endpoint with readiness depth and single-source the version | Medium | inbox | Feature | -- | 2026-07-12 |
+| [CR-01KXARM8](CR-01KXARM8-enrich-system-health-endpoint-with-readiness-depth-and.md) | Enrich system health endpoint with readiness depth and single-source the version | Medium | Proposed | Feature | -- | 2026-07-12 |
 
 ## Dependencies
 
