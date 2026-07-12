@@ -7,9 +7,9 @@
 
 | Status | Count |
 | --- | --- |
-| Proposed | 1 |
+| Proposed | 0 |
 | Approved | 0 |
-| In Progress | 0 |
+| In Progress | 1 |
 | Complete | 13 |
 | Rejected | 0 |
 | Deferred | 0 |
@@ -38,7 +38,7 @@
 | [CR-01KX95HS](CR-01KX95HS-centralise-terminal-status-canonicalisation-logic-duplicated-and-drifted.md) | Centralise terminal-status / canonicalisation logic (duplicated and drifted across 3 modules) | Medium | Complete | Improvement | -- | 2026-07-11 |
 | [CR-01KX95FH](CR-01KX95FH-low-severity-bugs-consolidated.md) | Low-severity bugs (consolidated) | Low | Complete | Improvement | -- | 2026-07-11 |
 | [CR-01KX95WV](CR-01KX95WV-low-severity-crs-consolidated.md) | Low-severity crs (consolidated) | Low | Complete | Improvement | -- | 2026-07-11 |
-| [CR-01KX9WMA](CR-01KX9WMA-update-ci-actions-to-node-24-native-versions.md) | Update CI actions to Node-24-native versions (Node 20 deprecation) | Medium | Proposed | Feature | -- | 2026-07-12 |
+| [CR-01KX9WMA](CR-01KX9WMA-update-ci-actions-to-node-24-native-versions.md) | Update CI actions to Node-24-native versions (Node 20 deprecation) | Medium | In Progress | Feature | -- | 2026-07-12 |
 
 ## Dependencies
 
