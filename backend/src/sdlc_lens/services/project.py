@@ -142,7 +142,9 @@ async def create_project(
         repo_url=repo_url,
         repo_branch=repo_branch,
         repo_path=repo_path,
-        access_token=encrypt_token(access_token),
+        # A stored connection is the single source of the credential: a project
+        # that adopts one keeps no copy of a token of its own.
+        access_token=None if connection_id is not None else encrypt_token(access_token),
         connection_id=connection_id,
     )
     session.add(project)
@@ -202,12 +204,16 @@ async def update_project(
     access_token: str | None = None,
     connection_id: int | None = None,
     clear_connection: bool = False,
+    clear_access_token: bool = False,
 ) -> Project:
     """Update a project's fields.
 
-    ``connection_id`` attaches a stored GitHub connection; ``clear_connection``
-    detaches whatever is attached (the caller distinguishes an omitted field from
-    an explicit null), after which the project falls back to its own access_token.
+    ``connection_id`` attaches a stored GitHub connection and PURGES the
+    project's own ``access_token``: the connection becomes the single source of
+    the credential, so detaching it later cannot silently revert to a stale (and
+    possibly revoked) secret. ``clear_connection`` detaches whatever is attached
+    and ``clear_access_token`` purges the stored token; both flags let the caller
+    distinguish an omitted field from an explicit null.
 
     Raises:
         ProjectNotFoundError: If no project with the given slug exists.
@@ -242,9 +248,14 @@ async def update_project(
 
     if access_token is not None:
         project.access_token = encrypt_token(access_token)
+    elif clear_access_token:
+        project.access_token = None
 
     if connection_id is not None:
         project.connection_id = connection_id
+        # Adopting a connection purges the token it replaces, so nothing stale is
+        # left behind to fall back to when the connection is later detached.
+        project.access_token = None
     elif clear_connection:
         project.connection_id = None
 

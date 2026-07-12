@@ -21,6 +21,7 @@ vi.mock("../api/client.ts", () => ({
   createConnection: vi.fn(),
   deleteConnection: vi.fn(),
   validateConnection: vi.fn(),
+  rotateConnection: vi.fn(),
   fetchGitHubRepos: vi.fn(),
   checkRepoHasSdlcStudio: vi.fn(),
 }));
@@ -35,6 +36,7 @@ const {
   createConnection,
   deleteConnection,
   validateConnection,
+  rotateConnection,
 } = await import("../api/client.ts");
 
 const mockFetchProjects = vi.mocked(fetchProjects);
@@ -46,6 +48,7 @@ const mockFetchConnections = vi.mocked(fetchConnections);
 const mockCreateConnection = vi.mocked(createConnection);
 const mockDeleteConnection = vi.mocked(deleteConnection);
 const mockValidateConnection = vi.mocked(validateConnection);
+const mockRotateConnection = vi.mocked(rotateConnection);
 
 const savedConnections: GitHubConnection[] = [
   {
@@ -619,6 +622,86 @@ describe("CR-01KXAZX9: GitHub connections section", () => {
     });
     // The connection is still listed - the refusal did not remove it.
     expect(screen.getByTestId("connection-row-1")).toBeInTheDocument();
+  });
+
+  // Review of CR-01KXAZX9: an expired PAT must be a one-field edit, not a
+  // detach-delete-re-add dance across every project that uses the connection.
+  it("rotates a connection's token and shows the refreshed masked token", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    mockRotateConnection.mockResolvedValue({
+      ...savedConnections[0],
+      masked_token: "****9999",
+      last_validated_at: "2026-07-12T12:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.click(screen.getByTestId("rotate-connection-1"));
+    await user.type(
+      screen.getByTestId("rotate-token-input-1"),
+      "ghp_rotated9999",
+    );
+    await user.click(screen.getByTestId("rotate-submit-1"));
+
+    await waitFor(() => {
+      expect(mockRotateConnection).toHaveBeenCalledWith(1, "ghp_rotated9999");
+    });
+    await waitFor(() => {
+      const row = screen.getByTestId("connection-row-1");
+      expect(row).toHaveTextContent("****9999");
+      expect(row).toHaveTextContent(/12 Jul 2026/);
+    });
+  });
+
+  it("drops the rotated token from state once it has been exchanged", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    mockRotateConnection.mockResolvedValue({
+      ...savedConnections[0],
+      masked_token: "****9999",
+    });
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.click(screen.getByTestId("rotate-connection-1"));
+    await user.type(
+      screen.getByTestId("rotate-token-input-1"),
+      "ghp_rotated9999",
+    );
+    await user.click(screen.getByTestId("rotate-submit-1"));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("rotate-token-input-1"),
+      ).not.toBeInTheDocument();
+    });
+    expect(document.body.innerHTML).not.toContain("ghp_rotated9999");
+  });
+
+  it("surfaces an INVALID_TOKEN rotation failure inline and changes nothing", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    mockRotateConnection.mockRejectedValue(
+      new Error("GitHub rejected the access token"),
+    );
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.click(screen.getByTestId("rotate-connection-1"));
+    await user.type(screen.getByTestId("rotate-token-input-1"), "ghp_bad");
+    await user.click(screen.getByTestId("rotate-submit-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connection-error")).toHaveTextContent(
+        /rejected the access token/i,
+      );
+    });
+    // The old credential is still the one on show.
+    expect(screen.getByTestId("connection-row-1")).toHaveTextContent("****cdef");
   });
 
   it("offers the saved connections to the project form", async () => {

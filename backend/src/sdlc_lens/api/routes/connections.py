@@ -12,7 +12,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sdlc_lens.api.deps import get_db
-from sdlc_lens.api.schemas.connections import ConnectionCreate, ConnectionResponse
+from sdlc_lens.api.schemas.connections import (
+    ConnectionCreate,
+    ConnectionResponse,
+    ConnectionUpdate,
+)
 from sdlc_lens.api.schemas.projects import mask_token
 from sdlc_lens.db.models.github_connection import GitHubConnection
 from sdlc_lens.services.github_connection import (
@@ -22,6 +26,7 @@ from sdlc_lens.services.github_connection import (
     create_connection,
     delete_connection,
     list_connections,
+    rotate_connection,
     validate_connection,
 )
 from sdlc_lens.services.github_source import (
@@ -99,6 +104,26 @@ async def register_connection(
             status_code=409,
             content={"error": {"code": "LABEL_EXISTS", "message": exc.message}},
         )
+    except GitHubSourceError as exc:
+        return _github_error_response(exc)
+
+    return _connection_response(connection)
+
+
+@router.put("/{connection_id}", response_model=ConnectionResponse)
+async def rotate_connection_token(
+    connection_id: int, body: ConnectionUpdate, db: DbDep
+) -> ConnectionResponse | JSONResponse:
+    """Rotate a connection's token: validate the new one, then store it.
+
+    Works while projects still reference the connection - that is the point: an
+    expired PAT is replaced in one edit rather than by re-pointing every project.
+    A rejected token leaves the old one intact.
+    """
+    try:
+        connection = await rotate_connection(db, connection_id, body.access_token)
+    except ConnectionNotFoundError as exc:
+        return _not_found(exc)
     except GitHubSourceError as exc:
         return _github_error_response(exc)
 

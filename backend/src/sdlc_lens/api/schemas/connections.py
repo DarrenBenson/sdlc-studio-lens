@@ -17,6 +17,12 @@ class ConnectionCreate(BaseModel):
     access_token: str = Field(..., min_length=1)
 
 
+class ConnectionUpdate(BaseModel):
+    """Body for rotating a connection's token. The new token is validated first."""
+
+    access_token: str = Field(..., min_length=1)
+
+
 class ConnectionResponse(BaseModel):
     """A stored connection as exposed by the API. Never carries the raw token."""
 

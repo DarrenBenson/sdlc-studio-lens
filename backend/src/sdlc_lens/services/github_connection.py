@@ -77,14 +77,19 @@ async def resolve_connection_token(session: AsyncSession, connection_id: int) ->
     Raises:
         ConnectionNotFoundError: If no connection has that id.
         AuthenticationError: If the stored token cannot be decrypted (the
-            encryption key was rotated or the ciphertext is corrupt), so the
-            caller reports an auth failure rather than calling GitHub with junk.
+            encryption key is missing, was rotated, or the ciphertext is
+            corrupt). The message names THAT cause: the credential is never
+            sent to GitHub as ciphertext, so a lost key can never be
+            misreported as the operator's PAT being rejected.
     """
     connection = await get_connection(session, connection_id)
     token = decrypt_token(connection.access_token)
     if not token:
         raise AuthenticationError(
-            "Stored token could not be decrypted - re-register this connection"
+            f"The stored credential for connection {connection_id} "
+            f"({connection.label!r}) could not be decrypted: the encryption key is "
+            "missing or has changed. Restore SDLC_LENS_TOKEN_ENCRYPTION_KEY, or "
+            "rotate this connection with a fresh token."
         )
     return token
 
@@ -153,6 +158,37 @@ async def validate_connection(session: AsyncSession, connection_id: int) -> GitH
     connection.last_validated_at = datetime.datetime.now(datetime.UTC)
     await session.commit()
     await session.refresh(connection)
+    return connection
+
+
+async def rotate_connection(
+    session: AsyncSession,
+    connection_id: int,
+    access_token: str,
+) -> GitHubConnection:
+    """Replace a stored connection's token with a new, validated one.
+
+    Rotation is the whole point of storing a credential once: an expired PAT is
+    a one-field edit here, not a detach-delete-re-add-reattach dance across every
+    project that uses it. The new token is validated BEFORE anything is written,
+    so a bad token leaves the old (still working) one intact.
+
+    Raises:
+        ConnectionNotFoundError: If no connection has that id.
+        AuthenticationError: If GitHub rejects the new token.
+        RateLimitError / GitHubSourceError: On other GitHub API failures.
+    """
+    connection = await get_connection(session, connection_id)
+
+    # Validate first: nothing is written unless GitHub accepts the new token.
+    login = await get_authenticated_login(access_token)
+
+    connection.access_token = encrypt_token(access_token)
+    connection.login = login
+    connection.last_validated_at = datetime.datetime.now(datetime.UTC)
+    await session.commit()
+    await session.refresh(connection)
+    logger.info("Rotated the token for GitHub connection %r (login %s)", connection.label, login)
     return connection
 
 

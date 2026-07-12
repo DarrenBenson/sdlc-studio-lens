@@ -5,8 +5,10 @@ is set to a urlsafe base64 Fernet key, ``encrypt_token`` returns Fernet
 ciphertext carrying a distinguishable ``enc:v1:`` prefix and ``decrypt_token``
 reverses it. Values without the prefix are treated as legacy plaintext and
 returned unchanged, so tokens written before encryption was enabled keep
-working. When no key is configured, both helpers are pass-through and the
-database stays plaintext (behaviour unchanged).
+working. When no key is configured, plaintext values pass through unchanged and
+the database stays plaintext (behaviour unchanged) - but a value that IS
+``enc:v1:``-prefixed can no longer be opened, so it decrypts to ``None`` rather
+than leaking the ciphertext to a caller that would treat it as a token.
 """
 
 from __future__ import annotations
@@ -55,10 +57,14 @@ def decrypt_token(stored: str | None) -> str | None:
     key. Non-prefixed values are legacy plaintext and returned unchanged, even
     when a key is configured. ``None`` passes through as ``None``.
 
-    When the configured key cannot open a prefixed value (the key was rotated
-    or replaced, or the ciphertext is corrupted), decryption fails gracefully:
-    a warning is logged and ``None`` is returned (treated as "no usable token")
-    rather than raising, so one bad row cannot 500 the whole project list.
+    A prefixed value that cannot be opened - because no key is configured at
+    all (the key was dropped from the environment), because the configured key
+    is the wrong one (rotated or replaced), or because the ciphertext is
+    corrupted - yields ``None``, never the raw stored value. Returning the
+    ciphertext would see it Bearer-ed to GitHub as if it were a PAT and masked
+    as the ciphertext's last 4, blaming the operator's credential for what is
+    really a lost key. ``None`` means "no usable token", which every caller
+    already handles (and ``resolve_connection_token`` turns into a clear error).
     """
     if stored is None:
         return None
@@ -67,13 +73,20 @@ def decrypt_token(stored: str | None) -> str | None:
         return stored
     fernet = _fernet()
     if fernet is None:
-        # Prefixed but no key available: cannot decrypt, return as-is.
-        return stored
+        # Prefixed but no key configured: the value is ciphertext we cannot open.
+        logger.error(
+            "An encrypted token cannot be decrypted: no encryption key is configured. "
+            "Restore SDLC_LENS_TOKEN_ENCRYPTION_KEY, or re-enter the credential."
+        )
+        return None
     ciphertext = stored[len(ENC_PREFIX) :]
     try:
         return fernet.decrypt(ciphertext.encode()).decode()
     except InvalidToken:
         # Wrong key (rotated/replaced) or corrupted ciphertext. Do not leak the
         # stored value; treat as no usable token so callers degrade gracefully.
-        logger.warning("Stored token could not be decrypted with the configured key")
+        logger.error(
+            "A stored token could not be decrypted with the configured encryption key "
+            "(the key was changed, or the stored value is corrupt)"
+        )
         return None

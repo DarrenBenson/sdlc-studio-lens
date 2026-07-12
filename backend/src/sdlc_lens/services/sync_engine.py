@@ -175,28 +175,40 @@ async def resolve_sync_token(project: Project) -> str | None:
     ``connection_id``, otherwise the project's own ``access_token``. Existing
     projects therefore keep working untouched - no stored secret is migrated.
 
-    The connection row is loaded through the project's own session
-    (``async_object_session``), which keeps ``collect_github_files``'s signature
-    unchanged for its callers. A detached project, or a ``connection_id`` whose
-    row has since vanished, falls back to the per-project token.
+    A ``connection_id`` that cannot be resolved is a hard failure, never a
+    fallback. In production the column carries no foreign key (migration 011 adds
+    a plain nullable column, since SQLite cannot ALTER-add an FK), so an orphaned
+    reference is genuinely possible - and falling back would sync a private repo
+    unauthenticated and report the misleading "Repository not found".
+
+    Raises:
+        ConnectionNotFoundError: If ``connection_id`` names no stored connection.
+        AuthenticationError: If the connection's token cannot be decrypted.
     """
-    from sdlc_lens.db.models.github_connection import GitHubConnection
+    from sdlc_lens.services.github_connection import (
+        ConnectionNotFoundError,
+        resolve_connection_token,
+    )
     from sdlc_lens.utils.crypto import decrypt_token
 
-    if project.connection_id is not None:
-        session = async_object_session(project)
-        if session is not None:
-            connection = await session.get(GitHubConnection, project.connection_id)
-            if connection is not None:
-                return decrypt_token(connection.access_token)
-        logger.warning(
-            "Project %s references connection %s but it could not be loaded; "
-            "falling back to the project's own token",
-            project.slug,
-            project.connection_id,
+    if project.connection_id is None:
+        return decrypt_token(project.access_token)
+
+    session = async_object_session(project)
+    if session is None:
+        raise ConnectionNotFoundError(
+            f"Project {project.slug} uses GitHub connection {project.connection_id}, "
+            "which could not be loaded (the project is detached from its session)"
         )
 
-    return decrypt_token(project.access_token)
+    try:
+        return await resolve_connection_token(session, project.connection_id)
+    except ConnectionNotFoundError as exc:
+        raise ConnectionNotFoundError(
+            f"Project {project.slug} uses GitHub connection {project.connection_id}, "
+            "which no longer exists. Re-point the project at a stored connection, "
+            "or detach it and give the project its own token."
+        ) from exc
 
 
 async def collect_github_files(

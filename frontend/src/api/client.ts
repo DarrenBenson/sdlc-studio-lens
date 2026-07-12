@@ -216,6 +216,28 @@ export async function createConnection(
   return res.json() as Promise<GitHubConnection>;
 }
 
+/**
+ * Replace a stored connection's token with a new one.
+ *
+ * The new token is validated against GitHub before it is stored, so a rejected
+ * token leaves the old (still working) credential in place. Rotation works while
+ * projects still use the connection - that is the point of storing it once.
+ */
+export async function rotateConnection(
+  id: number,
+  accessToken: string,
+): Promise<GitHubConnection> {
+  const res = await fetch(`${BASE}/connections/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<GitHubConnection>;
+}
+
 /** Re-check a stored connection against GitHub, refreshing last_validated_at. */
 export async function validateConnection(
   id: number,

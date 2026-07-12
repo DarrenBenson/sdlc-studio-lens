@@ -11,6 +11,8 @@ services:
       # - /path/to/project2/sdlc-studio:/data/projects/project2:ro
     environment:
       - SDLC_LENS_LOG_LEVEL=${SDLC_LENS_LOG_LEVEL:-INFO}
+      # Without this, stored GitHub tokens are held in plaintext (see .env.example).
+      - SDLC_LENS_TOKEN_ENCRYPTION_KEY=${SDLC_LENS_TOKEN_ENCRYPTION_KEY:-}
     restart: unless-stopped
 
 volumes:

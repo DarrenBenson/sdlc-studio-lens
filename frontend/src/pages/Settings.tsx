@@ -8,6 +8,7 @@ import {
   fetchConnections,
   fetchProject,
   fetchProjects,
+  rotateConnection,
   triggerSync,
   updateProject,
   validateConnection,
@@ -51,6 +52,10 @@ export function Settings() {
   const [connectionToken, setConnectionToken] = useState("");
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [connectionBusy, setConnectionBusy] = useState(false);
+  // Rotation: the id of the connection whose token is being replaced, and the
+  // replacement itself. Both are dropped the moment the token is exchanged.
+  const [rotatingId, setRotatingId] = useState<number | null>(null);
+  const [rotateToken, setRotateToken] = useState("");
 
   const loadProjects = useCallback(async () => {
     try {
@@ -212,6 +217,33 @@ export function Settings() {
     }
   };
 
+  const handleRotateConnection = async (e: React.FormEvent, id: number) => {
+    e.preventDefault();
+    setConnectionError(null);
+    setConnectionBusy(true);
+    try {
+      const updated = await rotateConnection(id, rotateToken);
+      setConnections((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      // Drop the raw token the moment the server has taken it.
+      setRotateToken("");
+      setRotatingId(null);
+      showNotification(`Connection "${updated.label}" token replaced.`);
+    } catch (err) {
+      // A rejected token changes nothing server-side; keep the form open.
+      setConnectionError(
+        err instanceof Error ? err.message : "Failed to rotate connection",
+      );
+    } finally {
+      setConnectionBusy(false);
+    }
+  };
+
+  const toggleRotate = (id: number) => {
+    setConnectionError(null);
+    setRotateToken("");
+    setRotatingId((current) => (current === id ? null : id));
+  };
+
   const handleDeleteConnection = async (id: number) => {
     setConnectionError(null);
     try {
@@ -279,14 +311,6 @@ export function Settings() {
               data-testid="connection-token-input"
             />
           </div>
-          {connectionError && (
-            <p
-              className="text-xs text-status-blocked"
-              data-testid="connection-error"
-            >
-              {connectionError}
-            </p>
-          )}
           <button
             type="submit"
             disabled={connectionBusy}
@@ -295,6 +319,17 @@ export function Settings() {
             {connectionBusy ? "Checking..." : "Add connection"}
           </button>
         </form>
+
+        {/* One error region for every connection action: add, rotate, validate,
+            remove. Each failure leaves the server state untouched. */}
+        {connectionError && (
+          <p
+            className="mt-2 text-xs text-status-blocked"
+            data-testid="connection-error"
+          >
+            {connectionError}
+          </p>
+        )}
 
         <div className="mt-3 space-y-2">
           {connections.length === 0 ? (
@@ -307,43 +342,80 @@ export function Settings() {
               return (
                 <div
                   key={conn.id}
-                  className="flex items-center justify-between gap-3 rounded-md border border-border-subtle bg-bg-elevated px-3 py-2"
+                  className="rounded-md border border-border-subtle bg-bg-elevated px-3 py-2"
                   data-testid={`connection-row-${conn.id}`}
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-text-primary">
-                      {conn.label}
-                      <span className="ml-2 text-xs text-text-tertiary">
-                        {conn.login}
-                      </span>
-                    </p>
-                    <p className="mt-0.5 font-mono text-xs text-text-muted">
-                      {conn.masked_token ?? "token stored"}
-                      <span className="ml-2 font-sans">
-                        {validated
-                          ? `Validated ${validated}`
-                          : "Never validated"}
-                      </span>
-                    </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-text-primary">
+                        {conn.label}
+                        <span className="ml-2 text-xs text-text-tertiary">
+                          {conn.login}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 font-mono text-xs text-text-muted">
+                        {conn.masked_token ?? "token stored"}
+                        <span className="ml-2 font-sans">
+                          {validated
+                            ? `Validated ${validated}`
+                            : "Never validated"}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleValidateConnection(conn.id)}
+                        className="rounded-md bg-bg-surface px-2.5 py-1 text-xs text-text-secondary hover:bg-bg-overlay"
+                        data-testid={`validate-connection-${conn.id}`}
+                      >
+                        Validate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleRotate(conn.id)}
+                        className="rounded-md bg-bg-surface px-2.5 py-1 text-xs text-text-secondary hover:bg-bg-overlay"
+                        data-testid={`rotate-connection-${conn.id}`}
+                      >
+                        Rotate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteConnection(conn.id)}
+                        className="rounded-md bg-bg-surface px-2.5 py-1 text-xs text-status-blocked hover:bg-bg-overlay"
+                        data-testid={`delete-connection-${conn.id}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleValidateConnection(conn.id)}
-                      className="rounded-md bg-bg-surface px-2.5 py-1 text-xs text-text-secondary hover:bg-bg-overlay"
-                      data-testid={`validate-connection-${conn.id}`}
+
+                  {/* Rotation: replace an expired PAT in one edit. The projects
+                      using this connection pick the new token up automatically. */}
+                  {rotatingId === conn.id && (
+                    <form
+                      onSubmit={(e) => void handleRotateConnection(e, conn.id)}
+                      className="mt-2 flex gap-2 border-t border-border-subtle pt-2"
                     >
-                      Validate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteConnection(conn.id)}
-                      className="rounded-md bg-bg-surface px-2.5 py-1 text-xs text-status-blocked hover:bg-bg-overlay"
-                      data-testid={`delete-connection-${conn.id}`}
-                    >
-                      Remove
-                    </button>
-                  </div>
+                      <input
+                        type="password"
+                        placeholder="New personal access token"
+                        value={rotateToken}
+                        onChange={(e) => setRotateToken(e.target.value)}
+                        required
+                        className={inputClass}
+                        data-testid={`rotate-token-input-${conn.id}`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={connectionBusy}
+                        className="shrink-0 rounded-md bg-bg-surface px-2.5 py-1 text-xs text-text-secondary hover:bg-bg-overlay disabled:opacity-50"
+                        data-testid={`rotate-submit-${conn.id}`}
+                      >
+                        {connectionBusy ? "Checking..." : "Replace token"}
+                      </button>
+                    </form>
+                  )}
                 </div>
               );
             })

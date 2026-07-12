@@ -503,6 +503,7 @@ async def update_project_endpoint(
             access_token=body.access_token,
             connection_id=body.connection_id,
             clear_connection=body.clears_connection(),
+            clear_access_token=body.clears_access_token(),
         )
     except (ProjectNotFoundError, ConnectionNotFoundError) as exc:
         return JSONResponse(

@@ -15,6 +15,7 @@ from sdlc_lens.api.routes.projects import router as projects_router
 from sdlc_lens.api.routes.search import router as search_router
 from sdlc_lens.api.routes.stats import router as stats_router
 from sdlc_lens.api.routes.system import router as system_router
+from sdlc_lens.config import settings
 from sdlc_lens.db.session import async_session_factory
 from sdlc_lens.version import get_version
 
@@ -48,9 +49,29 @@ def _safe_static_file(static_dir: Path, path: str) -> Path | None:
     return None
 
 
+def _warn_if_tokens_are_plaintext() -> None:
+    """Warn loudly when stored GitHub credentials are not encrypted at rest.
+
+    Encryption is opt-in so an existing deployment keeps working after an
+    upgrade, which means the default is plaintext PATs in the database. That is
+    a security posture the operator must choose knowingly, not discover later.
+    """
+    if settings.token_encryption_key:
+        return
+    logger.warning(
+        "No token encryption key is configured: stored GitHub credentials are held "
+        "in PLAINTEXT in the database. Generate a key with "
+        '`python -c "from cryptography.fernet import Fernet; '
+        'print(Fernet.generate_key().decode())"` and set it as '
+        "SDLC_LENS_TOKEN_ENCRYPTION_KEY. Existing plaintext tokens keep working; "
+        "tokens written after the key is set are encrypted."
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan - startup and shutdown."""
+    _warn_if_tokens_are_plaintext()
     yield
 
 

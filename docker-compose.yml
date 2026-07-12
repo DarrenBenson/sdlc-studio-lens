@@ -14,6 +14,8 @@ services:
       - SDLC_LENS_PORT=${SDLC_LENS_PORT:-8000}
       - SDLC_LENS_DATABASE_URL=${SDLC_LENS_DATABASE_URL:-sqlite+aiosqlite:////data/db/sdlc_lens.db}
       - SDLC_LENS_LOG_LEVEL=${SDLC_LENS_LOG_LEVEL:-INFO}
+      # Without this, stored GitHub tokens are held in plaintext (see .env.example).
+      - SDLC_LENS_TOKEN_ENCRYPTION_KEY=${SDLC_LENS_TOKEN_ENCRYPTION_KEY:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/system/health')"]
       interval: 10s

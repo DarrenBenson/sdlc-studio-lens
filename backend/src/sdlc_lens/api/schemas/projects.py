@@ -61,9 +61,17 @@ class ProjectUpdate(BaseModel):
         """True when the body explicitly sends ``connection_id: null``.
 
         An omitted field leaves the current connection alone; an explicit null
-        detaches it, so the project falls back to its own access_token.
+        detaches it.
         """
         return "connection_id" in self.model_fields_set and self.connection_id is None
+
+    def clears_access_token(self) -> bool:
+        """True when the body explicitly sends ``access_token: null``.
+
+        An omitted field leaves the stored token alone; an explicit null purges
+        it, so a project's credential can actually be removed.
+        """
+        return "access_token" in self.model_fields_set and self.access_token is None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> "ProjectUpdate":
@@ -77,9 +85,10 @@ class ProjectUpdate(BaseModel):
             self.access_token,
             self.connection_id,
         ]
-        # An explicit ``connection_id: null`` is a real edit (detach), even
-        # though its value is None.
-        if all(f is None for f in fields) and not self.clears_connection():
+        # An explicit null for connection_id (detach) or access_token (purge) is
+        # a real edit, even though its value is None.
+        explicit_null = self.clears_connection() or self.clears_access_token()
+        if all(f is None for f in fields) and not explicit_null:
             msg = "At least one field must be provided"
             raise ValueError(msg)
         return self
