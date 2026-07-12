@@ -607,6 +607,152 @@ describe("CR-01KXB377: Fallbacks", () => {
   });
 });
 
+describe("A hand-typed URL inherits no credential", () => {
+  it("drops the clicked repo's connection and derived branch when the URL is typed away", async () => {
+    mockFetchAll.mockResolvedValue({ repos: AGGREGATED, degraded: [] });
+    const user = userEvent.setup();
+    render(
+      <ProjectForm
+        mode="add"
+        connections={CONNECTIONS}
+        onSubmit={mockOnSubmit}
+        error={null}
+      />,
+    );
+
+    await user.click(screen.getByText("GitHub"));
+    // alice/app is surfaced by connection 1 and derives the branch "trunk".
+    await user.click(await screen.findByTestId("repo-row-alice/app"));
+
+    // Now change your mind and hand-type an entirely different repository.
+    const urlInput = screen.getByTestId("repo-url-input");
+    await user.clear(urlInput);
+    await user.type(urlInput, "https://github.com/other/private");
+    await user.click(screen.getByText("Add Project"));
+
+    await waitFor(() => expect(mockOnSubmit).toHaveBeenCalled());
+    const payload = mockOnSubmit.mock.calls[0][0];
+    // The typed URL must not inherit the discarded repo's credential...
+    expect(payload).not.toHaveProperty("connection_id");
+    // ...nor its derived branch.
+    expect(payload).toMatchObject({
+      repo_url: "https://github.com/other/private",
+      repo_branch: "main",
+    });
+  });
+
+  it("keeps an explicit branch override when the URL is edited", async () => {
+    mockFetchAll.mockResolvedValue({ repos: AGGREGATED, degraded: [] });
+    const user = userEvent.setup();
+    render(<ProjectForm mode="add" onSubmit={mockOnSubmit} error={null} />);
+
+    await user.click(screen.getByText("GitHub"));
+    await user.click(await screen.findByTestId("repo-row-alice/app"));
+    await user.click(screen.getByTestId("advanced-toggle"));
+    await user.clear(screen.getByTestId("repo-branch-input"));
+    await user.type(screen.getByTestId("repo-branch-input"), "develop");
+
+    const urlInput = screen.getByTestId("repo-url-input");
+    await user.clear(urlInput);
+    await user.type(urlInput, "https://github.com/other/private");
+    await user.click(screen.getByText("Add Project"));
+
+    await waitFor(() => expect(mockOnSubmit).toHaveBeenCalled());
+    // A branch the operator typed is theirs, not a derived value to discard.
+    expect(mockOnSubmit.mock.calls[0][0]).toMatchObject({
+      repo_branch: "develop",
+    });
+  });
+});
+
+describe("Edit mode: the credential is changeable", () => {
+  const renderEdit = (connectionId: number | null) =>
+    render(
+      <ProjectForm
+        mode="edit"
+        initialName="Bound Project"
+        initialSourceType="github"
+        initialRepoUrl="https://github.com/acme/service"
+        initialConnectionId={connectionId}
+        connections={CONNECTIONS}
+        onSubmit={mockOnSubmit}
+        onCancel={() => {}}
+        error={null}
+      />,
+    );
+
+  it("rebinds a project to a different stored connection", async () => {
+    const user = userEvent.setup();
+    renderEdit(2);
+
+    const select = screen.getByTestId("connection-select");
+    expect(select).toHaveValue("2");
+    await user.selectOptions(select, "1");
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith({ connection_id: 1 });
+    });
+  });
+
+  it("detaches the connection with an explicit null", async () => {
+    const user = userEvent.setup();
+    renderEdit(2);
+
+    await user.selectOptions(screen.getByTestId("connection-select"), "");
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() => expect(mockOnSubmit).toHaveBeenCalled());
+    const payload = mockOnSubmit.mock.calls[0][0];
+    expect(payload).toHaveProperty("connection_id", null);
+    expect(payload).not.toHaveProperty("access_token");
+  });
+
+  it("replaces a revoked credential with a one-off token", async () => {
+    const user = userEvent.setup();
+    renderEdit(2);
+
+    // Detaching the connection is what makes a raw token take effect: the
+    // connection's token wins over a per-project one in the sync engine.
+    await user.selectOptions(screen.getByTestId("connection-select"), "");
+    await user.type(screen.getByTestId("access-token-input"), "ghp_fresh");
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        connection_id: null,
+        access_token: "ghp_fresh",
+      });
+    });
+  });
+
+  it("replaces the token of a project that has no connection", async () => {
+    const user = userEvent.setup();
+    renderEdit(null);
+
+    await user.type(screen.getByTestId("access-token-input"), "ghp_fresh");
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith({ access_token: "ghp_fresh" });
+    });
+  });
+
+  it("submits only the name on a pure rename, and browses nothing", async () => {
+    const user = userEvent.setup();
+    renderEdit(2);
+
+    await user.clear(screen.getByPlaceholderText("Project Name"));
+    await user.type(screen.getByPlaceholderText("Project Name"), "Renamed");
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith({ name: "Renamed" });
+    });
+    expect(mockFetchAll).not.toHaveBeenCalled();
+  });
+});
+
 // TC0339: ProjectForm edit mode pre-fills source type and fields
 describe("TC0339: Edit mode pre-fills GitHub fields", () => {
   it("pre-fills GitHub fields in edit mode", async () => {

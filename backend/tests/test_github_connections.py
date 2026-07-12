@@ -30,6 +30,7 @@ from sdlc_lens.config import settings
 from sdlc_lens.db.models.github_connection import GitHubConnection
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.github_source import (
+    MAX_REPOS,
     AuthenticationError,
     get_authenticated_login,
 )
@@ -723,6 +724,108 @@ class TestAggregateConnectionBrowse:
         assert len(body["degraded"]) == 1
         assert body["degraded"][0]["connection_id"] == broken.id
         assert "decrypt" in body["degraded"][0]["reason"].lower()
+
+    async def test_cap_reached_first_degrades_the_connection_never_reached(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        """The aggregate cap must never erase a whole connection in silence.
+
+        Connection 1 alone fills MAX_REPOS, so connection 2 contributes nothing.
+        The old code broke out of the loop with no degradation entry, so the UI
+        showed a complete-looking list that simply did not contain the operator's
+        repo (BG: silent truncation).
+        """
+        await _seed_connection(session, label="personal")
+        starved = await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        first = [_repo(f"alice/app{i:03d}") for i in range(MAX_REPOS)]
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                if (params or {}).get("page", 1) > 1:
+                    return _json_response(200, [])
+                if token == RAW_TOKEN:
+                    return _json_response(200, first)
+                return _json_response(200, [_repo("acme/service")])
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["repos"]) == MAX_REPOS
+        assert "acme/service" not in {r["full_name"] for r in body["repos"]}
+        assert len(body["degraded"]) == 1
+        assert body["degraded"][0]["connection_id"] == starved.id
+        assert body["degraded"][0]["label"] == "work"
+        assert str(MAX_REPOS) in body["degraded"][0]["reason"]
+
+    async def test_cap_reached_mid_connection_degrades_that_connection(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        """A connection whose repos are only partly admitted is reported too."""
+        await _seed_connection(session, label="personal")
+        partial = await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        first = [_repo(f"alice/app{i:03d}") for i in range(MAX_REPOS - 1)]
+        second = [_repo(f"acme/svc{i:03d}") for i in range(5)]
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                if (params or {}).get("page", 1) > 1:
+                    return _json_response(200, [])
+                return _json_response(200, first if token == RAW_TOKEN else second)
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["repos"]) == MAX_REPOS
+        # Exactly one of the second connection's repos fitted; the rest are gone,
+        # so the connection is named as degraded rather than silently truncated.
+        assert len(body["degraded"]) == 1
+        assert body["degraded"][0]["connection_id"] == partial.id
+        assert str(MAX_REPOS) in body["degraded"][0]["reason"]
+
+    async def test_below_the_cap_reports_no_degradation(
+        self, client: AsyncClient, session: AsyncSession
+    ) -> None:
+        """No truncation, no noise: the cap only speaks when it actually bites."""
+        await _seed_connection(session, label="personal")
+        await _seed_connection(session, label="work", token=SECOND_TOKEN)
+
+        def responder(token, url, params=None):
+            if url.endswith("/user/orgs"):
+                return _json_response(200, [])
+            if url.endswith("/user/repos"):
+                if token == RAW_TOKEN:
+                    return _json_response(200, [_repo("alice/app")])
+                return _json_response(200, [_repo("acme/service")])
+            raise AssertionError(f"unexpected URL: {url}")
+
+        with patch(
+            "sdlc_lens.services.github_source.httpx.AsyncClient",
+            side_effect=_routing_client_factory(responder),
+        ):
+            resp = await client.get("/api/v1/connections/repos")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert [r["full_name"] for r in body["repos"]] == ["acme/service", "alice/app"]
+        assert body["degraded"] == []
 
     async def test_response_never_carries_a_raw_token(
         self, client: AsyncClient, session: AsyncSession

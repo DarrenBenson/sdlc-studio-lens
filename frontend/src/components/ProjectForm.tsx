@@ -91,6 +91,9 @@ export function ProjectForm({
 
   // The name is derived from the picked repo until the operator types one.
   const [nameTouched, setNameTouched] = useState(initialName !== "");
+  // Likewise the branch: a value the operator typed is theirs and survives a
+  // change of repository; a value we derived from a pick does not.
+  const [branchTouched, setBranchTouched] = useState(false);
 
   // Branch and sdlc path are derived, so they live behind Advanced. An existing
   // override is never hidden: editing a project that has one opens it.
@@ -125,6 +128,12 @@ export function ProjectForm({
   };
 
   const visibleRepos = repos.filter(matchesFilter).slice(0, MAX_VISIBLE_REPOS);
+
+  // The repo the operator actually picked, or null once the URL has been typed
+  // away from it. Everything the pick derives - above all the credential - is
+  // read from HERE at submit time rather than copied into its own state, so a
+  // hand-typed URL cannot inherit a stale binding from a discarded pick.
+  const selectedRepo = repos.find((repo) => repo.full_name === selected) ?? null;
 
   // Which connection surfaced a repo only matters when there is more than one.
   const showConnectionLabels = connections.length > 1;
@@ -228,9 +237,23 @@ export function ProjectForm({
     setSelected(repo.full_name);
     setRepoUrl(`https://github.com/${repo.full_name}`);
     setRepoBranch(repo.default_branch);
+    setBranchTouched(false);
+    // Edit mode submits `connectionId`, so a pick rebinds the project's
+    // credential. Add mode reads the credential off `selectedRepo` instead.
     setConnectionId(repo.connection_id);
     // The name is almost always the repo's own; it stays editable.
     if (!nameTouched) setName(repo.name);
+  };
+
+  /** Typing over the URL discards the pick, and everything it derived. */
+  const handleRepoUrlChange = (value: string) => {
+    setRepoUrl(value);
+    if (selected === null) return;
+    setSelected(null);
+    // In add mode the pick is the ONLY source of a credential, so dropping it
+    // is what stops a hand-typed URL binding to a connection that cannot see
+    // the repo. Its derived branch goes with it, unless the operator typed one.
+    if (mode === "add" && !branchTouched) setRepoBranch(DEFAULT_BRANCH);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -248,8 +271,10 @@ export function ProjectForm({
           data.repo_url = repoUrl;
           data.repo_branch = repoBranch;
           data.repo_path = repoPath;
-          if (connectionId !== null) {
-            data.connection_id = connectionId;
+          // Derived, not stored: only a repo still selected carries a
+          // connection. A URL typed by hand sends none.
+          if (selectedRepo?.connection_id != null) {
+            data.connection_id = selectedRepo.connection_id;
           } else if (accessToken) {
             data.access_token = accessToken;
           }
@@ -260,6 +285,7 @@ export function ProjectForm({
         setSdlcPath("");
         setRepoUrl("");
         setRepoBranch(DEFAULT_BRANCH);
+        setBranchTouched(false);
         setRepoPath(DEFAULT_REPO_PATH);
         setAccessToken("");
         setConnectionId(null);
@@ -277,6 +303,11 @@ export function ProjectForm({
           if (repoUrl !== initialRepoUrl) update.repo_url = repoUrl;
           if (repoBranch !== initialRepoBranch) update.repo_branch = repoBranch;
           if (repoPath !== initialRepoPath) update.repo_path = repoPath;
+          // The credential picker below is what makes these reachable: it can
+          // rebind the project to another connection, or detach it (an explicit
+          // null) so a one-off token takes effect - a connection's token always
+          // wins over a per-project one, so a raw token only means anything
+          // once no connection is bound.
           if (connectionId !== initialConnectionId) {
             update.connection_id = connectionId;
           }
@@ -458,10 +489,7 @@ export function ProjectForm({
               type="text"
               placeholder="Repository URL (e.g. https://github.com/owner/repo)"
               value={repoUrl}
-              onChange={(e) => {
-                setRepoUrl(e.target.value);
-                setSelected(null);
-              }}
+              onChange={(e) => handleRepoUrlChange(e.target.value)}
               required
               className={inputClass}
               data-testid="repo-url-input"
@@ -485,7 +513,10 @@ export function ProjectForm({
                   type="text"
                   placeholder="Branch"
                   value={repoBranch}
-                  onChange={(e) => setRepoBranch(e.target.value)}
+                  onChange={(e) => {
+                    setRepoBranch(e.target.value);
+                    setBranchTouched(true);
+                  }}
                   className={inputClass}
                   data-testid="repo-branch-input"
                 />
@@ -501,39 +532,97 @@ export function ProjectForm({
             )}
           </div>
 
-          {/* Fallback: browse with a credential that was never registered. */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setShowToken((open) => !open)}
-              aria-expanded={showToken}
-              className="text-xs text-text-tertiary hover:text-text-secondary"
-              data-testid="use-token-toggle"
-            >
-              {showToken ? "Use a one-off token -" : "Use a one-off token +"}
-            </button>
-            {showToken && (
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  placeholder="Access token (for a credential you have not saved)"
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                  className={inputClass}
-                  data-testid="access-token-input"
-                />
-                <button
-                  type="button"
-                  onClick={() => void browseWithToken()}
-                  disabled={!accessToken || browsing}
-                  className={`shrink-0 ${secondaryButtonClass}`}
-                  data-testid="token-browse-button"
-                >
-                  Browse
-                </button>
-              </div>
-            )}
-          </div>
+          {/* The credential.
+              Adding: the pick carries it, so the only control here is the
+              fallback for a credential nobody registered.
+              Editing: it is an explicit choice, and the ONLY way to rebind a
+              project to another connection, detach it, or replace a revoked
+              token - which is why a saved connection must be selectable, not
+              merely inherited. */}
+          {mode === "edit" ? (
+            <div className="space-y-2">
+              <label
+                htmlFor="project-credential"
+                className="block text-xs text-text-tertiary"
+              >
+                Credential
+              </label>
+              <select
+                id="project-credential"
+                value={connectionId === null ? "" : String(connectionId)}
+                onChange={(e) =>
+                  setConnectionId(
+                    e.target.value === "" ? null : Number(e.target.value),
+                  )
+                }
+                className={inputClass}
+                data-testid="connection-select"
+              >
+                <option value="">Use a one-off token instead</option>
+                {connections.map((connection) => (
+                  <option key={connection.id} value={connection.id}>
+                    {connection.label} ({connection.login})
+                  </option>
+                ))}
+              </select>
+              {/* A raw token only takes effect with no connection bound, so it
+                  is offered only there rather than rendered inert. */}
+              {connectionId === null && (
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Access token (blank keeps the stored one)"
+                    value={accessToken}
+                    onChange={(e) => setAccessToken(e.target.value)}
+                    className={inputClass}
+                    data-testid="access-token-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void browseWithToken()}
+                    disabled={!accessToken || browsing}
+                    className={`shrink-0 ${secondaryButtonClass}`}
+                    data-testid="token-browse-button"
+                  >
+                    Browse
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowToken((open) => !open)}
+                aria-expanded={showToken}
+                className="text-xs text-text-tertiary hover:text-text-secondary"
+                data-testid="use-token-toggle"
+              >
+                {showToken ? "Use a one-off token -" : "Use a one-off token +"}
+              </button>
+              {showToken && (
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Access token (for a credential you have not saved)"
+                    value={accessToken}
+                    onChange={(e) => setAccessToken(e.target.value)}
+                    className={inputClass}
+                    data-testid="access-token-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void browseWithToken()}
+                    disabled={!accessToken || browsing}
+                    className={`shrink-0 ${secondaryButtonClass}`}
+                    data-testid="token-browse-button"
+                  >
+                    Browse
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

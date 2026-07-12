@@ -114,6 +114,17 @@ async def browse_all_connection_repos(
     (connections are walked oldest first), and the aggregate is capped at
     ``MAX_REPOS`` exactly as a single-connection browse is.
 
+    The cap is AGGREGATE, not per-connection: it bounds the one thing that has
+    to stay bounded - the size of this response and the number of rows the
+    picker can then fan out per-repo Contents checks over. A per-connection cap
+    would multiply by the number of registered connections instead.
+
+    But a cap that bites must SAY so. A connection whose repos did not fit (the
+    limit filled up before it was reached, or partway through it) contributes
+    fewer repos than it can see, so it is reported in ``degraded`` exactly like a
+    connection that failed - never truncated in silence, which would show the
+    operator a complete-looking list that quietly omits their repo (BG-01KXBBTB).
+
     A connection that cannot be used at all - an expired token, a rate-limited
     or undecryptable credential - contributes no repos and is reported in the
     second return value; it never fails the whole browse. So does a connection
@@ -129,6 +140,12 @@ async def browse_all_connection_repos(
     degraded: list[dict] = []
 
     for connection in connections:
+        if len(repos) >= MAX_REPOS:
+            # The cap filled before this connection was even reached: browsing it
+            # would cost a rate-limited call for repos we could not admit anyway.
+            degraded.append(_degradation(connection, _CAP_UNREACHED_REASON))
+            continue
+
         try:
             # Both the decrypt and the GitHub calls raise GitHubSourceError
             # subclasses; either way this connection degrades rather than
@@ -146,6 +163,12 @@ async def browse_all_connection_repos(
 
         for item in listing.repos:
             if len(repos) >= MAX_REPOS:
+                logger.info(
+                    "The %d-repository limit truncated connection %r",
+                    MAX_REPOS,
+                    connection.label,
+                )
+                degraded.append(_degradation(connection, _CAP_TRUNCATED_REASON))
                 break
             if item["full_name"] in repos:
                 continue
@@ -157,6 +180,17 @@ async def browse_all_connection_repos(
 
     ordered = sorted(repos.values(), key=lambda r: r["full_name"].lower())
     return ordered, degraded
+
+
+_CAP_TRUNCATED_REASON = (
+    f"Not all repositories could be listed: the {MAX_REPOS}-repository limit was "
+    "reached while listing this connection"
+)
+
+_CAP_UNREACHED_REASON = (
+    f"Not all repositories could be listed: the {MAX_REPOS}-repository limit was "
+    "reached before this connection was reached"
+)
 
 
 def _degradation(connection: GitHubConnection, reason: str) -> dict:
