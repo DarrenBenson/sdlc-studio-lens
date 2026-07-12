@@ -4,6 +4,20 @@ export type SyncStatus = "never_synced" | "syncing" | "synced" | "error";
 /** Source type for project document origin. */
 export type SourceType = "local" | "github";
 
+/**
+ * A stored GitHub connection (a named credential).
+ *
+ * The raw token is never returned by the API - only `masked_token`.
+ */
+export interface GitHubConnection {
+  id: number;
+  label: string;
+  login: string;
+  masked_token: string | null;
+  created_at: string;
+  last_validated_at: string | null;
+}
+
 /** Project as returned by GET /api/v1/projects. */
 export interface Project {
   slug: string;
@@ -14,6 +28,7 @@ export interface Project {
   repo_branch: string;
   repo_path: string;
   masked_token: string | null;
+  connection_id?: number | null;
   sync_status: SyncStatus;
   sync_error: string | null;
   schema_version?: string | null;
@@ -32,6 +47,7 @@ export interface ProjectCreate {
   repo_branch?: string;
   repo_path?: string;
   access_token?: string;
+  connection_id?: number;
 }
 
 /** Request body for PUT /api/v1/projects/{slug}. */
@@ -43,6 +59,7 @@ export interface ProjectUpdate {
   repo_branch?: string;
   repo_path?: string;
   access_token?: string;
+  connection_id?: number | null;
 }
 
 /** A repository returned by the GitHub repo selector. */

@@ -239,9 +239,13 @@ class TestListReposEndpoint:
         assert data["repositories"][0]["full_name"] == "alice/app"
         assert data["repositories"][0]["default_branch"] == "main"
 
-    async def test_token_required(self, client: AsyncClient) -> None:
+    async def test_credential_required(self, client: AsyncClient) -> None:
+        # Since CR-01KXAZX9 the credential may be a raw access_token OR a stored
+        # connection_id, so an empty body is a 400 VALIDATION_ERROR from the route
+        # (exactly one must be supplied) rather than a 422 missing-field error.
         resp = await client.post("/api/v1/projects/github/repos", json={})
-        assert resp.status_code == 422
+        assert resp.status_code == 400
+        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
     async def test_search_filters_by_name(self, client: AsyncClient) -> None:
         service_return = [

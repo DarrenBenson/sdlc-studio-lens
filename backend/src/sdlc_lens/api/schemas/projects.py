@@ -31,6 +31,9 @@ class ProjectCreate(BaseModel):
     repo_branch: str = "main"
     repo_path: str = "sdlc-studio"
     access_token: str | None = None
+    # Optional stored GitHub connection (CR-01KXAZX9). When set, its token is
+    # used for the sync in preference to any per-project access_token.
+    connection_id: int | None = None
 
     @model_validator(mode="after")
     def validate_source_fields(self) -> "ProjectCreate":
@@ -52,6 +55,15 @@ class ProjectUpdate(BaseModel):
     repo_branch: str | None = None
     repo_path: str | None = None
     access_token: str | None = None
+    connection_id: int | None = None
+
+    def clears_connection(self) -> bool:
+        """True when the body explicitly sends ``connection_id: null``.
+
+        An omitted field leaves the current connection alone; an explicit null
+        detaches it, so the project falls back to its own access_token.
+        """
+        return "connection_id" in self.model_fields_set and self.connection_id is None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> "ProjectUpdate":
@@ -63,8 +75,11 @@ class ProjectUpdate(BaseModel):
             self.repo_branch,
             self.repo_path,
             self.access_token,
+            self.connection_id,
         ]
-        if all(f is None for f in fields):
+        # An explicit ``connection_id: null`` is a real edit (detach), even
+        # though its value is None.
+        if all(f is None for f in fields) and not self.clears_connection():
             msg = "At least one field must be provided"
             raise ValueError(msg)
         return self
@@ -79,6 +94,7 @@ class ProjectResponse(BaseModel):
     repo_branch: str
     repo_path: str
     masked_token: str | None = None
+    connection_id: int | None = None
     sync_status: str
     sync_error: str | None = None
     schema_version: str | None = None

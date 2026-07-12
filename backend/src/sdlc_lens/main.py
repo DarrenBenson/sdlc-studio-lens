@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from sdlc_lens.api.routes.connections import router as connections_router
 from sdlc_lens.api.routes.projects import router as projects_router
 from sdlc_lens.api.routes.search import router as search_router
 from sdlc_lens.api.routes.stats import router as stats_router
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
             },
         )
 
+    app.include_router(connections_router, prefix="/api/v1")
     app.include_router(projects_router, prefix="/api/v1")
     app.include_router(search_router, prefix="/api/v1")
     app.include_router(stats_router, prefix="/api/v1")

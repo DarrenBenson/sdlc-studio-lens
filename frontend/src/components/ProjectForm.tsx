@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
+import type { GitHubCredential } from "../api/client.ts";
 import { checkRepoHasSdlcStudio, fetchGitHubRepos } from "../api/client.ts";
 import type {
+  GitHubConnection,
   GitHubRepoItem,
   ProjectCreate,
   ProjectUpdate,
@@ -22,6 +24,9 @@ interface ProjectFormProps {
   initialRepoUrl?: string;
   initialRepoBranch?: string;
   initialRepoPath?: string;
+  initialConnectionId?: number | null;
+  /** Stored GitHub credentials the operator can pick instead of pasting one. */
+  connections?: GitHubConnection[];
   onSubmit: (data: ProjectCreate | ProjectUpdate) => Promise<void>;
   onCancel?: () => void;
   error: string | null;
@@ -38,6 +43,8 @@ export function ProjectForm({
   initialRepoUrl = "",
   initialRepoBranch = "main",
   initialRepoPath = "sdlc-studio",
+  initialConnectionId = null,
+  connections = [],
   onSubmit,
   onCancel,
   error,
@@ -49,6 +56,9 @@ export function ProjectForm({
   const [repoBranch, setRepoBranch] = useState(initialRepoBranch);
   const [repoPath, setRepoPath] = useState(initialRepoPath);
   const [accessToken, setAccessToken] = useState("");
+  const [connectionId, setConnectionId] = useState<number | null>(
+    initialConnectionId,
+  );
   const [loading, setLoading] = useState(false);
 
   // Repo selector state (GitHub source only).
@@ -73,16 +83,25 @@ export function ProjectForm({
     .filter(matchesFilter)
     .slice(0, MAX_VISIBLE_REPOS);
 
+  // A saved connection wins over a typed token: picking one means the operator
+  // never has to paste a credential again.
+  const credential: GitHubCredential | null =
+    connectionId !== null
+      ? { connectionId }
+      : accessToken
+        ? accessToken
+        : null;
+
   // Lazily resolve the sdlc-studio flag for the currently-visible rows only.
   useEffect(() => {
-    if (repos.length === 0 || !accessToken) return;
+    if (repos.length === 0 || !credential) return;
     for (const repo of visibleRepos) {
       if (checkedRepos.current.has(repo.full_name)) continue;
       checkedRepos.current.add(repo.full_name);
       void checkRepoHasSdlcStudio(
         repo.owner,
         repo.name,
-        accessToken,
+        credential,
         repo.default_branch,
       )
         .then((has) => {
@@ -93,18 +112,39 @@ export function ProjectForm({
           checkedRepos.current.delete(repo.full_name);
         });
     }
-    // visibleRepos is derived from repos + repoFilter; those are the real deps.
+    // visibleRepos is derived from repos + repoFilter, and credential from
+    // accessToken + connectionId; those are the real deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repos, repoFilter, accessToken]);
+  }, [repos, repoFilter, accessToken, connectionId]);
+
+  /** Drop any browsed repos - they belong to whichever credential fetched them. */
+  const resetBrowse = () => {
+    checkedRepos.current = new Set();
+    setSdlcFlags({});
+    setRepos([]);
+    setRepoFilter("");
+    setBrowseError(null);
+  };
+
+  const handleConnectionChange = (value: string) => {
+    resetBrowse();
+    if (value === "") {
+      setConnectionId(null);
+      return;
+    }
+    setConnectionId(Number(value));
+    // A stored connection replaces any one-off token that was typed.
+    setAccessToken("");
+  };
 
   const handleBrowse = async () => {
-    if (!accessToken) return;
+    if (!credential) return;
     setBrowsing(true);
     setBrowseError(null);
     checkedRepos.current = new Set();
     setSdlcFlags({});
     try {
-      const found = await fetchGitHubRepos(accessToken, undefined);
+      const found = await fetchGitHubRepos(credential, undefined);
       setRepos(found);
     } catch (err) {
       setBrowseError(err instanceof Error ? err.message : "Failed to load repositories");
@@ -135,7 +175,11 @@ export function ProjectForm({
           data.repo_url = repoUrl;
           if (repoBranch !== "main") data.repo_branch = repoBranch;
           if (repoPath !== "sdlc-studio") data.repo_path = repoPath;
-          if (accessToken) data.access_token = accessToken;
+          if (connectionId !== null) {
+            data.connection_id = connectionId;
+          } else if (accessToken) {
+            data.access_token = accessToken;
+          }
         }
         await onSubmit(data);
         setName("");
@@ -144,6 +188,8 @@ export function ProjectForm({
         setRepoBranch("main");
         setRepoPath("sdlc-studio");
         setAccessToken("");
+        setConnectionId(null);
+        resetBrowse();
       } else {
         const update: ProjectUpdate = {};
         if (name !== initialName) update.name = name;
@@ -156,7 +202,12 @@ export function ProjectForm({
           if (repoBranch !== initialRepoBranch)
             update.repo_branch = repoBranch;
           if (repoPath !== initialRepoPath) update.repo_path = repoPath;
-          if (accessToken) update.access_token = accessToken;
+          if (connectionId !== initialConnectionId) {
+            update.connection_id = connectionId;
+          }
+          if (connectionId === null && accessToken) {
+            update.access_token = accessToken;
+          }
         }
         await onSubmit(update);
       }
@@ -252,22 +303,51 @@ export function ProjectForm({
               data-testid="repo-path-input"
             />
           </div>
-          <input
-            type="password"
-            placeholder="Access token (optional, for private repos)"
-            value={accessToken}
-            onChange={(e) => setAccessToken(e.target.value)}
-            className={inputClass}
-            data-testid="access-token-input"
-          />
+          {/* Saved credential picker - choosing one means no token to paste. */}
+          {connections.length > 0 && (
+            <div>
+              <label
+                htmlFor="connection-select"
+                className="mb-1.5 block text-xs text-text-tertiary"
+              >
+                GitHub connection
+              </label>
+              <select
+                id="connection-select"
+                value={connectionId === null ? "" : String(connectionId)}
+                onChange={(e) => handleConnectionChange(e.target.value)}
+                className={inputClass}
+                data-testid="connection-select"
+              >
+                <option value="">Enter a token manually</option>
+                {connections.map((conn) => (
+                  <option key={conn.id} value={String(conn.id)}>
+                    {conn.label} ({conn.login})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {/* Repo selector - browse the repos a token can see. Manual URL
+          {/* One-off token entry, the fallback when no connection is chosen. */}
+          {connectionId === null && (
+            <input
+              type="password"
+              placeholder="Access token (optional, for private repos)"
+              value={accessToken}
+              onChange={(e) => setAccessToken(e.target.value)}
+              className={inputClass}
+              data-testid="access-token-input"
+            />
+          )}
+
+          {/* Repo selector - browse the repos a credential can see. Manual URL
               entry above remains available as a fallback. */}
           <div className="space-y-2">
             <button
               type="button"
               onClick={() => void handleBrowse()}
-              disabled={!accessToken || browsing}
+              disabled={!credential || browsing}
               className="rounded-md bg-bg-elevated px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-overlay disabled:opacity-50"
               data-testid="browse-repos-button"
             >

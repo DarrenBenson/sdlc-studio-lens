@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy import text as sql_text
+from sqlalchemy.ext.asyncio import async_object_session
 
 from sdlc_lens.config import settings
 from sdlc_lens.db.models.document import Document
@@ -167,6 +168,37 @@ async def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, byte
     return await asyncio.to_thread(_walk_local_files, sdlc_path)
 
 
+async def resolve_sync_token(project: Project) -> str | None:
+    """The token a GitHub sync should authenticate with, decrypted.
+
+    Precedence (CR-01KXAZX9): a stored connection's token when the project has a
+    ``connection_id``, otherwise the project's own ``access_token``. Existing
+    projects therefore keep working untouched - no stored secret is migrated.
+
+    The connection row is loaded through the project's own session
+    (``async_object_session``), which keeps ``collect_github_files``'s signature
+    unchanged for its callers. A detached project, or a ``connection_id`` whose
+    row has since vanished, falls back to the per-project token.
+    """
+    from sdlc_lens.db.models.github_connection import GitHubConnection
+    from sdlc_lens.utils.crypto import decrypt_token
+
+    if project.connection_id is not None:
+        session = async_object_session(project)
+        if session is not None:
+            connection = await session.get(GitHubConnection, project.connection_id)
+            if connection is not None:
+                return decrypt_token(connection.access_token)
+        logger.warning(
+            "Project %s references connection %s but it could not be loaded; "
+            "falling back to the project's own token",
+            project.slug,
+            project.connection_id,
+        )
+
+    return decrypt_token(project.access_token)
+
+
 async def collect_github_files(
     project: Project,
 ) -> tuple[dict[str, tuple[str, bytes]], ProjectConfig]:
@@ -185,14 +217,14 @@ async def collect_github_files(
         empty :class:`ProjectConfig`.
     """
     from sdlc_lens.services.github_source import fetch_github_files_and_config
-    from sdlc_lens.utils.crypto import decrypt_token
 
     fs_files, config_files = await fetch_github_files_and_config(
         repo_url=project.repo_url,
         branch=project.repo_branch,
         repo_path=project.repo_path,
-        # Decrypt the at-rest token back to the real PAT for the API call.
-        access_token=decrypt_token(project.access_token),
+        # The real PAT for the API call: the connection's token when one is
+        # attached, else the project's own - decrypted either way.
+        access_token=await resolve_sync_token(project),
     )
     return fs_files, _parse_github_config(config_files)
 

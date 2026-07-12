@@ -5,9 +5,9 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Project } from "../types/index.ts";
+import type { GitHubConnection, Project } from "../types/index.ts";
 import { Settings } from "./Settings.tsx";
 
 vi.mock("../api/client.ts", () => ({
@@ -17,6 +17,12 @@ vi.mock("../api/client.ts", () => ({
   updateProject: vi.fn(),
   deleteProject: vi.fn(),
   triggerSync: vi.fn(),
+  fetchConnections: vi.fn(),
+  createConnection: vi.fn(),
+  deleteConnection: vi.fn(),
+  validateConnection: vi.fn(),
+  fetchGitHubRepos: vi.fn(),
+  checkRepoHasSdlcStudio: vi.fn(),
 }));
 
 const {
@@ -25,6 +31,10 @@ const {
   updateProject,
   deleteProject,
   triggerSync,
+  fetchConnections,
+  createConnection,
+  deleteConnection,
+  validateConnection,
 } = await import("../api/client.ts");
 
 const mockFetchProjects = vi.mocked(fetchProjects);
@@ -32,6 +42,21 @@ const mockCreateProject = vi.mocked(createProject);
 const mockUpdateProject = vi.mocked(updateProject);
 const mockDeleteProject = vi.mocked(deleteProject);
 const mockTriggerSync = vi.mocked(triggerSync);
+const mockFetchConnections = vi.mocked(fetchConnections);
+const mockCreateConnection = vi.mocked(createConnection);
+const mockDeleteConnection = vi.mocked(deleteConnection);
+const mockValidateConnection = vi.mocked(validateConnection);
+
+const savedConnections: GitHubConnection[] = [
+  {
+    id: 1,
+    label: "personal",
+    login: "alice",
+    masked_token: "****cdef",
+    created_at: "2026-07-10T09:00:00Z",
+    last_validated_at: "2026-07-11T09:00:00Z",
+  },
+];
 
 const threeProjects: Project[] = [
   {
@@ -104,6 +129,11 @@ function renderSettings() {
     </MemoryRouter>,
   );
 }
+
+beforeEach(() => {
+  // Most tests are about projects; connections default to none.
+  mockFetchConnections.mockResolvedValue([]);
+});
 
 afterEach(() => {
   cleanup();
@@ -402,6 +432,207 @@ describe("TC0067: Sync button triggers sync", () => {
         screen.getByTestId("project-card-homelabcmd"),
       ).toHaveTextContent(/syncing/i);
     });
+  });
+});
+
+// CR-01KXAZX9: Stored GitHub connections
+describe("CR-01KXAZX9: GitHub connections section", () => {
+  it("lists the saved connections with login, masked token and last validated", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    renderSettings();
+
+    const row = await screen.findByTestId("connection-row-1");
+    expect(row).toHaveTextContent("personal");
+    expect(row).toHaveTextContent("alice");
+    expect(row).toHaveTextContent("****cdef");
+    expect(row).toHaveTextContent(/validated/i);
+  });
+
+  it("shows an empty state when no connections are saved", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    renderSettings();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/no github connections/i),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("adding a connection shows the resolved login", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockCreateConnection.mockResolvedValue({
+      id: 7,
+      label: "work",
+      login: "octocat",
+      masked_token: "****beef",
+      created_at: "2026-07-12T09:00:00Z",
+      last_validated_at: "2026-07-12T09:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.type(screen.getByTestId("connection-label-input"), "work");
+    await user.type(
+      screen.getByTestId("connection-token-input"),
+      "ghp_supersecret123",
+    );
+    await user.click(screen.getByText("Add connection"));
+
+    await waitFor(() => {
+      expect(mockCreateConnection).toHaveBeenCalledWith(
+        "work",
+        "ghp_supersecret123",
+      );
+    });
+
+    const row = await screen.findByTestId("connection-row-7");
+    expect(row).toHaveTextContent("octocat");
+  });
+
+  it("never renders the raw token back into the DOM after a successful add", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockCreateConnection.mockResolvedValue({
+      id: 7,
+      label: "work",
+      login: "octocat",
+      masked_token: "****beef",
+      created_at: "2026-07-12T09:00:00Z",
+      last_validated_at: "2026-07-12T09:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.type(screen.getByTestId("connection-label-input"), "work");
+    await user.type(
+      screen.getByTestId("connection-token-input"),
+      "ghp_supersecret123",
+    );
+    await user.click(screen.getByText("Add connection"));
+
+    await screen.findByTestId("connection-row-7");
+
+    expect(screen.getByTestId("connection-token-input")).toHaveValue("");
+    expect(document.body.innerHTML).not.toContain("ghp_supersecret123");
+  });
+
+  it("surfaces an INVALID_TOKEN error inline and adds nothing", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockCreateConnection.mockRejectedValue(
+      new Error("GitHub rejected the access token"),
+    );
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.type(screen.getByTestId("connection-label-input"), "bad");
+    await user.type(screen.getByTestId("connection-token-input"), "ghp_bad");
+    await user.click(screen.getByText("Add connection"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connection-error")).toHaveTextContent(
+        /rejected the access token/i,
+      );
+    });
+    expect(screen.queryByTestId("connection-row-7")).not.toBeInTheDocument();
+    expect(screen.getByText(/no github connections/i)).toBeInTheDocument();
+  });
+
+  it("surfaces a LABEL_EXISTS error inline", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    mockCreateConnection.mockRejectedValue(
+      new Error("A connection named 'personal' already exists"),
+    );
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.type(screen.getByTestId("connection-label-input"), "personal");
+    await user.type(screen.getByTestId("connection-token-input"), "ghp_dup");
+    await user.click(screen.getByText("Add connection"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connection-error")).toHaveTextContent(
+        /already exists/i,
+      );
+    });
+  });
+
+  it("re-validates a connection and refreshes last validated", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    mockValidateConnection.mockResolvedValue({
+      ...savedConnections[0],
+      last_validated_at: "2026-07-12T12:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.click(screen.getByTestId("validate-connection-1"));
+
+    await waitFor(() => {
+      expect(mockValidateConnection).toHaveBeenCalledWith(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("connection-row-1")).toHaveTextContent(
+        /12 Jul 2026/,
+      );
+    });
+  });
+
+  it("deletes a connection", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    mockDeleteConnection.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.click(screen.getByTestId("delete-connection-1"));
+
+    await waitFor(() => {
+      expect(mockDeleteConnection).toHaveBeenCalledWith(1);
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("connection-row-1")).not.toBeInTheDocument();
+    });
+  });
+
+  it("surfaces CONNECTION_IN_USE when deleting a connection still in use", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    mockDeleteConnection.mockRejectedValue(
+      new Error("Connection is in use by projects: HomelabCmd, SDLCLens"),
+    );
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.click(screen.getByTestId("delete-connection-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connection-error")).toHaveTextContent(
+        /in use by projects: HomelabCmd, SDLCLens/,
+      );
+    });
+    // The connection is still listed - the refusal did not remove it.
+    expect(screen.getByTestId("connection-row-1")).toBeInTheDocument();
+  });
+
+  it("offers the saved connections to the project form", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    mockFetchConnections.mockResolvedValue(savedConnections);
+    const user = userEvent.setup();
+    renderSettings();
+
+    await screen.findByTestId("connection-row-1");
+    await user.click(screen.getByText("GitHub"));
+
+    expect(
+      await screen.findByRole("option", { name: /personal \(alice\)/ }),
+    ).toBeInTheDocument();
   });
 });
 

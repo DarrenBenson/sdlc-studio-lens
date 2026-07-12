@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { checkRepoHasSdlcStudio, fetchGitHubRepos } from "../api/client.ts";
-import type { GitHubRepoItem } from "../types/index.ts";
+import type { GitHubConnection, GitHubRepoItem } from "../types/index.ts";
 import { ProjectForm } from "./ProjectForm.tsx";
 
 vi.mock("../api/client.ts", () => ({
@@ -257,6 +257,175 @@ describe("CR-01KXAS75: GitHub repo selector", () => {
     // The manual URL field is present without browsing.
     expect(screen.getByTestId("repo-url-input")).toBeInTheDocument();
     expect(screen.getByTestId("browse-repos-button")).toBeInTheDocument();
+  });
+});
+
+// CR-01KXAZX9: Stored connections - browse and submit without pasting a token
+const CONNECTIONS: GitHubConnection[] = [
+  {
+    id: 1,
+    label: "personal",
+    login: "alice",
+    masked_token: "****cdef",
+    created_at: "2026-07-10T09:00:00Z",
+    last_validated_at: "2026-07-11T09:00:00Z",
+  },
+  {
+    id: 2,
+    label: "work",
+    login: "acme-bot",
+    masked_token: "****9876",
+    created_at: "2026-07-10T10:00:00Z",
+    last_validated_at: null,
+  },
+];
+
+describe("CR-01KXAZX9: Saved connection picker", () => {
+  it("lists the saved connections in the picker", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectForm
+        mode="add"
+        connections={CONNECTIONS}
+        onSubmit={mockOnSubmit}
+        error={null}
+      />,
+    );
+
+    await user.click(screen.getByText("GitHub"));
+
+    const select = screen.getByTestId("connection-select");
+    expect(select).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /personal \(alice\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /work \(acme-bot\)/ })).toBeInTheDocument();
+  });
+
+  it("browses repositories with a saved connection and no token typed", async () => {
+    mockFetchRepos.mockResolvedValue(REPOS);
+    mockCheckSdlc.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(
+      <ProjectForm
+        mode="add"
+        connections={CONNECTIONS}
+        onSubmit={mockOnSubmit}
+        error={null}
+      />,
+    );
+
+    await user.click(screen.getByText("GitHub"));
+    await user.selectOptions(screen.getByTestId("connection-select"), "1");
+    await user.click(screen.getByTestId("browse-repos-button"));
+
+    expect(await screen.findByText("alice/app")).toBeInTheDocument();
+    expect(mockFetchRepos).toHaveBeenCalledWith({ connectionId: 1 }, undefined);
+    // No raw token field is on screen once a saved connection is chosen.
+    expect(screen.queryByTestId("access-token-input")).not.toBeInTheDocument();
+  });
+
+  it("still shows the sdlc-studio badge when browsing via a connection", async () => {
+    mockFetchRepos.mockResolvedValue(REPOS);
+    mockCheckSdlc.mockImplementation((_owner, repo) =>
+      Promise.resolve(repo === "app"),
+    );
+    const user = userEvent.setup();
+    render(
+      <ProjectForm
+        mode="add"
+        connections={CONNECTIONS}
+        onSubmit={mockOnSubmit}
+        error={null}
+      />,
+    );
+
+    await user.click(screen.getByText("GitHub"));
+    await user.selectOptions(screen.getByTestId("connection-select"), "1");
+    await user.click(screen.getByTestId("browse-repos-button"));
+
+    expect(
+      await screen.findByTestId("sdlc-badge-alice/app"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("sdlc-badge-acme/service"),
+    ).not.toBeInTheDocument();
+    // One flag check per repo, no fan-out on re-render.
+    expect(mockCheckSdlc).toHaveBeenCalledTimes(2);
+  });
+
+  it("selects a repo and submits connection_id with the project", async () => {
+    mockFetchRepos.mockResolvedValue(REPOS);
+    mockCheckSdlc.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(
+      <ProjectForm
+        mode="add"
+        connections={CONNECTIONS}
+        onSubmit={mockOnSubmit}
+        error={null}
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText("Project Name"), "GHProject");
+    await user.click(screen.getByText("GitHub"));
+    await user.selectOptions(screen.getByTestId("connection-select"), "1");
+    await user.click(screen.getByTestId("browse-repos-button"));
+    await user.click(await screen.findByTestId("repo-row-alice/app"));
+
+    expect(screen.getByTestId("repo-url-input")).toHaveValue(
+      "https://github.com/alice/app",
+    );
+    expect(screen.getByTestId("repo-branch-input")).toHaveValue("trunk");
+
+    await user.click(screen.getByText("Add Project"));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "GHProject",
+          source_type: "github",
+          repo_url: "https://github.com/alice/app",
+          repo_branch: "trunk",
+          connection_id: 1,
+        }),
+      );
+    });
+    // The raw token field is never used, so no token is submitted.
+    expect(mockOnSubmit.mock.calls[0][0]).not.toHaveProperty("access_token");
+  });
+
+  it("keeps the manual token fallback working when no connection is chosen", async () => {
+    mockFetchRepos.mockResolvedValue(REPOS);
+    mockCheckSdlc.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(
+      <ProjectForm
+        mode="add"
+        connections={CONNECTIONS}
+        onSubmit={mockOnSubmit}
+        error={null}
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText("Project Name"), "OneOff");
+    await user.click(screen.getByText("GitHub"));
+    await user.type(screen.getByTestId("access-token-input"), "ghp_token");
+    await user.click(screen.getByTestId("browse-repos-button"));
+
+    expect(await screen.findByText("alice/app")).toBeInTheDocument();
+    expect(mockFetchRepos).toHaveBeenCalledWith("ghp_token", undefined);
+
+    await user.click(await screen.findByTestId("repo-row-alice/app"));
+    await user.click(screen.getByText("Add Project"));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source_type: "github",
+          access_token: "ghp_token",
+        }),
+      );
+    });
+    expect(mockOnSubmit.mock.calls[0][0]).not.toHaveProperty("connection_id");
   });
 });
 

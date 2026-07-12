@@ -17,6 +17,7 @@ from sdlc_lens.api.schemas.documents import (
     SortField,
 )
 from sdlc_lens.api.schemas.github import (
+    CredentialRequest,
     GitHubRepoItem,
     GitHubReposRequest,
     GitHubReposResponse,
@@ -42,6 +43,10 @@ from sdlc_lens.services.documents import (
     get_document,
     get_related_documents,
     list_documents,
+)
+from sdlc_lens.services.github_connection import (
+    ConnectionNotFoundError,
+    resolve_connection_token,
 )
 from sdlc_lens.services.github_source import (
     AuthenticationError,
@@ -83,6 +88,7 @@ async def _project_response(db: AsyncSession, project) -> ProjectResponse:
         repo_branch=project.repo_branch,
         repo_path=project.repo_path,
         masked_token=mask_token(project.access_token),
+        connection_id=project.connection_id,
         sync_status=project.sync_status,
         sync_error=project.sync_error,
         schema_version=project.schema_version,
@@ -106,6 +112,12 @@ async def register_project(body: ProjectCreate, db: DbDep) -> ProjectResponse | 
             repo_branch=body.repo_branch,
             repo_path=body.repo_path,
             access_token=body.access_token,
+            connection_id=body.connection_id,
+        )
+    except ConnectionNotFoundError as exc:
+        return JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": exc.message}},
         )
     except PathNotFoundError as exc:
         return JSONResponse(
@@ -144,21 +156,62 @@ def _github_error_response(exc: GitHubSourceError) -> JSONResponse:
     )
 
 
+async def _resolve_credential(
+    db: AsyncSession, body: CredentialRequest
+) -> tuple[str | None, JSONResponse | None]:
+    """Resolve a browse request's credential to a usable token.
+
+    Exactly one of ``access_token`` (a one-off browse) or ``connection_id`` (a
+    stored connection, whose token is decrypted server-side) must be supplied.
+    Returns ``(token, None)`` on success or ``(None, error_response)`` otherwise.
+    """
+    if not body.has_exactly_one_credential():
+        return None, JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Provide exactly one of 'access_token' or 'connection_id'",
+                }
+            },
+        )
+
+    if body.connection_id is None:
+        return body.access_token, None
+
+    try:
+        return await resolve_connection_token(db, body.connection_id), None
+    except ConnectionNotFoundError as exc:
+        return None, JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": exc.message}},
+        )
+    except GitHubSourceError as exc:
+        return None, _github_error_response(exc)
+
+
 @router.post("/github/repos", response_model=GitHubReposResponse)
 async def list_github_repositories(
     body: GitHubReposRequest,
+    db: DbDep,
     search: str | None = Query(None),
 ) -> GitHubReposResponse | JSONResponse:
-    """List the repositories the supplied token can see.
+    """List the repositories the supplied credential can see.
 
-    Returns ALL visible repos (the user's own plus their orgs') without checking
-    each for an sdlc-studio workspace - that per-repo flag is fetched lazily via
-    the has-sdlc-studio endpoint, so a large account does not fan out into
-    hundreds of Contents calls and exhaust the rate limit. Optional case-
-    insensitive ``search`` filters by full_name / description server-side.
+    The credential is either a raw ``access_token`` or a ``connection_id`` naming
+    a stored connection. Returns ALL visible repos (the user's own plus their
+    orgs') without checking each for an sdlc-studio workspace - that per-repo flag
+    is fetched lazily via the has-sdlc-studio endpoint, so a large account does
+    not fan out into hundreds of Contents calls and exhaust the rate limit.
+    Optional case-insensitive ``search`` filters by full_name / description
+    server-side.
     """
+    token, error = await _resolve_credential(db, body)
+    if error is not None:
+        return error
+
     try:
-        repos = await list_repositories(body.access_token)
+        repos = await list_repositories(token)
     except GitHubSourceError as exc:
         return _github_error_response(exc)
 
@@ -182,14 +235,20 @@ async def check_repo_has_sdlc_studio(
     owner: str,
     repo: str,
     body: HasSdlcStudioRequest,
+    db: DbDep,
 ) -> HasSdlcStudioResponse | JSONResponse:
     """Lazy per-repo flag: does this repo already contain an sdlc-studio/ tree?
 
     A single cheap Contents call, invoked on demand for the rows the operator is
-    actually looking at - never for every repo in the list.
+    actually looking at - never for every repo in the list. Takes the same
+    credential forms as the listing endpoint.
     """
+    token, error = await _resolve_credential(db, body)
+    if error is not None:
+        return error
+
     try:
-        has = await repo_has_sdlc_studio(body.access_token, owner, repo, body.branch)
+        has = await repo_has_sdlc_studio(token, owner, repo, body.branch)
     except GitHubSourceError as exc:
         return _github_error_response(exc)
     return HasSdlcStudioResponse(has_sdlc_studio=has)
@@ -442,8 +501,10 @@ async def update_project_endpoint(
             repo_branch=body.repo_branch,
             repo_path=body.repo_path,
             access_token=body.access_token,
+            connection_id=body.connection_id,
+            clear_connection=body.clears_connection(),
         )
-    except ProjectNotFoundError as exc:
+    except (ProjectNotFoundError, ConnectionNotFoundError) as exc:
         return JSONResponse(
             status_code=404,
             content={"error": {"code": "NOT_FOUND", "message": exc.message}},

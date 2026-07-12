@@ -80,6 +80,19 @@ def _enforce_allowlist_membership(sdlc_path: str | Path) -> None:
         raise PathNotFoundError(message="sdlc_path must be within the allowed base")
 
 
+async def _assert_connection_exists(session: AsyncSession, connection_id: int | None) -> None:
+    """Raise if connection_id is supplied but names no stored connection.
+
+    Imported lazily: ``services.github_connection`` pulls in the GitHub source
+    module, which this service does not otherwise need.
+    """
+    if connection_id is None:
+        return
+    from sdlc_lens.services.github_connection import get_connection
+
+    await get_connection(session, connection_id)
+
+
 async def create_project(
     session: AsyncSession,
     name: str,
@@ -90,6 +103,7 @@ async def create_project(
     repo_branch: str = "main",
     repo_path: str = "sdlc-studio",
     access_token: str | None = None,
+    connection_id: int | None = None,
 ) -> Project:
     """Register a new project.
 
@@ -100,10 +114,13 @@ async def create_project(
         PathNotFoundError: If source_type is local and sdlc_path does not exist.
         SlugConflictError: If a project with the same slug already exists.
         EmptySlugError: If the generated slug is empty.
+        ConnectionNotFoundError: If connection_id names no stored connection.
     """
     slug = generate_slug(name)
     if not slug:
         raise EmptySlugError
+
+    await _assert_connection_exists(session, connection_id)
 
     # Validate local path only for local source type
     resolved_path: str | None = None
@@ -126,6 +143,7 @@ async def create_project(
         repo_branch=repo_branch,
         repo_path=repo_path,
         access_token=encrypt_token(access_token),
+        connection_id=connection_id,
     )
     session.add(project)
 
@@ -182,14 +200,22 @@ async def update_project(
     repo_branch: str | None = None,
     repo_path: str | None = None,
     access_token: str | None = None,
+    connection_id: int | None = None,
+    clear_connection: bool = False,
 ) -> Project:
     """Update a project's fields.
+
+    ``connection_id`` attaches a stored GitHub connection; ``clear_connection``
+    detaches whatever is attached (the caller distinguishes an omitted field from
+    an explicit null), after which the project falls back to its own access_token.
 
     Raises:
         ProjectNotFoundError: If no project with the given slug exists.
         PathNotFoundError: If the new sdlc_path does not exist or is not a directory.
+        ConnectionNotFoundError: If connection_id names no stored connection.
     """
     project = await get_project_by_slug(session, slug)
+    await _assert_connection_exists(session, connection_id)
 
     # Determine effective (post-update) source type for validation.
     effective_source = source_type if source_type is not None else project.source_type
@@ -216,6 +242,11 @@ async def update_project(
 
     if access_token is not None:
         project.access_token = encrypt_token(access_token)
+
+    if connection_id is not None:
+        project.connection_id = connection_id
+    elif clear_connection:
+        project.connection_id = None
 
     # Validate the effective post-update invariant: whenever the RESULTING
     # project is local, its RESULTING sdlc_path must satisfy the allowlist - even

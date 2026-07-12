@@ -3,7 +3,7 @@
 import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Text, func
+from sqlalchemy import ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sdlc_lens.db.models.base import Base
@@ -26,6 +26,12 @@ class Project(Base):
         String(500), nullable=False, server_default="sdlc-studio"
     )
     access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional stored credential (CR-01KXAZX9). When set, its token is used for
+    # the sync in preference to the per-project access_token above, so an
+    # existing project with its own token keeps working with no migration.
+    connection_id: Mapped[int | None] = mapped_column(
+        ForeignKey("github_connections.id"), nullable=True, index=True
+    )
     sync_status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="never_synced"
     )
