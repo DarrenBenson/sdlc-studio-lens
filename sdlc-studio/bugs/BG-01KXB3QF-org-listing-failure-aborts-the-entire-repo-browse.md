@@ -1,6 +1,6 @@
 # BG-01KXB3QF: Org listing failure aborts the entire repo browse instead of degrading
 
-> **Status:** Open
+> **Status:** Fixed
 > **Triaged-by:** Darren; human; v3
 > **Created:** 2026-07-12
 > **Created-by:** sdlc-studio new

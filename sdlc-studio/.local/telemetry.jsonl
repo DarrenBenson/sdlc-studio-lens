@@ -28,3 +28,5 @@
 {"id": "CR-01KXASF9", "type": "cr", "critic_verdict": "PASS"}
 {"id": "CR-01KXAS75", "type": "cr", "critic_verdict": "PASS"}
 {"id": "CR-01KXAZX9", "type": "cr", "critic_verdict": "PASS"}
+{"id": "BG-01KXB3QF", "type": "bug", "critic_verdict": "PASS"}
+{"id": "CR-01KXB377", "type": "cr", "critic_verdict": "PASS"}

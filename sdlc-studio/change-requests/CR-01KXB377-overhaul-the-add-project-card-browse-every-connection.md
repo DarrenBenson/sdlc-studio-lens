@@ -1,6 +1,7 @@
 # CR-01KXB377: Overhaul the add-project card: browse every connection at once, auto-fill the rest
 
-> **Status:** Proposed
+> **Status:** Complete
+> **Verification depth:** functional
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KXAZX9
 > **Created:** 2026-07-12
