@@ -1,6 +1,6 @@
 # BG-01KXARHJ: Byte-unchanged documents keep stale doc_type and status after an upgrade (incomplete reparse)
 
-> **Status:** Open
+> **Status:** Fixed
 > **Triaged-by:** Darren; human; v3
 > **Severity:** Medium
 > **Verification depth:** functional

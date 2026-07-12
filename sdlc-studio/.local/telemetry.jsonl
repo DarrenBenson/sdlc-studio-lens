@@ -23,3 +23,7 @@
 {"id": "CR-01KX95FH", "type": "cr"}
 {"id": "CR-01KX95WV", "type": "cr"}
 {"id": "CR-01KX9WMA", "type": "cr"}
+{"id": "BG-01KXARHJ", "type": "bug", "critic_verdict": "PASS"}
+{"id": "CR-01KXARM8", "type": "cr", "critic_verdict": "PASS"}
+{"id": "CR-01KXASF9", "type": "cr", "critic_verdict": "PASS"}
+{"id": "CR-01KXAS75", "type": "cr", "critic_verdict": "PASS"}
