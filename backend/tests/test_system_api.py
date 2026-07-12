@@ -3,8 +3,6 @@
 Test cases: TC0046 from TS0003.
 """
 
-import importlib.metadata
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -105,5 +103,12 @@ class TestReadiness:
         assert data["ready"] is False
 
     async def test_version_is_single_sourced(self, client: AsyncClient) -> None:
+        """The reported version must match pyproject, not merely echo get_version()."""
+        import tomllib
+        from pathlib import Path
+
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        declared = tomllib.loads(pyproject.read_text())["project"]["version"]
+
         data = (await client.get("/api/v1/system/health")).json()
-        assert data["version"] == importlib.metadata.version("sdlc-lens")
+        assert data["version"] == declared

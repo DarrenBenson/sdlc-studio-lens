@@ -118,9 +118,11 @@ def _handle_error_response(response: httpx.Response) -> None:
     if response.status_code == 401:
         raise AuthenticationError("Authentication failed - check your access token")
     if response.status_code == 403:
-        # Check if rate limited
+        # A 403 is a rate limit when the primary quota is spent
+        # (x-ratelimit-remaining: 0) or a secondary/abuse limit is hit
+        # (signalled by a Retry-After header); otherwise it is access-denied.
         remaining = response.headers.get("x-ratelimit-remaining", "")
-        if remaining == "0":
+        if remaining == "0" or "retry-after" in response.headers:
             raise RateLimitError(
                 "GitHub API rate limit exceeded - use an access token for higher limits"
             )

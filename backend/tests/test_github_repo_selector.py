@@ -132,6 +132,22 @@ class TestListRepositories:
         ):
             await list_repositories("ghp_bad")
 
+    @pytest.mark.asyncio
+    async def test_secondary_rate_limit_raises_rate_limit_error(self) -> None:
+        # A secondary/abuse-limit 403 carries Retry-After with a non-zero
+        # remaining count; it must map to RateLimitError, not AuthenticationError.
+        def fake_get(url, params=None):
+            return _json_response(
+                403, [], headers={"retry-after": "60", "x-ratelimit-remaining": "42"}
+            )
+
+        client = _mock_client(fake_get)
+        with (
+            patch("sdlc_lens.services.github_source.httpx.AsyncClient", return_value=client),
+            pytest.raises(RateLimitError),
+        ):
+            await list_repositories("ghp_token")
+
 
 # ---------------------------------------------------------------------------
 # repo_has_sdlc_studio
