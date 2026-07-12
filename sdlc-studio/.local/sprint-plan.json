@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-11T18:02:48Z",
+  "generated_at": "2026-07-12T09:14:59Z",
   "kind": "bug+cr",
   "status": "Open, Proposed",
   "queries": [
@@ -15,35 +15,11 @@
   "order": "priority",
   "batch": [
     {
-      "id": "BG-01KX95DB",
-      "type": "bug",
-      "status": "Open",
-      "priority": "High",
-      "path": "sdlc-studio/bugs/BG-01KX95DB-ref-id-not-backfilled-after-migration-007-relationship.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX95WX",
-      "type": "bug",
-      "status": "Open",
-      "priority": "High",
-      "path": "sdlc-studio/bugs/BG-01KX95WX-stored-xss-in-search-results-dangerouslysetinnerhtml-on-fts.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX95AZ",
+      "id": "BG-01KXARHJ",
       "type": "bug",
       "status": "Open",
       "priority": "Medium",
-      "path": "sdlc-studio/bugs/BG-01KX95AZ-decrypt-token-raises-invalidtoken-on-a-wrong-rotated.md",
+      "path": "sdlc-studio/bugs/BG-01KXARHJ-byte-unchanged-documents-keep-stale-doc-type-and.md",
       "difficulty": {
         "score": 50,
         "band": "medium",
@@ -51,81 +27,51 @@
       }
     },
     {
-      "id": "BG-01KX95CR",
-      "type": "bug",
-      "status": "Open",
-      "priority": "Medium",
-      "path": "sdlc-studio/bugs/BG-01KX95CR-documentview-breadcrumb-truncates-v3-ulid-ids-to-the.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "BG-01KX95QP",
-      "type": "bug",
-      "status": "Open",
-      "priority": "Medium",
-      "path": "sdlc-studio/bugs/BG-01KX95QP-sdlc-path-allowlist-bypassable-via-a-two-step.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KX95HS",
+      "id": "CR-01KXARM8",
       "type": "cr",
       "status": "Proposed",
       "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KX95HS-centralise-terminal-status-canonicalisation-logic-duplicated-and-drifted.md",
+      "path": "sdlc-studio/change-requests/CR-01KXARM8-enrich-system-health-endpoint-with-readiness-depth-and.md",
       "difficulty": {
-        "score": 45,
+        "score": 50,
         "band": "medium",
         "confidence": "low"
       }
     },
     {
-      "id": "CR-01KX95FH",
+      "id": "CR-01KXAS75",
       "type": "cr",
       "status": "Proposed",
-      "priority": "Low",
-      "path": "sdlc-studio/change-requests/CR-01KX95FH-low-severity-bugs-consolidated.md",
+      "priority": "Medium",
+      "path": "sdlc-studio/change-requests/CR-01KXAS75-github-repo-selector-browse-repos-and-orgs-to.md",
       "difficulty": {
-        "score": 45,
+        "score": 50,
         "band": "medium",
         "confidence": "low"
       }
     },
     {
-      "id": "CR-01KX95WV",
+      "id": "CR-01KXASF9",
       "type": "cr",
       "status": "Proposed",
-      "priority": "Low",
-      "path": "sdlc-studio/change-requests/CR-01KX95WV-low-severity-crs-consolidated.md",
+      "priority": "Medium",
+      "path": "sdlc-studio/change-requests/CR-01KXASF9-prettify-the-read-only-document-view-working-typography.md",
       "difficulty": {
-        "score": 42,
+        "score": 52,
         "band": "medium",
         "confidence": "low"
       }
     }
   ],
-  "count": 8,
+  "count": 4,
   "waves": [
     [
-      "BG-01KX95DB",
-      "BG-01KX95WX",
-      "BG-01KX95AZ",
-      "BG-01KX95CR",
-      "CR-01KX95HS"
+      "BG-01KXARHJ",
+      "CR-01KXARM8",
+      "CR-01KXASF9"
     ],
     [
-      "BG-01KX95QP",
-      "CR-01KX95FH"
-    ],
-    [
-      "CR-01KX95WV"
+      "CR-01KXAS75"
     ]
   ],
   "deps_declared": true,
