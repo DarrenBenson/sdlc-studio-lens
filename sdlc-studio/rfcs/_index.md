@@ -7,19 +7,20 @@
 
 | Status | Count |
 | --- | --- |
-| Draft | 0 |
+| Draft | 1 |
 | In Review | 0 |
 | Accepted | 1 |
 | Superseded | 0 |
 | Withdrawn | 0 |
 | inbox | 0 |
-| **Total** | **1** |
+| **Total** | **2** |
 
 ## All RFCs
 
 | ID | Title | Priority | Status | Author | Date | Spawned CRs |
 | --- | --- | --- | --- | --- | --- | --- |
 | [RFC-01KXARHK](RFC-01KXARHK-incremental-github-sync-near-realtime-without-re-downloading.md) | Incremental GitHub sync: near-realtime without re-downloading the repo | Medium | Accepted | -- | 2026-07-12 | -- |
+| [RFC-01KXDCKH](RFC-01KXDCKH-make-the-lens-a-delivery-evidence-viewer-surface.md) | Make the lens a delivery-evidence viewer: surface AC verification, critic verdicts and the sprint itself | Medium | Draft | -- | 2026-07-13 | -- |
 
 ## Notes
 
