@@ -71,13 +71,17 @@ code.
 
 - **Stack:** Backend - Python 3.12, FastAPI, SQLAlchemy 2.0 async (sqlite+aiosqlite), Pydantic v2,
   Alembic. Frontend - React 19.2, TypeScript, Vite 7, Tailwind CSS 4.1, react-router-dom 7.13.
+- **Toolchain parity is a hard rule.** The venv must be **Python 3.12** - the version CI pins and the
+  `python:3.12-slim` runtime ships. Rebuild it with `cd backend && uv venv --python 3.12 .venv && uv pip
+  install -e ".[dev]"` (the system python here is 3.14; `uv` fetches 3.12 for you). Always invoke the
+  **venv's** binaries (`.venv/bin/python`, `.venv/bin/ruff`), never whatever is on `$PATH`. This is not
+  fussiness: a stale `$PATH` ruff (0.14) reported a clean tree that CI (0.15) then failed on a rule the
+  local build had never heard of, and a 3.14 venv would have "verified" every acceptance criterion on an
+  interpreter neither CI nor production runs. A check that runs on a different toolchain is not a check.
 - **Run / build / test:**
   - Backend server: `cd backend && PYTHONPATH=src uvicorn "sdlc_lens.main:create_app" --factory`
-  - Backend tests: `cd backend && PYTHONPATH=src python -m pytest`
+  - Backend tests: `cd backend && PYTHONPATH=src .venv/bin/python -m pytest`
   - Backend lint: `cd backend && .venv/bin/ruff check src/ tests/` and `.venv/bin/ruff format src/ tests/`
-    (**use the venv's ruff, not one on `$PATH`** - a globally-installed ruff is usually an older build
-    and will report a clean tree that CI then fails on a rule it has never heard of. `pyproject.toml`
-    bounds ruff for exactly this reason.)
   - Frontend tests: `cd frontend && npx vitest run`; types: `npx tsc --noEmit`
   - Migrations: `cd backend && PYTHONPATH=src alembic upgrade head`
   - Full stack (Docker): `docker compose up --build` from the project root.

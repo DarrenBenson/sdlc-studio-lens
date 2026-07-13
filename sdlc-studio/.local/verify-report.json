@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T00:36:50Z",
+  "generated_at": "2026-07-13T00:44:08Z",
   "dry_run": false,
   "stories": {
     "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every": {
@@ -31,7 +31,7 @@
       ],
       "failures": [],
       "flips": [],
-      "verified_at": "2026-07-13T00:24:52Z"
+      "verified_at": "2026-07-13T00:43:59Z"
     },
     "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci": {
       "ac_count": 4,
@@ -60,7 +60,7 @@
       ],
       "failures": [],
       "flips": [],
-      "verified_at": "2026-07-13T00:36:27Z"
+      "verified_at": "2026-07-13T00:44:08Z"
     }
   }
 }

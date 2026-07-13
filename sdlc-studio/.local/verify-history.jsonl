@@ -11,3 +11,5 @@
 {"at": "2026-07-13T00:36:27Z", "dry_run": false, "story": "US-01KXCC76-store-a-git-blob-sha-per-document", "verified": 4, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3", "AC4"], "failed_acs": [], "exit": 0}
 {"at": "2026-07-13T00:36:49Z", "dry_run": false, "story": "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every", "verified": 3, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC4"], "failed_acs": [], "exit": 0}
 {"at": "2026-07-13T00:36:50Z", "dry_run": false, "story": "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci", "verified": 1, "failed": 0, "stale": 0, "passed": ["AC1"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:43:59Z", "dry_run": false, "story": "US-01KXCB7V-make-the-review-index-and-the-lint-baseline", "verified": 4, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:44:08Z", "dry_run": false, "story": "US-01KXCC76-store-a-git-blob-sha-per-document", "verified": 4, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3", "AC4"], "failed_acs": [], "exit": 0}
