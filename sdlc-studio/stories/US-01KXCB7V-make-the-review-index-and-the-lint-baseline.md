@@ -3,6 +3,8 @@
 > **Status:** Ready
 > **Created:** 2026-07-13
 > **Created-by:** sdlc-studio new
+> **Raised-by:** Tomas Reinholt; persona; v3
+> **Triaged-by:** Darren; human; v3
 > **Epic:** EP-01KXCBC9
 > **Change Request:** [CR-01KXCA1Q](../change-requests/CR-01KXCA1Q-wire-ci-to-push-and-pr-and-settle.md)
 > **Persona:** Tomas Reinholt (QA amigo)
