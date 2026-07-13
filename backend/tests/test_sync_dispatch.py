@@ -22,6 +22,7 @@ from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.github_source import GitHubSourceError, RepoNotFoundError
 from sdlc_lens.services.project_config import ProjectConfig
 from sdlc_lens.services.sync_engine import (
+    FetchInfo,
     FileEntry,
     SyncResult,
     collect_local_files,
@@ -268,10 +269,12 @@ class TestSyncDispatchGitHub:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(mock_files, ProjectConfig()),
+            return_value=(mock_files, ProjectConfig(), FetchInfo()),
         ) as mock_collect:
             result = await sync_project(project, session)
-            mock_collect.assert_called_once_with(project)
+            # The collector is handed what we already hold: it cannot decide between the
+            # tarball and an incremental fetch without it (US-01KXCCTV).
+            mock_collect.assert_called_once_with(project, {})
 
         assert result.added == 1
         assert project.sync_status == "synced"
@@ -569,7 +572,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(seed_files, ProjectConfig()),
+            return_value=(seed_files, ProjectConfig(), FetchInfo()),
         ):
             r1 = await sync_project(project, session)
         assert r1.added == 1
@@ -578,7 +581,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({}, ProjectConfig()),
+            return_value=({}, ProjectConfig(), FetchInfo()),
         ):
             r2 = await sync_project(project, session)
 
@@ -610,7 +613,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(seed_files, ProjectConfig()),
+            return_value=(seed_files, ProjectConfig(), FetchInfo()),
         ):
             await sync_project(project, session)
 
@@ -619,7 +622,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(remaining, ProjectConfig()),
+            return_value=(remaining, ProjectConfig(), FetchInfo()),
         ):
             r2 = await sync_project(project, session)
 
@@ -653,7 +656,7 @@ class TestSyncPrebuiltDict:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(mock_files, ProjectConfig()),
+            return_value=(mock_files, ProjectConfig(), FetchInfo()),
         ):
             result = await sync_project(project, session)
 
@@ -714,7 +717,7 @@ class TestContentlessManifestEntries:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({p: _entry(c) for p, c in paths.items()}, ProjectConfig()),
+            return_value=({p: _entry(c) for p, c in paths.items()}, ProjectConfig(), FetchInfo()),
         ):
             await sync_project(project, session)
 
@@ -730,7 +733,11 @@ class TestContentlessManifestEntries:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({p: _contentless(c) for p, c in paths.items()}, ProjectConfig()),
+            return_value=(
+                {p: _contentless(c) for p, c in paths.items()},
+                ProjectConfig(),
+                FetchInfo(),
+            ),
         ):
             result = await sync_project(project, session)
 
@@ -768,6 +775,7 @@ class TestContentlessManifestEntries:
             return_value=(
                 {"epics/EP0001-one.md": _entry(c1), "stories/US0001-one.md": _entry(c2)},
                 ProjectConfig(),
+                FetchInfo(),
             ),
         ):
             await sync_project(project, session)
@@ -777,7 +785,7 @@ class TestContentlessManifestEntries:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({"epics/EP0001-one.md": _contentless(c1)}, ProjectConfig()),
+            return_value=({"epics/EP0001-one.md": _contentless(c1)}, ProjectConfig(), FetchInfo()),
         ):
             result = await sync_project(project, session)
 
@@ -811,7 +819,7 @@ class TestContentlessManifestEntries:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({"epics/EP0001-one.md": _entry(old)}, ProjectConfig()),
+            return_value=({"epics/EP0001-one.md": _entry(old)}, ProjectConfig(), FetchInfo()),
         ):
             await sync_project(project, session)
 
@@ -827,7 +835,7 @@ class TestContentlessManifestEntries:
             patch(
                 "sdlc_lens.services.sync_engine.collect_github_files",
                 new_callable=AsyncMock,
-                return_value=({"epics/EP0001-one.md": broken}, ProjectConfig()),
+                return_value=({"epics/EP0001-one.md": broken}, ProjectConfig(), FetchInfo()),
             ),
         ):
             result = await sync_project(project, session)
@@ -961,7 +969,7 @@ class TestManifestBlobShaIsChecked:
             patch(
                 "sdlc_lens.services.sync_engine.collect_github_files",
                 new_callable=AsyncMock,
-                return_value=({"epics/EP0001-one.md": liar}, ProjectConfig()),
+                return_value=({"epics/EP0001-one.md": liar}, ProjectConfig(), FetchInfo()),
             ),
         ):
             result = await sync_project(project, session)

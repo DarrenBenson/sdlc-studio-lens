@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T01:05:02Z",
+  "generated_at": "2026-07-13T08:27:44Z",
   "dry_run": false,
   "stories": {
     "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every": {
@@ -80,6 +80,26 @@
       "failures": [],
       "flips": [],
       "verified_at": "2026-07-13T01:05:02Z"
+    },
+    "US-01KXCCTV-fetch-only-changed-blobs-via-trees-and-blobs": {
+      "ac_count": 9,
+      "verified": 8,
+      "failed": 0,
+      "stale": 0,
+      "manual": 1,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5",
+        "AC6",
+        "AC7",
+        "AC8"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T08:27:44Z"
     }
   }
 }

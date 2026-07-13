@@ -8,10 +8,10 @@
 | Status | Count |
 |--------|-------|
 | Draft | 0 |
-| Ready | 1 |
+| Ready | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Done | 10 |
+| Done | 11 |
 | **Total** | **11** |
 
 ## Epics
@@ -28,7 +28,7 @@
 | [EP0008](EP0008-document-relationship-navigation.md) | Document Relationship Navigation | Done | Darren | 4 | 16 | Phase 5 |
 | [EP0009](EP0009-project-health-check.md) | Project Health Check | Done | Darren | 3 | 13 | Phase 6 |
 | [EP-01KXCBC9](EP-01KXCBC9-ci-safety-net-run-the-tests-on-every.md) | CI safety net: run the tests on every change, and stop counting a suite that cannot run | Done | -- | -- | -- | -- |
-| [EP-01KXCCA4](EP-01KXCCA4-incremental-github-sync-fetch-only-what-changed-without.md) | Incremental GitHub sync: fetch only what changed, without regressing the empty-source guard | Ready | -- | -- | -- | -- |
+| [EP-01KXCCA4](EP-01KXCCA4-incremental-github-sync-fetch-only-what-changed-without.md) | Incremental GitHub sync: fetch only what changed, without regressing the empty-source guard | Done | -- | -- | -- | -- |
 
 ## By Phase
 

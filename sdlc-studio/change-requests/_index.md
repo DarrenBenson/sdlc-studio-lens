@@ -7,10 +7,10 @@
 
 | Status | Count |
 | --- | --- |
-| Proposed | 2 |
+| Proposed | 1 |
 | Approved | 0 |
 | In Progress | 0 |
-| Complete | 20 |
+| Complete | 21 |
 | Rejected | 0 |
 | Deferred | 0 |
 | inbox | 0 |
@@ -45,7 +45,7 @@
 | [CR-01KXAZX9](CR-01KXAZX9-stored-github-connections-register-credentials-once-then-browse.md) | Stored GitHub connections: register credentials once, then browse and add repos in two clicks | Medium | Complete | Feature | -- | 2026-07-12 |
 | [CR-01KXB377](CR-01KXB377-overhaul-the-add-project-card-browse-every-connection.md) | Overhaul the add-project card: browse every connection at once, auto-fill the rest | Medium | Complete | Feature | -- | 2026-07-12 |
 | [CR-01KXCA1Q](CR-01KXCA1Q-wire-ci-to-push-and-pr-and-settle.md) | Wire CI to push and PR, and settle the E2E suite | Medium | Complete | Feature | -- | 2026-07-13 |
-| [CR-01KXCAHV](CR-01KXCAHV-incremental-github-sync-hybrid-tarball-plus-trees-and.md) | Incremental GitHub sync: hybrid tarball plus Trees and Blobs re-sync | Medium | Proposed | Feature | -- | 2026-07-13 |
+| [CR-01KXCAHV](CR-01KXCAHV-incremental-github-sync-hybrid-tarball-plus-trees-and.md) | Incremental GitHub sync: hybrid tarball plus Trees and Blobs re-sync | Medium | Complete | Feature | -- | 2026-07-13 |
 | [CR-01KXCAZJ](CR-01KXCAZJ-commit-sha-poll-trigger-to-keep-github-projects.md) | Commit-SHA poll trigger to keep GitHub projects fresh | Medium | Proposed | Feature | -- | 2026-07-13 |
 
 ## Dependencies

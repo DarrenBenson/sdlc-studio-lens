@@ -63,15 +63,29 @@ _EXCLUDED_DIRS = frozenset(
 )
 
 
+# How many changed blobs an incremental sync will fetch before giving up and pulling the
+# whole tarball instead. Past this point the one-request-per-blob cost exceeds a single
+# tarball, so the fallback BOUNDS the worst case at today's cost rather than degrading
+# past it (RFC-01KXARHK, D5).
+MAX_INCREMENTAL_BLOBS = 200
+
+
 @dataclass
 class SyncResult:
-    """Counts for each sync operation."""
+    """Counts for each sync operation, and how the sync was performed."""
 
     added: int = 0
     updated: int = 0
     skipped: int = 0
     deleted: int = 0
     errors: int = 0
+
+    # Which fetch strategy actually ran, and WHY. A cap or a fallback that quietly
+    # diverts work reads to the operator as "this is just how it works" - RETRO-0006:
+    # a cap must speak. `fetch_path` is "local", "tarball" or "incremental".
+    fetch_path: str = "local"
+    fetch_reason: str = ""
+    blobs_fetched: int = 0
 
 
 # Standard metadata fields stored as dedicated columns
@@ -291,46 +305,243 @@ async def resolve_sync_token(project: Project) -> str | None:
         ) from exc
 
 
+@dataclass
+class FetchInfo:
+    """How a GitHub sync was actually fetched, and why. Reported to the operator."""
+
+    path: str = "tarball"
+    reason: str = ""
+    blobs_fetched: int = 0
+    config_blob_shas: dict[str, str] | None = None
+
+
+def _full_sync_reason(existing_docs: dict[str, Document], project: Project) -> str | None:
+    """Why this GitHub sync must pull the whole tarball, or None to go incremental.
+
+    Each of these is a state in which an incremental fetch would be wrong or useless,
+    not merely slower (RFC-01KXARHK, D3/D7):
+    """
+    if not existing_docs:
+        # Nothing to diff against. The tarball is also strictly cheaper here: one request
+        # instead of 1 + N.
+        return "first sync"
+
+    if any(doc.blob_sha is None for doc in existing_docs.values()):
+        # A row from before migration 012. We have no SHA to diff it against, so we
+        # cannot know whether it changed. Pull everything once; the skip condition's
+        # `needs_blob_sha_backfill` clause then rewrites those rows and they settle.
+        return "backfilling blob SHAs after an upgrade"
+
+    if any((doc.parser_epoch or 0) < PARSER_EPOCH for doc in existing_docs.values()):
+        # An app upgrade changed the parsing logic, so byte-unchanged files must still be
+        # RE-PARSED - and re-parsing needs real bytes. The stored `content` column cannot
+        # supply them: it is body-only, with the frontmatter blockquote stripped
+        # (parser.py:183), so status/epic/story/depends_on/aliases are not in it. Fetch
+        # everything (RFC D7). Miss this and BG-01KXARHJ silently un-fixes itself.
+        return "re-parsing after a parser upgrade"
+
+    if project.config_blob_shas is None:
+        # We have never recorded what config we read, so we cannot tell whether it moved.
+        return "config state unknown"
+
+    return None
+
+
 async def collect_github_files(
     project: Project,
-) -> tuple[dict[str, FileEntry], ProjectConfig]:
+    existing_docs: dict[str, Document] | None = None,
+) -> tuple[dict[str, FileEntry], ProjectConfig, FetchInfo]:
     """Collect .md files and project config from a GitHub repository.
 
-    Delegates to the github_source module which downloads the repository
-    tarball once and extracts both the .md tree and the ``.config.yaml`` /
-    ``.version`` metadata sitting at the repo_path root.
+    Chooses between two fetch strategies (RFC-01KXARHK, A3 "hybrid"):
 
-    The tarball path always has every file's bytes, so every entry here carries
-    ``raw``. The incremental Trees+Blobs path (US-01KXCCTV) is what will start
-    returning contentless entries for unchanged files.
+    * **tarball** - one request, whole repo. The cold start, the backfill, the repair
+      path, and the escape hatch when too much changed. See :func:`_full_sync_reason`.
+    * **incremental** - one Trees request for the manifest, then one Blobs request per
+      CHANGED file. The steady state: a re-sync costs a handful of small requests instead
+      of the entire repository.
 
-    Args:
-        project: Project with source_type="github" and repo fields set.
-
-    Returns:
-        Tuple of (manifest, parsed ProjectConfig). The config is parsed
-        best-effort; a missing or malformed one yields an empty
-        :class:`ProjectConfig`.
+    Both return a **complete** manifest - every live path is a key. Under the incremental
+    path an unchanged file is present with ``raw=None``: it was not downloaded, but it
+    was certainly not deleted, and conflating those two is how you delete a user's corpus
+    (see :class:`FileEntry`).
     """
-    from sdlc_lens.services.github_source import fetch_github_files_and_config
-
-    raw_files, config_files = await fetch_github_files_and_config(
-        repo_url=project.repo_url,
-        branch=project.repo_branch,
-        repo_path=project.repo_path,
-        # The real PAT for the API call: the connection's token when one is
-        # attached, else the project's own - decrypted either way.
-        access_token=await resolve_sync_token(project),
+    from sdlc_lens.services.github_source import (
+        AuthenticationError,
+        GitHubSourceError,
+        RateLimitError,
+        RepoNotFoundError,
+        fetch_github_blobs,
+        fetch_github_files_and_config,
+        fetch_github_tree,
     )
-    manifest = {
-        rel_path: FileEntry(
-            file_hash=file_hash,
-            raw=raw,
-            blob_sha=compute_blob_sha(raw),
+
+    existing_docs = existing_docs or {}
+    # The real PAT for the API call: the connection's token when one is attached, else
+    # the project's own - decrypted either way.
+    token = await resolve_sync_token(project)
+
+    async def _tarball(reason: str) -> tuple[dict[str, FileEntry], ProjectConfig, FetchInfo]:
+        raw_files, config_files = await fetch_github_files_and_config(
+            repo_url=project.repo_url,
+            branch=project.repo_branch,
+            repo_path=project.repo_path,
+            access_token=token,
         )
-        for rel_path, (file_hash, raw) in raw_files.items()
-    }
-    return manifest, _parse_github_config(config_files)
+        manifest = {
+            rel_path: FileEntry(
+                file_hash=file_hash,
+                raw=raw,
+                blob_sha=compute_blob_sha(raw),
+            )
+            for rel_path, (file_hash, raw) in raw_files.items()
+        }
+        # Record the config SHAs we just read, so the NEXT sync can detect a config edit
+        # from the Trees response alone - at zero API cost.
+        config_shas = {name: compute_blob_sha(raw) for name, raw in config_files.items()}
+        return (
+            manifest,
+            _parse_github_config(config_files),
+            FetchInfo(path="tarball", reason=reason, config_blob_shas=config_shas),
+        )
+
+    forced = _full_sync_reason(existing_docs, project)
+    if forced:
+        return await _tarball(forced)
+
+    # --- Incremental: one Trees call, then only the blobs that actually moved. ---
+    #
+    # Any failure here falls back to the tarball rather than failing the sync. A single
+    # tarball request is still perfectly capable of succeeding when the Trees/Blobs calls
+    # are not (a 5xx, a secondary rate limit, an odd blob encoding), and the tarball IS
+    # the escape hatch - so wire it as one, instead of turning a transient API hiccup into
+    # a hard sync failure for a project that used to sync fine.
+    try:
+        tree = await fetch_github_tree(
+            repo_url=project.repo_url,
+            branch=project.repo_branch,
+            repo_path=project.repo_path,
+            access_token=token,
+        )
+
+        if tree.truncated:
+            # GitHub truncates a very large tree. A truncated manifest is INCOMPLETE, and
+            # an incomplete manifest reads as "those paths were deleted upstream" - which
+            # would delete documents whose files are perfectly present. Never trust it.
+            return await _tarball("repository tree too large to list (truncated)")
+
+        # Only paths that can actually BECOME documents belong in the manifest, and the
+        # local walker already filters on exactly this (see _walk_local_files). The two
+        # sources must agree on what "a live path" means, or they disagree about what has
+        # been deleted.
+        #
+        # Concretely: `infer_type_and_id` returns None for `_index.md`. Those files are in
+        # the repo but are never stored as documents, so they are never in `existing_docs`
+        # - which would make them "changed" on EVERY sync, FOR EVER. A real sdlc-studio
+        # repo has one per artefact folder (this one has ten), so a "nothing changed" sync
+        # would silently re-download ten blobs every time and report "10 file(s) changed"
+        # to an operator who changed nothing. The headline claim of this feature - a no-op
+        # sync costs zero blob requests - is false without this filter.
+        live = {
+            rel_path: sha
+            for rel_path, sha in tree.md_blobs.items()
+            if infer_type_and_id(Path(rel_path).name, rel_path) is not None
+        }
+
+        changed = {
+            rel_path: sha
+            for rel_path, sha in live.items()
+            if rel_path not in existing_docs or existing_docs[rel_path].blob_sha != sha
+        }
+        if len(changed) > MAX_INCREMENTAL_BLOBS:
+            # Past the cap, one-request-per-blob costs more than a single tarball. Falling
+            # back BOUNDS the worst case at today's cost instead of degrading past it. And
+            # it SAYS SO - a cap that silently diverts work is a cap that lies (RETRO-0006).
+            return await _tarball(
+                f"{len(changed)} files changed, over the {MAX_INCREMENTAL_BLOBS}-blob "
+                "incremental cap - pulled the whole repository instead"
+            )
+
+        # Config: the Trees response gave us each config file's blob SHA for free, so we
+        # can tell whether it moved without spending a request. Re-fetch ONLY if it did.
+        stored_config_shas = json.loads(project.config_blob_shas or "{}")
+        config_changed = tree.config_blobs != stored_config_shas
+
+        blobs_to_fetch: dict[str, str] = dict(changed)
+        config_keys = set()
+        if config_changed:
+            for name, sha in tree.config_blobs.items():
+                # NUL is forbidden in a git path (it terminates a tree entry), so this
+                # key can never collide with a real .md path.
+                key = f"\0config\0{name}"
+                blobs_to_fetch[key] = sha
+                config_keys.add(key)
+
+        fetched = await fetch_github_blobs(
+            repo_url=project.repo_url,
+            blob_shas=blobs_to_fetch,
+            access_token=token,
+        )
+    except (RateLimitError, AuthenticationError, RepoNotFoundError):
+        # Do NOT fall back for these. A tarball is another request against the same repo
+        # with the same token: if we are out of quota, the fallback burns a request we do
+        # not have and fails anyway; if the token is revoked or the repo is gone, it fails
+        # identically. Retrying a request that cannot succeed is not resilience, it is
+        # noise - and on a rate limit it actively makes the throttling worse. Fail, keep
+        # the corpus intact, and tell the operator what is actually wrong.
+        raise
+    except GitHubSourceError as exc:
+        # Everything else IS worth a retry via the other road: a 5xx, a timeout, a blob
+        # with an encoding we refuse to guess at. One tarball request can still succeed
+        # where Trees+Blobs did not, and this project synced fine that way until today.
+        # The tarball is the escape hatch, so wire it as one rather than turning a
+        # transient hiccup into a hard sync failure.
+        logger.warning(
+            "Incremental fetch failed for project %s (%s); falling back to the tarball",
+            project.slug,
+            exc,
+        )
+        return await _tarball(f"incremental fetch failed ({exc}) - fell back to the tarball")
+
+    config_files: dict[str, bytes] = {}
+    if config_changed:
+        config_files = {k.split("\0")[-1]: fetched.pop(k) for k in config_keys}
+        config = _parse_github_config(config_files)
+    else:
+        # Unchanged: keep what the project already carries rather than re-deriving it
+        # from bytes we deliberately did not fetch.
+        config = ProjectConfig(
+            schema_version=project.schema_version,
+            profile=project.profile,
+            status_vocab=json.loads(project.status_vocab) if project.status_vocab else {},
+        )
+
+    # The manifest holds EVERY live path. Changed files carry their bytes; unchanged files
+    # carry raw=None - present, so not deleted; contentless, so not re-parsed.
+    manifest: dict[str, FileEntry] = {}
+    for rel_path, sha in live.items():
+        raw = fetched.get(rel_path)
+        manifest[rel_path] = FileEntry(
+            file_hash=compute_hash(raw) if raw is not None else existing_docs[rel_path].file_hash,
+            raw=raw,
+            blob_sha=sha,
+        )
+
+    reason = (
+        f"{len(changed)} file(s) changed"
+        if changed or config_changed
+        else "nothing changed upstream"
+    )
+    return (
+        manifest,
+        config,
+        FetchInfo(
+            path="incremental",
+            reason=reason,
+            blobs_fetched=len(blobs_to_fetch),
+            config_blob_shas=tree.config_blobs,
+        ),
+    )
 
 
 def _decode_config_bytes(raw: bytes | None) -> str | None:
@@ -480,35 +691,51 @@ async def sync_project(
     config = ProjectConfig()
 
     try:
-        # Step 1: Collect files from configured source
+        # Step 1: Load what we already hold. This comes FIRST because a GitHub sync needs
+        # it to choose a fetch strategy: what has changed can only be decided against what
+        # is stored, and whether an incremental fetch is even valid depends on the stored
+        # rows' blob_sha and parser_epoch (see _full_sync_reason).
+        db_result = await session.execute(
+            select(Document).where(Document.project_id == project_id)
+        )
+        existing_docs = {doc.file_path: doc for doc in db_result.scalars().all()}
+
+        # Step 2: Collect files from the configured source.
+        #
+        # The project's config fields are NOT written here. A sync that turns out to have
+        # yielded nothing (a mistyped repo_path, a wrong branch) would otherwise commit an
+        # EMPTY ProjectConfig over a perfectly good schema_version / profile / status_vocab
+        # - the empty-source guard below saves the documents, then the failed sync wipes
+        # the project's metadata anyway. Assign only once the source has proven itself.
+        fetch_info = FetchInfo(path="local")
         if project.source_type == "local":
             fs_files, collect_errors = await collect_local_files(project.sdlc_path)
             result.errors += collect_errors
             # Best-effort: read .config.yaml / .version alongside the collected tree.
             # A missing or malformed config must not fail the sync.
             config = await asyncio.to_thread(read_local_project_config, project.sdlc_path)
-            project.schema_version = config.schema_version
-            project.profile = config.profile
-            project.status_vocab = json.dumps(config.status_vocab) if config.status_vocab else None
         elif project.source_type == "github":
-            # collect_github_files reads .config.yaml / .version from the tarball
-            # alongside the .md tree. Best-effort, exactly like the local branch:
-            # a missing or malformed config yields an empty ProjectConfig.
-            fs_files, config = await collect_github_files(project)
-            project.schema_version = config.schema_version
-            project.profile = config.profile
-            project.status_vocab = json.dumps(config.status_vocab) if config.status_vocab else None
+            # Reads .config.yaml / .version alongside the .md tree. Best-effort, exactly
+            # like the local branch: a missing or malformed config yields an empty
+            # ProjectConfig. Chooses tarball vs incremental internally.
+            fs_files, config, fetch_info = await collect_github_files(project, existing_docs)
         else:
             project.sync_status = "error"
             project.sync_error = f"Unknown source_type: {project.source_type}"
             await session.commit()
             return result
 
-        # Step 2: Load existing documents from DB
-        db_result = await session.execute(
-            select(Document).where(Document.project_id == project_id)
-        )
-        existing_docs = {doc.file_path: doc for doc in db_result.scalars().all()}
+        result.fetch_path = fetch_info.path
+        result.fetch_reason = fetch_info.reason
+        result.blobs_fetched = fetch_info.blobs_fetched
+        if project.source_type == "github":
+            logger.info(
+                "Sync of project %d used the %s path (%s); %d blob(s) fetched",
+                project_id,
+                fetch_info.path,
+                fetch_info.reason,
+                fetch_info.blobs_fetched,
+            )
 
         # Guard: refuse to wipe existing documents when the source yields nothing.
         # An empty result usually means a misconfigured repo_path/branch, an
@@ -522,6 +749,16 @@ async def sync_project(
             )
             await session.commit()
             return result
+
+        # The source has proven itself, so it is now safe to adopt its config. Doing this
+        # BEFORE the guard would let a sync that failed the guard still commit an empty
+        # config over a good one - preserving the documents while destroying the project
+        # metadata that tells us how to parse them.
+        project.schema_version = config.schema_version
+        project.profile = config.profile
+        project.status_vocab = json.dumps(config.status_vocab) if config.status_vocab else None
+        if fetch_info.config_blob_shas is not None:
+            project.config_blob_shas = json.dumps(fetch_info.config_blob_shas)
 
         # Step 3: Process collected files
         #

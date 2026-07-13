@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import io
 import logging
 import tarfile
@@ -385,6 +386,177 @@ def _extract_config_from_tarball(
             result[rel_path] = file_obj.read()
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Incremental sync: Git Trees + Blobs (US-01KXCCTV, RFC-01KXARHK A3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RepoTree:
+    """The repository's manifest at one commit: every path, and its git blob SHA.
+
+    One Trees call (``?recursive=1``) yields this for the whole repo, WITHOUT
+    downloading a single byte of content. Diffing these SHAs against the ones we store
+    is what lets a re-sync fetch only the files that actually changed.
+    """
+
+    md_blobs: dict[str, str]
+    """{path relative to repo_path: git blob SHA} for every .md file under repo_path."""
+
+    config_blobs: dict[str, str]
+    """{filename: git blob SHA} for .config.yaml / .version at the repo_path root."""
+
+    truncated: bool = False
+    """GitHub truncates a very large tree. A truncated manifest is INCOMPLETE, and an
+    incomplete manifest would read as "these paths were deleted upstream" - so the caller
+    must fall back to the tarball rather than trust it. This flag exists to make that
+    failure impossible to miss."""
+
+
+async def fetch_github_tree(
+    repo_url: str,
+    branch: str = "main",
+    repo_path: str = "sdlc-studio",
+    access_token: str | None = None,
+    timeout: httpx.Timeout | None = None,
+) -> RepoTree:
+    """Fetch the repo's path -> blob SHA manifest in ONE API call, no content.
+
+    Raises the same error types as the tarball path.
+    """
+    owner, repo = parse_github_url(repo_url)
+    repo_path = repo_path.strip("/")
+    prefix = f"{repo_path}/" if repo_path else ""
+
+    async with httpx.AsyncClient(
+        headers=_build_headers(access_token),
+        timeout=timeout or _DEFAULT_TIMEOUT,
+        follow_redirects=True,
+    ) as client:
+        url = f"{_API_BASE}/repos/{owner}/{repo}/git/trees/{branch}"
+        try:
+            response = await client.get(url, params={"recursive": "1"})
+        except httpx.TimeoutException as exc:
+            raise GitHubSourceError(f"Timeout fetching repository tree: {exc}") from exc
+        except httpx.ConnectError as exc:
+            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+
+        _handle_error_response(response)
+        payload = response.json()
+
+    md_blobs: dict[str, str] = {}
+    config_blobs: dict[str, str] = {}
+
+    for node in payload.get("tree", []):
+        # Only regular files. A directory is type "tree" and a submodule is type "commit"
+        # whose SHA is NOT a blob - fetching it would fail the whole sync.
+        if node.get("type") != "blob":
+            continue
+
+        # A SYMLINK is also type "blob" (mode 120000), and its "content" is the link
+        # target string, not a document. The tarball path excludes symlinks
+        # (`TarInfo.isfile()` is False), so including them here would make the two fetch
+        # paths disagree about which paths are live - and a path that is live under one
+        # and absent under the other gets ADDED as a junk document by an incremental sync
+        # and then DELETED by the next tarball fallback, for ever. Both manifests must
+        # mean the same thing.
+        if node.get("mode") == "120000":
+            continue
+
+        path = node.get("path", "")
+        sha = node.get("sha")
+        if not sha or (prefix and not path.startswith(prefix)):
+            continue
+
+        rel_path = path[len(prefix) :] if prefix else path
+        if not rel_path:
+            continue
+
+        if rel_path in _CONFIG_FILENAMES:
+            config_blobs[rel_path] = sha
+        elif rel_path.endswith(".md"):
+            md_blobs[rel_path] = sha
+
+    return RepoTree(
+        md_blobs=md_blobs,
+        config_blobs=config_blobs,
+        truncated=bool(payload.get("truncated", False)),
+    )
+
+
+async def fetch_github_blobs(
+    repo_url: str,
+    blob_shas: dict[str, str],
+    access_token: str | None = None,
+    timeout: httpx.Timeout | None = None,
+    concurrency: int = 8,
+) -> dict[str, bytes]:
+    """Fetch the raw bytes of specific blobs, by SHA. One request per blob.
+
+    ``blob_shas`` maps a caller-chosen key (a relative path) to a git blob SHA. The
+    return maps the same keys to raw bytes.
+
+    All-or-nothing on failure. If any blob fails, the exception propagates and the
+    caller gets NOTHING - it must never write a partial corpus, because a half-fetched
+    sync that looked successful would leave documents silently inconsistent with the
+    repo. A rate limit part-way through must cost the user nothing.
+    """
+    if not blob_shas:
+        return {}
+
+    owner, repo = parse_github_url(repo_url)
+    semaphore = asyncio.Semaphore(concurrency)
+    results: dict[str, bytes] = {}
+
+    async with httpx.AsyncClient(
+        headers=_build_headers(access_token),
+        timeout=timeout or _DEFAULT_TIMEOUT,
+        follow_redirects=True,
+    ) as client:
+
+        async def _one(key: str, sha: str) -> None:
+            async with semaphore:
+                url = f"{_API_BASE}/repos/{owner}/{repo}/git/blobs/{sha}"
+                try:
+                    response = await client.get(url)
+                except httpx.TimeoutException as exc:
+                    raise GitHubSourceError(f"Timeout fetching blob for {key}: {exc}") from exc
+                except httpx.ConnectError as exc:
+                    raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+
+                _handle_error_response(response)
+                payload = response.json()
+
+                encoding = payload.get("encoding")
+                if encoding != "base64":
+                    raise GitHubSourceError(
+                        f"Unexpected blob encoding {encoding!r} for {key} - refusing to guess"
+                    )
+                raw = base64.b64decode(payload.get("content", ""))
+                if len(raw) > _MAX_MEMBER_BYTES:
+                    raise GitHubSourceError(
+                        f"Blob {key!r} too large: {len(raw)} bytes exceeds the "
+                        f"{_MAX_MEMBER_BYTES}-byte per-file limit"
+                    )
+                results[key] = raw
+
+        # A TaskGroup, NOT asyncio.gather. gather(return_exceptions=False) propagates the
+        # first exception immediately but does NOT cancel its siblings - so on a rate
+        # limit, up to `concurrency - 1` further requests would still hit GitHub *after*
+        # we already knew we were throttled, and would then be torn down mid-flight when
+        # the client closes. A TaskGroup cancels the rest on the first error.
+        try:
+            async with asyncio.TaskGroup() as tg:
+                for key, sha in blob_shas.items():
+                    tg.create_task(_one(key, sha))
+        except* GitHubSourceError as eg:
+            # Surface the first real error, not an opaque ExceptionGroup: callers catch
+            # RateLimitError / AuthenticationError by type to decide what to do next.
+            raise eg.exceptions[0] from None
+
+    return results
 
 
 # ---------------------------------------------------------------------------

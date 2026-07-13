@@ -1,6 +1,6 @@
 # CR-01KXCAHV: Incremental GitHub sync: hybrid tarball plus Trees and Blobs re-sync
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Verification depth:** functional
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KXCA1Q

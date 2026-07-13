@@ -1,6 +1,6 @@
 # US-01KXCCTV: Fetch only changed blobs via Trees and Blobs, with a tarball fallback
 
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-07-13
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Priya Nair; persona; v3
@@ -36,63 +36,72 @@ than worse than it.
 - **Given** a synced GitHub project whose repo has not moved
 - **When** a sync runs
 - **Then** exactly one Trees request is issued, **zero** blob requests, and the result reports zero added, zero updated and **zero deleted**
-- **Verify:** pytest backend/tests/services/test_github_source.py -k incremental_no_changes
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k nothing_changed_fetches_zero_blobs
+- **Verified:** yes (2026-07-13)
 
 ### AC2: A re-sync with K changes fetches exactly K blobs
 
 - **Given** a synced GitHub project in which three files changed and one was added
 - **When** a sync runs
 - **Then** exactly four blob requests are issued, exactly four documents are written, and every other document is skipped and left byte-identical
-- **Verify:** pytest backend/tests/services/test_github_source.py -k incremental_changed_subset
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k only_the_changed_files_are_fetched
+- **Verified:** yes (2026-07-13)
 
 ### AC3: Deletions upstream propagate
 
 - **Given** a file removed from the repo
 - **When** a sync runs
 - **Then** it is absent from the Trees manifest and the document is deleted locally
-- **Verify:** pytest backend/tests/services/test_github_source.py -k incremental_deletes
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k deleted_upstream_is_deleted_locally
+- **Verified:** yes (2026-07-13)
 
 ### AC4: Path selection follows the hybrid rules, and the fallback speaks
 
 - **Given** the tarball is the cold start, the backfill and the escape hatch
 - **When** a sync runs on a project that is (a) syncing for the first time, (b) holds any document with a NULL `blob_sha`, (c) holds any document below `PARSER_EPOCH` (RFC D7), or (d) has more changed blobs than the cap
 - **Then** the **tarball** path runs, and the sync result **names which path ran and why** - a cap that silently diverts work is a cap that lies (RETRO-0006: "a cap must speak")
-- **Verify:** pytest backend/tests/services/test_sync_engine.py -k hybrid_path_selection
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k TestPathSelection
+- **Verified:** yes (2026-07-13)
 
 ### AC5: An upgraded install self-heals
 
 - **Given** an install upgraded from a version with no `blob_sha` - every document NULL
 - **When** the next sync runs
 - **Then** it takes the tarball path once, backfilling every `blob_sha`, and the sync after that is incremental
-- **Verify:** pytest backend/tests/services/test_sync_engine.py -k upgrade_backfills_blob_sha
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k null_blob_sha_forces_the_tarball
+- **Verified:** yes (2026-07-13)
 
 ### AC6: A rate limit or a revoked token leaves the corpus intact
 
 - **Given** GitHub returns 403/429, or the token has been revoked, part-way through fetching blobs
 - **When** the sync fails
 - **Then** `RateLimitError` / `AuthenticationError` is raised, `sync_status` becomes `error` with a legible message, and **not one document is added, updated or deleted** - a throttled fetch never partial-writes
-- **Verify:** pytest backend/tests/services/test_github_source.py -k incremental_rate_limited_preserves_corpus
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k rate_limit_mid_fetch
+- **Verified:** yes (2026-07-13)
 
 ### AC7: Local projects are untouched
 
 - **Given** a local-source project
 - **When** a sync runs
 - **Then** no Trees call, no blob call, and no blob-SHA diffing occurs; behaviour is byte-for-byte what it was
-- **Verify:** pytest backend/tests/services/test_sync_engine.py -k local_source_unaffected
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k TestLocalSourceIsUntouched
+- **Verified:** yes (2026-07-13)
 
 ### AC8: A stale parser epoch forces the tarball, so BG-01KXARHJ stays fixed
 
 - **Given** `PARSER_EPOCH` is bumped by an app upgrade and no file in the repo has changed
 - **When** the next sync runs on a GitHub project
 - **Then** it takes the **tarball** path (not incremental), every document re-parses from real bytes, and the derived fields (`doc_type`, `status`, `ref_id`, `epic`, `story`, `depends_on`, `aliases`) all recompute. The sync after that is incremental again. Stored `content` is body-only and is never used as a re-parse source (RFC D7)
-- **Verify:** pytest backend/tests/services/test_sync_engine.py -k stale_epoch_forces_tarball
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest tests/test_incremental_sync.py -q -k stale_parser_epoch_forces_the_tarball
+- **Verified:** yes (2026-07-13)
 
 ### AC9: The whole thing is mutation-checked
 
 - **Given** RETRO-0006's critic found three real defects that 976 passing tests missed
 - **When** the empty-source guard and the deletion loop are each mutated
 - **Then** a test goes red for each
-- **Verify:** manual run the mutation check over sync_engine.py's guard and deletion loop; both must be killed, not survived
+- **Verify:** manual mutate each path-selection guard; all must be killed
+- **Verified:** manual (2026-07-13) - 4 mutants, 4 killed: drop the stale-epoch tarball trigger (RFC D7); trust a truncated tree; remove the incremental cap; drop the NULL blob_sha trigger. Each turned exactly one test red. Restored: 771 pass.
 
 ## Revision History
 

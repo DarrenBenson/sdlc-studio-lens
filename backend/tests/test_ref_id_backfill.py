@@ -22,7 +22,12 @@ from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.documents import get_related_documents
 from sdlc_lens.services.project_config import ProjectConfig
-from sdlc_lens.services.sync_engine import PARSER_EPOCH, FileEntry, sync_project
+from sdlc_lens.services.sync_engine import (
+    PARSER_EPOCH,
+    FetchInfo,
+    FileEntry,
+    sync_project,
+)
 from sdlc_lens.utils.hashing import compute_blob_sha, compute_hash
 from sdlc_lens.utils.sdlc_ids import id_head, norm_id
 
@@ -128,7 +133,7 @@ class TestSyncSelfHealsNullRefId:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({rel_path: _entry(content)}, ProjectConfig()),
+            return_value=({rel_path: _entry(content)}, ProjectConfig(), FetchInfo()),
         ):
             await sync_project(p, session)
 
@@ -191,7 +196,7 @@ class TestSyncSelfHealsStaleParserEpoch:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({rel_path: _entry(content)}, ProjectConfig()),
+            return_value=({rel_path: _entry(content)}, ProjectConfig(), FetchInfo()),
         ):
             result = await sync_project(p, session)
 
@@ -243,7 +248,7 @@ class TestSyncSelfHealsStaleParserEpoch:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({rel_path: _entry(content)}, ProjectConfig()),
+            return_value=({rel_path: _entry(content)}, ProjectConfig(), FetchInfo()),
         ):
             result = await sync_project(p, session)
 
