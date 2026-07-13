@@ -8,12 +8,12 @@
 | -------- | ------- |
 | Open | 0 |
 | In Progress | 0 |
-| Fixed | 15 |
+| Fixed | 16 |
 | Verified | 0 |
 | Closed | 0 |
 | Won't Fix | 0 |
 | inbox | 0 |
-| **Total** | **15** |
+| **Total** | **16** |
 
 ## By Severity
 
@@ -39,6 +39,7 @@
 | [BG-01KXB3QF](BG-01KXB3QF-org-listing-failure-aborts-the-entire-repo-browse.md) | Org listing failure aborts the entire repo browse instead of degrading | -- | Medium | Fixed | -- | -- | 2026-07-12 |
 | [BG-01KXCG98](BG-01KXCG98-unreadable-local-file-is-treated-as-deleted-its.md) | Unreadable local file is treated as deleted: its document is destroyed and the sync reports success | -- | Medium | Fixed | -- | -- | 2026-07-13 |
 | [BG-01KXDFGD](BG-01KXDFGD-a-project-interrupted-mid-sync-is-stuck-in.md) | A project interrupted mid-sync is stuck in syncing for ever and can never sync again | -- | Medium | Fixed | -- | -- | 2026-07-13 |
+| [BG-01KXDGA1](BG-01KXDGA1-no-application-log-line-ever-reaches-stdout-every.md) | No application log line ever reaches stdout: every logger call in the app is silently discarded | -- | Medium | Fixed | -- | -- | 2026-07-13 |
 
 ## Notes
 

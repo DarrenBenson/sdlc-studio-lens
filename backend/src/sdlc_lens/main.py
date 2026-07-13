@@ -1,6 +1,7 @@
 """FastAPI application factory."""
 
 import logging
+import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -22,6 +23,40 @@ from sdlc_lens.version import get_version
 logger = logging.getLogger(__name__)
 
 _STATIC_DIR = Path("/app/static")
+
+# Identity of the handler we own, so configure_logging() is idempotent.
+_LOG_HANDLER_NAME = "sdlc-lens-stdout"
+
+
+def configure_logging() -> None:
+    """Give the application's loggers somewhere to go (BG-01KXDGA1).
+
+    Uvicorn configures only its OWN loggers (`uvicorn`, `uvicorn.access`,
+    `uvicorn.error`). It does not touch the root logger. So without this, the root logger
+    has no handler and **every** `logger.info`/`warning`/`exception` in `sdlc_lens.*` is
+    silently discarded - which was true in production for the entire life of this project.
+
+    That was survivable while the app was purely request/response: a failure surfaced as a
+    500 and an error on the project. The freshness poller changed it. The poller runs
+    unattended, for ever, with nobody watching a response, and its documented failure mode
+    is that it stops QUIETLY. For that component the log is not a nicety - it is the only
+    mechanism by which a human ever finds out.
+
+    Idempotent, and it adds OUR handler when OUR handler is absent - not merely "when there
+    are no handlers at all". Those are different questions, and the second is wrong:
+    anything else that attaches a root handler (a test fixture, a library, an APM agent)
+    would make us skip, and the app would fall silent again in exactly the way this bug is
+    about. The handler's name is its identity, so repeat calls stay idempotent.
+    """
+    root = logging.getLogger()
+    level = getattr(logging, settings.log_level.upper(), logging.INFO)
+    root.setLevel(level)
+
+    if not any(h.get_name() == _LOG_HANDLER_NAME for h in root.handlers):
+        handler = logging.StreamHandler(sys.stdout)
+        handler.set_name(_LOG_HANDLER_NAME)
+        handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s - %(message)s"))
+        root.addHandler(handler)
 
 
 def _summarise_validation_errors(exc: RequestValidationError) -> str:
@@ -99,6 +134,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    configure_logging()
     app = FastAPI(
         title="SDLC Studio Lens",
         version=get_version(),
