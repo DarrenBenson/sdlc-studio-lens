@@ -389,6 +389,62 @@ def _extract_config_from_tarball(
 
 
 # ---------------------------------------------------------------------------
+# Freshness poll: the branch head SHA (US-01KXDD5K, RFC-01KXARHK B2)
+# ---------------------------------------------------------------------------
+
+
+async def fetch_branch_head_sha(
+    repo_url: str,
+    branch: str = "main",
+    access_token: str | None = None,
+    timeout: httpx.Timeout | None = None,
+) -> str:
+    """The branch's head commit SHA. ONE request, no tree, no blobs.
+
+    This is the freshness check, and it has to be far cheaper than the sync it guards or
+    polling is not worth having. It asks a single question - "has this branch moved?" -
+    and downloads nothing else.
+
+    Raises the same error types as every other call here, so a revoked token or a deleted
+    branch surfaces as itself rather than as a mystery.
+    """
+    owner, repo = parse_github_url(repo_url)
+
+    async with httpx.AsyncClient(
+        headers=_build_headers(access_token),
+        timeout=timeout or _DEFAULT_TIMEOUT,
+        follow_redirects=True,
+    ) as client:
+        url = f"{_API_BASE}/repos/{owner}/{repo}/commits/{branch}"
+        try:
+            # Ask for the commit *reference* only. The default representation would send
+            # the full commit object including its file list; this returns just the SHA.
+            response = await client.get(url, headers={"Accept": "application/vnd.github.sha"})
+        except httpx.TimeoutException as exc:
+            raise GitHubSourceError(f"Timeout fetching branch head: {exc}") from exc
+        except httpx.ConnectError as exc:
+            raise GitHubSourceError(f"Cannot connect to GitHub API: {exc}") from exc
+
+        _handle_error_response(response)
+
+        sha = response.text.strip()
+
+        # VALIDATE it. Without the `Accept: application/vnd.github.sha` header above,
+        # GitHub returns the full commit object - an 18 KB JSON blob - and `response.text`
+        # would hand that straight back. It could never equal a stored 40-char SHA, so
+        # every project would re-sync on EVERY TICK, FOR EVER, and an 18 KB string would be
+        # written into a VARCHAR(40) column (SQLite would not even complain).
+        #
+        # A parse this cheap has no excuse for trusting its input. Fail loud instead.
+        if len(sha) != 40 or not all(c in "0123456789abcdef" for c in sha.lower()):
+            raise GitHubSourceError(
+                f"GitHub returned something that is not a commit SHA for branch "
+                f"{branch!r} ({len(sha)} chars) - refusing to store it"
+            )
+        return sha
+
+
+# ---------------------------------------------------------------------------
 # Incremental sync: Git Trees + Blobs (US-01KXCCTV, RFC-01KXARHK A3)
 # ---------------------------------------------------------------------------
 

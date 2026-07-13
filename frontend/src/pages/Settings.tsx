@@ -438,6 +438,7 @@ export function Settings() {
           initialRepoBranch={editingProject?.repo_branch}
           initialRepoPath={editingProject?.repo_path}
           initialConnectionId={editingProject?.connection_id ?? null}
+          initialAutoSync={editingProject?.auto_sync ?? false}
           connections={connections}
           onSubmit={editingSlug ? handleEdit : handleAdd}
           onCancel={editingSlug ? () => { setEditingSlug(null); setFormError(null); } : undefined}

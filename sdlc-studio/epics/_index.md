@@ -11,8 +11,8 @@
 | Ready | 0 |
 | Approved | 0 |
 | In Progress | 0 |
-| Done | 11 |
-| **Total** | **11** |
+| Done | 12 |
+| **Total** | **12** |
 
 ## Epics
 
@@ -29,6 +29,7 @@
 | [EP0009](EP0009-project-health-check.md) | Project Health Check | Done | Darren | 3 | 13 | Phase 6 |
 | [EP-01KXCBC9](EP-01KXCBC9-ci-safety-net-run-the-tests-on-every.md) | CI safety net: run the tests on every change, and stop counting a suite that cannot run | Done | -- | -- | -- | -- |
 | [EP-01KXCCA4](EP-01KXCCA4-incremental-github-sync-fetch-only-what-changed-without.md) | Incremental GitHub sync: fetch only what changed, without regressing the empty-source guard | Done | -- | -- | -- | -- |
+| [EP-01KXDDG7](EP-01KXDDG7-keep-github-projects-fresh-poll-the-branch-head.md) | Keep GitHub projects fresh: poll the branch head, sync only when it moves | Done | -- | -- | -- | -- |
 
 ## By Phase
 

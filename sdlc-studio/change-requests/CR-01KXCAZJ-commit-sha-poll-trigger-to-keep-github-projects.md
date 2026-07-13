@@ -1,6 +1,6 @@
 # CR-01KXCAZJ: Commit-SHA poll trigger to keep GitHub projects fresh
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Verification depth:** functional
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KXCAHV

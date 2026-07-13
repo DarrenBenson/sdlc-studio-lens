@@ -50,6 +50,7 @@ interface ProjectFormProps {
   initialRepoBranch?: string;
   initialRepoPath?: string;
   initialConnectionId?: number | null;
+  initialAutoSync?: boolean;
   /** Stored GitHub credentials - used only to decide whether to name them. */
   connections?: GitHubConnection[];
   onSubmit: (data: ProjectCreate | ProjectUpdate) => Promise<void>;
@@ -72,6 +73,7 @@ export function ProjectForm({
   initialRepoBranch = DEFAULT_BRANCH,
   initialRepoPath = DEFAULT_REPO_PATH,
   initialConnectionId = null,
+  initialAutoSync = false,
   connections = [],
   onSubmit,
   onCancel,
@@ -84,6 +86,9 @@ export function ProjectForm({
   const [repoBranch, setRepoBranch] = useState(initialRepoBranch);
   const [repoPath, setRepoPath] = useState(initialRepoPath);
   const [accessToken, setAccessToken] = useState("");
+  // Opt-in, default off (CR-01KXCAZJ): an existing project must keep behaving exactly as
+  // it does today until the operator asks for something different.
+  const [autoSync, setAutoSync] = useState(initialAutoSync);
   const [connectionId, setConnectionId] = useState<number | null>(
     initialConnectionId,
   );
@@ -295,6 +300,7 @@ export function ProjectForm({
       } else {
         const update: ProjectUpdate = {};
         if (name !== initialName) update.name = name;
+        if (autoSync !== initialAutoSync) update.auto_sync = autoSync;
         if (sourceType !== initialSourceType) update.source_type = sourceType;
         if (sourceType === "local" && sdlcPath !== initialPath) {
           update.sdlc_path = sdlcPath;
@@ -528,6 +534,21 @@ export function ProjectForm({
                   className={inputClass}
                   data-testid="repo-path-input"
                 />
+                <label className="col-span-2 flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={autoSync}
+                    onChange={(e) => setAutoSync(e.target.checked)}
+                    data-testid="auto-sync-toggle"
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-800"
+                  />
+                  <span>
+                    Keep in sync automatically
+                    <span className="block text-xs text-slate-500">
+                      Checks the branch for new commits and re-syncs only what changed.
+                    </span>
+                  </span>
+                </label>
               </div>
             )}
           </div>

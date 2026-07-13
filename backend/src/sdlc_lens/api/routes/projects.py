@@ -94,6 +94,12 @@ async def _project_response(db: AsyncSession, project) -> ProjectResponse:
         schema_version=project.schema_version,
         profile=project.profile,
         last_synced_at=project.last_synced_at,
+        # NOTE: this response is hand-built field by field, so a column added to the model
+        # and to ProjectResponse is still INVISIBLE to the API until it is listed here -
+        # it silently takes the schema default instead of the stored value. (auto_sync
+        # read as False for every project until this line existed.)
+        auto_sync=project.auto_sync,
+        last_synced_commit_sha=project.last_synced_commit_sha,
         document_count=doc_count,
         created_at=project.created_at,
     )
@@ -502,6 +508,7 @@ async def update_project_endpoint(
             repo_path=body.repo_path,
             access_token=body.access_token,
             connection_id=body.connection_id,
+            auto_sync=body.auto_sync,
             clear_connection=body.clears_connection(),
             clear_access_token=body.clears_access_token(),
         )

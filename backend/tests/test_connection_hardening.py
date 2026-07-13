@@ -350,7 +350,20 @@ class TestPlaintextStartupWarning:
             async with lifespan(create_app()):
                 pass
 
-        assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+        # Scoped to this test's actual subject: the PLAINTEXT-TOKEN warning must not fire
+        # when a key is configured.
+        #
+        # It previously asserted that startup emitted NO warning of any kind, which is a
+        # much broader claim than the test's name or purpose - and it broke the moment
+        # lifespan grew a second, legitimate startup log (the stuck-'syncing' reset, which
+        # reports a not-yet-migrated database in this test's environment). An assertion
+        # broader than its intent fails on changes it was never meant to police.
+        token_warnings = [
+            r
+            for r in caplog.records
+            if r.levelno >= logging.WARNING and "TOKEN_ENCRYPTION_KEY" in r.getMessage()
+        ]
+        assert token_warnings == []
 
 
 # ---------------------------------------------------------------------------

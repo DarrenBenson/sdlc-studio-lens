@@ -3,7 +3,7 @@
 import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Text, func
+from sqlalchemy import Boolean, ForeignKey, String, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sdlc_lens.db.models.base import Base
@@ -48,6 +48,16 @@ class Project(Base):
     # unrelated document happened to change. NULL = unknown: re-read the config.
     config_blob_shas: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_synced_at: Mapped[datetime.datetime | None] = mapped_column(nullable=True)
+    # Per-project opt-in to background polling. Default OFF: an existing project keeps
+    # behaving exactly as it does today until the operator asks otherwise.
+    auto_sync: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    # The branch head as at the last SUCCESSFUL sync. The poller syncs only when the
+    # current head differs from this.
+    #
+    # It must NEVER advance on a failed sync. If it did, the repo would look unchanged for
+    # ever afterwards, so the failure would never be retried and the project would stay
+    # silently stale while reporting nothing wrong (CR-01KXCAZJ). NULL = "assume it moved".
+    last_synced_commit_sha: Mapped[str | None] = mapped_column(String(40), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )
