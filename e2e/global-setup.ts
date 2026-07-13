@@ -1,5 +1,4 @@
 import { execSync } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 
 const BACKEND_DIR = path.resolve(__dirname, "../backend");
@@ -45,15 +44,21 @@ async function pollSyncComplete(
 }
 
 export default async function globalSetup(): Promise<void> {
-  // Remove stale DB if it exists
-  if (fs.existsSync(DB_PATH)) {
-    fs.unlinkSync(DB_PATH);
-  }
-  if (fs.existsSync(`${DB_PATH}-journal`)) {
-    fs.unlinkSync(`${DB_PATH}-journal`);
-  }
-
-  // Run Alembic migrations
+  // DO NOT unlink the database file here.
+  //
+  // Playwright starts the `webServer` processes BEFORE this runs, and the backend now
+  // touches the database during startup (it clears any project left stuck in "syncing"
+  // by a hard stop - BG-01KXDFGD). So by the time we get here the server has already
+  // opened this SQLite file and is holding a pooled connection to it.
+  //
+  // Deleting the file out from under it leaves the server bound to a deleted inode: the
+  // tables we then create with Alembic land in a NEW file the server never sees, and
+  // every query fails with "no such table: projects". You cannot unlink a file a running
+  // process is holding open and expect it to notice.
+  //
+  // Migrating in place is enough. `alembic upgrade head` is idempotent, and
+  // global-teardown removes the file once the servers are down, so each run still starts
+  // from a clean database.
   execSync("alembic upgrade head", {
     cwd: BACKEND_DIR,
     env: {
@@ -66,6 +71,12 @@ export default async function globalSetup(): Promise<void> {
 
   // Wait for backend to be ready
   await waitForServer(`${API_BASE}/system/health`);
+
+  // A crashed previous run can leave the fixture behind (the teardown removes the DB, but
+  // only if it got to run). Clear it first so setup is idempotent rather than fragile.
+  await fetch(`${API_BASE}/projects/e2e-test-project`, { method: "DELETE" }).catch(
+    () => undefined,
+  );
 
   // Create fixture project
   const createRes = await fetch(`${API_BASE}/projects`, {
