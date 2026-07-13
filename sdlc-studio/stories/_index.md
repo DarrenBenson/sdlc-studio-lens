@@ -8,11 +8,11 @@
 | Status | Count |
 |--------|-------|
 | Draft | 0 |
-| Ready | 2 |
+| Ready | 1 |
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 41 |
+| Done | 42 |
 | Not Started | 0 |
 | Superseded | 2 |
 | **Total** | **45** |
@@ -150,7 +150,7 @@
 | [US-01KXCBHJ](US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci.md) | Settle the E2E suite: run it in CI and repair it against the new add-project card | EP-01KXCBC9 | Done | -- | -- |
 | [US-01KXCB7V](US-01KXCB7V-make-the-review-index-and-the-lint-baseline.md) | Make the review index and the lint baseline tell the truth | EP-01KXCBC9 | Done | -- | -- |
 | [US-01KXCC76](US-01KXCC76-store-a-git-blob-sha-per-document.md) | Store a git blob SHA per document | EP-01KXCCA4 | Done | -- | -- |
-| [US-01KXCCMH](US-01KXCCMH-make-document-content-optional-in-the-sync-manifest.md) | Make document content optional in the sync manifest, so the empty-source guard cannot misfire | EP-01KXCCA4 | Ready | -- | -- |
+| [US-01KXCCMH](US-01KXCCMH-make-document-content-optional-in-the-sync-manifest.md) | Make document content optional in the sync manifest, so the empty-source guard cannot misfire | EP-01KXCCA4 | Done | -- | -- |
 | [US-01KXCCTV](US-01KXCCTV-fetch-only-changed-blobs-via-trees-and-blobs.md) | Fetch only changed blobs via Trees and Blobs, with a tarball fallback | EP-01KXCCA4 | Ready | -- | -- |
 
 ## Notes

@@ -8,12 +8,12 @@
 | -------- | ------- |
 | Open | 0 |
 | In Progress | 0 |
-| Fixed | 13 |
+| Fixed | 14 |
 | Verified | 0 |
 | Closed | 0 |
 | Won't Fix | 0 |
 | inbox | 0 |
-| **Total** | **13** |
+| **Total** | **14** |
 
 ## By Severity
 
@@ -37,6 +37,7 @@
 | [BG-01KX95QP](BG-01KX95QP-sdlc-path-allowlist-bypassable-via-a-two-step.md) | sdlc_path allowlist bypassable via a two-step source_type update | Medium | Medium | Fixed | -- | -- | 2026-07-11 |
 | [BG-01KXARHJ](BG-01KXARHJ-byte-unchanged-documents-keep-stale-doc-type-and.md) | Byte-unchanged documents keep stale doc_type and status after an upgrade (incomplete reparse) | -- | Medium | Fixed | -- | -- | 2026-07-12 |
 | [BG-01KXB3QF](BG-01KXB3QF-org-listing-failure-aborts-the-entire-repo-browse.md) | Org listing failure aborts the entire repo browse instead of degrading | -- | Medium | Fixed | -- | -- | 2026-07-12 |
+| [BG-01KXCG98](BG-01KXCG98-unreadable-local-file-is-treated-as-deleted-its.md) | Unreadable local file is treated as deleted: its document is destroyed and the sync reports success | -- | Medium | Fixed | -- | -- | 2026-07-13 |
 
 ## Notes
 

@@ -63,7 +63,7 @@ instead of inventing one that cannot work.
 ## Story Breakdown
 
 - [x] [US-01KXCC76: Store a git blob SHA per document](../stories/US-01KXCC76-store-a-git-blob-sha-per-document.md)
-- [ ] [US-01KXCCMH: Make document content optional in the sync manifest, so the empty-source guard cannot misfire](../stories/US-01KXCCMH-make-document-content-optional-in-the-sync-manifest.md)
+- [x] [US-01KXCCMH: Make document content optional in the sync manifest, so the empty-source guard cannot misfire](../stories/US-01KXCCMH-make-document-content-optional-in-the-sync-manifest.md)
 - [ ] [US-01KXCCTV: Fetch only changed blobs via Trees and Blobs, with a tarball fallback](../stories/US-01KXCCTV-fetch-only-changed-blobs-via-trees-and-blobs.md)
 
 The stories are ordered so that **no behaviour changes until the last one**. US-01KXCC76 adds a column and

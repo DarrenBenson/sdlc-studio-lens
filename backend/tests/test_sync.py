@@ -556,9 +556,21 @@ class TestSyncUnreadableFile:
 
         assert result.added == 2
         assert result.errors == 1
-        # Sync should still succeed overall
+
+        # BEHAVIOUR CHANGE (US-01KXCCMH). This test used to assert
+        # `sync_status == "synced"`, with the comment "Sync should still succeed
+        # overall". That assertion encoded a bug: a sync that could not read a file has
+        # NOT fully succeeded, and reporting "synced" with a fresh timestamp tells the
+        # operator their view is current when it is not. It is also what made a real
+        # data-loss bug invisible - an unreadable file used to be dropped from the
+        # manifest and its document DELETED, and the sync still said "synced".
+        #
+        # A tool must never report a success it did not achieve (LL0008). The sync now
+        # reports `error` and names what it missed; the documents are preserved.
         await session.refresh(project)
-        assert project.sync_status == "synced"
+        assert project.sync_status == "error"
+        assert project.sync_error is not None
+        assert "could not be synced" in project.sync_error
 
         # Restore permissions for cleanup
         bad.chmod(0o644)

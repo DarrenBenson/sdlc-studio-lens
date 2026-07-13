@@ -9,7 +9,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy import text as sql_text
@@ -105,6 +105,71 @@ def _norm_ref_list(value: str | None) -> str | None:
     return ",".join(ids) if ids else None
 
 
+class FileEntry(NamedTuple):
+    """One path in a sync manifest.
+
+    The manifest is **complete**: it holds an entry for **every** live path in the
+    source, always. Only ``raw`` is optional.
+
+    That distinction is load-bearing, and it is the whole reason this type exists.
+    ``sync_project`` decides two things from the manifest:
+
+    * whether the source is empty ("source returned no documents - refusing to delete
+      existing documents") - the guard that fixes **BG-01KX8BFP**, a High-severity
+      silent-data-loss bug; and
+    * which documents no longer exist upstream and should be deleted.
+
+    An incremental sync fetches only the blobs that changed, so the obvious design -
+    passing just the changed files - would hand those two checks an *empty or partial*
+    dict on a perfectly healthy no-op sync. The guard would fire spuriously, and the
+    deletion loop would consider every document absent. That regresses a High-severity
+    data-loss bug on the commonest path in the system.
+
+    So the manifest keeps every path and unchanged files simply carry ``raw=None``. The
+    guard and the deletion loop are then correct *by construction* and need no special
+    case - the failure is not defended against, it is unrepresentable.
+
+    ``raw is None`` means "this file is byte-identical to what is stored; do not fetch
+    it, do not re-parse it". Anything that *does* need re-parsing (a stale parser epoch,
+    a NULL blob_sha) must arrive with real bytes - the path selector is responsible for
+    that (RFC-01KXARHK, D7), and ``sync_project`` fails loud rather than silently
+    skipping if it is ever handed a contentless entry it must parse.
+    """
+
+    file_hash: str
+    """sha256 of the raw bytes - ours, used to detect a byte change.
+
+    For a contentless entry (``raw is None``) this must be the hash the source believes
+    the file currently has - i.e. byte-exact with the stored ``doc.file_hash`` when the
+    file really is unchanged. That is what makes the skip fire. A fetcher that echoes a
+    wrong hash here sends the entry into the fail-loud branch rather than silently
+    corrupting the row.
+
+    Empty string when ``unreadable``: there are no bytes, so there is no hash.
+    """
+
+    raw: bytes | None
+    """The file's bytes, or None when the file is known-unchanged and was not fetched."""
+
+    blob_sha: str
+    """git blob SHA-1 of the raw bytes - what GitHub's Trees API reports per path."""
+
+    unreadable: bool = False
+    """The path EXISTS in the source but its bytes could not be obtained this sync.
+
+    A permission error, an EIO, an NFS blip, a file locked by an editor mid-walk. This
+    is emphatically **not** the same as "deleted upstream", and conflating the two is
+    silent data loss: the deletion loop treats a path's ABSENCE from the manifest as
+    "gone", so a file that merely failed to read must still appear here, or its document
+    is destroyed while it sits perfectly intact on disk.
+
+    That is BG-01KX8BFP's failure class, and it was live on the local walker: a single
+    `chmod 000` on one file deleted its document and still reported `sync_status=synced`.
+    Keeping the path in the manifest fixes it *by construction* - the invariant that
+    every live path is a key becomes true, rather than merely asserted.
+    """
+
+
 def _walk_md_files(root: Path) -> list[Path]:
     """Walk directory tree for *.md files, skipping excluded directories."""
     results: list[Path] = []
@@ -118,16 +183,17 @@ def _walk_md_files(root: Path) -> list[Path]:
     return results
 
 
-def _walk_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], int]:
+def _walk_local_files(sdlc_path: str) -> tuple[dict[str, FileEntry], int]:
     """Synchronous filesystem walk + read for local .md files.
 
-    Walks the directory tree, computes SHA-256 hashes, and returns a dict of
-    {relative_path: (hash, raw_bytes)} plus an error count. This is blocking
-    CPU/IO work, so it is invoked from a worker thread (see
+    Walks the directory tree and returns a complete manifest of
+    {relative_path: FileEntry} plus an error count. A local walk always has the bytes
+    in hand, so every entry carries ``raw`` - a local source is never incremental.
+    This is blocking CPU/IO work, so it is invoked from a worker thread (see
     ``collect_local_files``) rather than inline on the event loop.
     """
     root = Path(sdlc_path)
-    fs_files: dict[str, tuple[str, bytes]] = {}
+    fs_files: dict[str, FileEntry] = {}
     errors = 0
 
     for md_file in sorted(_walk_md_files(root)):
@@ -142,28 +208,42 @@ def _walk_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], int
         try:
             raw = md_file.read_bytes()
         except (PermissionError, OSError) as exc:
+            # The file EXISTS - the walk just found it - we simply cannot read it right
+            # now. It must still enter the manifest, or the deletion loop will read its
+            # absence as "deleted upstream" and destroy a document that is sitting intact
+            # on disk. (Confirmed: a `chmod 000` on one file used to delete its document
+            # and still report sync_status=synced.)
             logger.warning("Cannot read %s: %s", md_file, exc)
             errors += 1
+            fs_files[rel_path] = FileEntry(
+                file_hash="",
+                raw=None,
+                blob_sha="",
+                unreadable=True,
+            )
             continue
 
-        file_hash = compute_hash(raw)
-        fs_files[rel_path] = (file_hash, raw)
+        fs_files[rel_path] = FileEntry(
+            file_hash=compute_hash(raw),
+            raw=raw,
+            blob_sha=compute_blob_sha(raw),
+        )
 
     return fs_files, errors
 
 
-async def collect_local_files(sdlc_path: str) -> tuple[dict[str, tuple[str, bytes]], int]:
+async def collect_local_files(sdlc_path: str) -> tuple[dict[str, FileEntry], int]:
     """Collect .md files from the local filesystem.
 
     Offloads the blocking directory walk and per-file read to a worker thread
-    so the event loop stays responsive during a sync. Returns a dict of
-    {relative_path: (hash, raw_bytes)} plus an error count.
+    so the event loop stays responsive during a sync. Returns a complete manifest
+    of {relative_path: FileEntry} plus an error count.
 
     Args:
         sdlc_path: Absolute path to the sdlc-studio directory.
 
     Returns:
-        Tuple of (files_dict, error_count).
+        Tuple of (manifest, error_count).
     """
     return await asyncio.to_thread(_walk_local_files, sdlc_path)
 
@@ -213,24 +293,28 @@ async def resolve_sync_token(project: Project) -> str | None:
 
 async def collect_github_files(
     project: Project,
-) -> tuple[dict[str, tuple[str, bytes]], ProjectConfig]:
+) -> tuple[dict[str, FileEntry], ProjectConfig]:
     """Collect .md files and project config from a GitHub repository.
 
     Delegates to the github_source module which downloads the repository
     tarball once and extracts both the .md tree and the ``.config.yaml`` /
     ``.version`` metadata sitting at the repo_path root.
 
+    The tarball path always has every file's bytes, so every entry here carries
+    ``raw``. The incremental Trees+Blobs path (US-01KXCCTV) is what will start
+    returning contentless entries for unchanged files.
+
     Args:
         project: Project with source_type="github" and repo fields set.
 
     Returns:
-        Tuple of ({relative_path: (hash, content)}, parsed ProjectConfig). The
-        config is parsed best-effort; a missing or malformed one yields an
-        empty :class:`ProjectConfig`.
+        Tuple of (manifest, parsed ProjectConfig). The config is parsed
+        best-effort; a missing or malformed one yields an empty
+        :class:`ProjectConfig`.
     """
     from sdlc_lens.services.github_source import fetch_github_files_and_config
 
-    fs_files, config_files = await fetch_github_files_and_config(
+    raw_files, config_files = await fetch_github_files_and_config(
         repo_url=project.repo_url,
         branch=project.repo_branch,
         repo_path=project.repo_path,
@@ -238,7 +322,15 @@ async def collect_github_files(
         # attached, else the project's own - decrypted either way.
         access_token=await resolve_sync_token(project),
     )
-    return fs_files, _parse_github_config(config_files)
+    manifest = {
+        rel_path: FileEntry(
+            file_hash=file_hash,
+            raw=raw,
+            blob_sha=compute_blob_sha(raw),
+        )
+        for rel_path, (file_hash, raw) in raw_files.items()
+    }
+    return manifest, _parse_github_config(config_files)
 
 
 def _decode_config_bytes(raw: bytes | None) -> str | None:
@@ -432,8 +524,28 @@ async def sync_project(
             return result
 
         # Step 3: Process collected files
-        for rel_path, (file_hash, raw) in fs_files.items():
+        #
+        # NOTE the guard above and the deletion loop below both key off `fs_files`, and
+        # `fs_files` is the COMPLETE manifest - every live path, whether or not its bytes
+        # were fetched. Neither needs to know that content is optional, and neither must
+        # ever be re-keyed to "the files we fetched": on a no-op incremental sync that set
+        # is empty, which would read as an empty source (BG-01KX8BFP) or delete every
+        # document. See FileEntry's docstring.
+        for rel_path, entry in fs_files.items():
+            file_hash = entry.file_hash
+            raw = entry.raw
             doc = existing_docs.get(rel_path)
+
+            # The path exists but we could not read its bytes this run. Leave the stored
+            # document exactly as it is: an unreadable file is NOT a deleted file, and
+            # the row we hold is still the best copy we have. It stays in fs_files, so
+            # the deletion loop below leaves it alone.
+            #
+            # Not counted here: the collector already counted it (`collect_errors`), and
+            # that count is folded into `result.errors` above. Counting again would
+            # double-report and mislead.
+            if entry.unreadable:
+                continue
 
             # A stored row whose parser_epoch is below the current PARSER_EPOCH was
             # derived by an older parser/inference/canonicalisation build; reparse it
@@ -469,6 +581,53 @@ async def sync_project(
                 result.skipped += 1
                 continue
 
+            # Past the skip, so this document MUST be re-parsed - and re-parsing needs
+            # real bytes. Reaching here with raw=None is a contradiction: the path
+            # selector is required to fetch (or fall back to a tarball for) anything
+            # that needs a reparse - a changed blob, a stale parser epoch, a NULL
+            # blob_sha (RFC-01KXARHK, D7).
+            #
+            # We do NOT paper over it by skipping. A silent skip would leave the document
+            # on stale derived fields for ever while the sync reported success - which is
+            # BG-01KXARHJ all over again, and a tool must fail loud rather than report a
+            # success it did not achieve (LL0008). And we cannot re-parse from the stored
+            # `content` column: that column holds body-only text with the frontmatter
+            # blockquote stripped (parser.py:183), so status/epic/story/depends_on/aliases
+            # simply are not in it.
+            if raw is None:
+                logger.error(
+                    "Sync bug: %s needs a reparse but arrived with no content "
+                    "(changed=%s stale_epoch=%s ref_backfill=%s blob_sha_backfill=%s). "
+                    "The fetch path must supply bytes for anything needing a reparse.",
+                    rel_path,
+                    doc is None or doc.file_hash != file_hash,
+                    stale_epoch,
+                    needs_ref_backfill,
+                    needs_blob_sha_backfill,
+                )
+                result.errors += 1
+                continue
+
+            # We have the bytes, so the manifest's blob_sha is checkable - CHECK IT.
+            # We store `entry.blob_sha` (the source's word) rather than recomputing, so a
+            # source that lies about a path's SHA would poison the row permanently: the
+            # skip condition never revisits a non-NULL blob_sha, so every future
+            # incremental diff for that path would be wrong for ever - either "changed"
+            # on every sync (defeating the feature) or "unchanged" for ever (the document
+            # never updates again). Trusting one side silently is no better than
+            # recomputing and diverging silently; the only honest option is to detect it.
+            actual_blob_sha = compute_blob_sha(raw)
+            if entry.blob_sha != actual_blob_sha:
+                logger.error(
+                    "Sync bug: %s manifest blob_sha %r does not match its bytes (%r). "
+                    "Refusing to store a blob SHA the content contradicts.",
+                    rel_path,
+                    entry.blob_sha,
+                    actual_blob_sha,
+                )
+                result.errors += 1
+                continue
+
             # Parse the file content
             try:
                 text = raw.decode("utf-8-sig")  # strips BOM
@@ -493,11 +652,11 @@ async def sync_project(
                 file_hash=file_hash,
                 project_id=project_id,
                 status_vocab=config.status_vocab,
-                # Computed from the raw bytes we already hold, on every path. This is
-                # what a later incremental sync diffs a Trees response against, and it
-                # is why the tarball path doubles as the backfill path: one full sync
-                # populates every blob_sha in a single request (RFC-01KXARHK, D1/D3).
-                blob_sha=compute_blob_sha(raw),
+                # Taken from the manifest, not recomputed. Under an incremental sync the
+                # Trees response is the authority on a path's blob SHA, and re-deriving
+                # it here from the bytes would silently diverge if the two ever disagreed
+                # - precisely the mismatch we would least want to paper over.
+                blob_sha=entry.blob_sha,
             )
 
             if doc is not None:
@@ -512,16 +671,35 @@ async def sync_project(
                 session.add(new_doc)
                 result.added += 1
 
-        # Step 4: Delete documents no longer in source
+        # Step 4: Delete documents no longer in source.
+        #
+        # Keyed on the MANIFEST, never on "what we fetched". A path is absent here only
+        # when the source genuinely no longer has it: an unchanged file is present with
+        # raw=None, and an unreadable file is present with unreadable=True. Both survive.
         for rel_path, doc in existing_docs.items():
             if rel_path not in fs_files:
                 await session.delete(doc)
                 result.deleted += 1
 
-        # Step 5: Update project status
-        project.sync_status = "synced"
+        # Step 5: Update project status.
+        #
+        # A sync that could not process some of its files did NOT fully succeed, and must
+        # not claim it did. Reporting "synced" with a fresh timestamp while N documents
+        # were skipped unreadable - or left rotting on stale derived fields - is exactly
+        # the silent-success failure LL0008 forbids: a tool must never report a success it
+        # did not achieve. The counts are surfaced in sync_error so the operator can see
+        # WHAT was missed, not merely that something was.
         project.last_synced_at = datetime.datetime.now(datetime.UTC)
-        project.sync_error = None
+        if result.errors:
+            project.sync_status = "error"
+            project.sync_error = (
+                f"{result.errors} file(s) could not be synced and were left unchanged; "
+                f"{result.added} added, {result.updated} updated, {result.deleted} deleted. "
+                "Their stored documents are preserved - see the server log for each path."
+            )
+        else:
+            project.sync_status = "synced"
+            project.sync_error = None
 
         await session.commit()
 

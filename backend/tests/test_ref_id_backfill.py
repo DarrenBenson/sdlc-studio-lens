@@ -22,9 +22,18 @@ from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.documents import get_related_documents
 from sdlc_lens.services.project_config import ProjectConfig
-from sdlc_lens.services.sync_engine import PARSER_EPOCH, sync_project
-from sdlc_lens.utils.hashing import compute_blob_sha
+from sdlc_lens.services.sync_engine import PARSER_EPOCH, FileEntry, sync_project
+from sdlc_lens.utils.hashing import compute_blob_sha, compute_hash
 from sdlc_lens.utils.sdlc_ids import id_head, norm_id
+
+
+def _entry(content: bytes) -> FileEntry:
+    """A manifest entry as a real collector builds it (US-01KXCCMH)."""
+    return FileEntry(
+        file_hash=compute_hash(content),
+        raw=content,
+        blob_sha=compute_blob_sha(content),
+    )
 
 
 async def _project(session: AsyncSession) -> Project:
@@ -119,7 +128,7 @@ class TestSyncSelfHealsNullRefId:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({rel_path: (file_hash, content)}, ProjectConfig()),
+            return_value=({rel_path: _entry(content)}, ProjectConfig()),
         ):
             await sync_project(p, session)
 
@@ -167,6 +176,13 @@ class TestSyncSelfHealsStaleParserEpoch:
             content="Plan body",
             file_path=rel_path,
             file_hash=file_hash,
+            # blob_sha MUST be set, or this test proves nothing. Leaving it NULL makes
+            # `needs_blob_sha_backfill` fire and drive the reparse, so the test passes
+            # green while the `stale_epoch` clause it exists to prove is INERT - deleting
+            # `and not stale_epoch` from sync_engine left all 755 tests passing. Every
+            # other reason-to-reparse must be defused so that ONLY the stale epoch is
+            # left to do the work.
+            blob_sha=compute_blob_sha(content),
             synced_at=datetime.datetime.now(tz=datetime.UTC),
         )
         session.add(legacy)
@@ -175,7 +191,7 @@ class TestSyncSelfHealsStaleParserEpoch:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({rel_path: (file_hash, content)}, ProjectConfig()),
+            return_value=({rel_path: _entry(content)}, ProjectConfig()),
         ):
             result = await sync_project(p, session)
 
@@ -227,7 +243,7 @@ class TestSyncSelfHealsStaleParserEpoch:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({rel_path: (file_hash, content)}, ProjectConfig()),
+            return_value=({rel_path: _entry(content)}, ProjectConfig()),
         ):
             result = await sync_project(p, session)
 

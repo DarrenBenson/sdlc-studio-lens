@@ -146,9 +146,16 @@ async def fetch_github_files(
     """Fetch .md files from a GitHub repository via tarball download.
 
     Downloads the repository as a tarball (single API request), then
-    extracts .md files from the specified subdirectory. Returns the same
-    dict format as the local filesystem walker:
+    extracts .md files from the specified subdirectory. Returns
     {relative_path: (sha256_hash, raw_bytes)}.
+
+    NOTE: this is the raw source-level shape, NOT the sync engine's manifest.
+    ``sync_engine.collect_github_files`` lifts this into
+    ``dict[str, sync_engine.FileEntry]`` - the complete manifest the engine consumes,
+    where every live path is a key and only the *content* may be absent. Read
+    ``FileEntry``'s docstring before writing the incremental fetcher: a path missing
+    from the manifest means "deleted upstream", so anything still present in the repo
+    must appear there whatever happens to its bytes.
 
     This approach uses 1 API call instead of N+1 (tree + per-blob),
     staying well within unauthenticated rate limits (60/hour).
