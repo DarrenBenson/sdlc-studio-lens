@@ -203,6 +203,7 @@ async def update_project(
     repo_path: str | None = None,
     access_token: str | None = None,
     connection_id: int | None = None,
+    auto_sync: bool | None = None,
     clear_connection: bool = False,
     clear_access_token: bool = False,
 ) -> Project:
@@ -258,6 +259,9 @@ async def update_project(
         project.access_token = None
     elif clear_connection:
         project.connection_id = None
+
+    if auto_sync is not None:
+        project.auto_sync = auto_sync
 
     # Validate the effective post-update invariant: whenever the RESULTING
     # project is local, its RESULTING sdlc_path must satisfy the allowlist - even

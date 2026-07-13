@@ -56,6 +56,9 @@ class ProjectUpdate(BaseModel):
     repo_path: str | None = None
     access_token: str | None = None
     connection_id: int | None = None
+    # Per-project opt-in to background freshness polling (CR-01KXCAZJ). Default off; an
+    # existing project keeps behaving exactly as it does today until this is set.
+    auto_sync: bool | None = None
 
     def clears_connection(self) -> bool:
         """True when the body explicitly sends ``connection_id: null``.
@@ -84,6 +87,10 @@ class ProjectUpdate(BaseModel):
             self.repo_path,
             self.access_token,
             self.connection_id,
+            # Toggling auto-sync IS an edit. Omitting it here would 422 the one request
+            # the UI's toggle actually makes - a new field must be added to this list or
+            # it is silently unsettable on its own.
+            self.auto_sync,
         ]
         # An explicit null for connection_id (detach) or access_token (purge) is
         # a real edit, even though its value is None.
@@ -109,6 +116,10 @@ class ProjectResponse(BaseModel):
     schema_version: str | None = None
     profile: str | None = None
     last_synced_at: datetime.datetime | None
+    # Whether this project keeps itself current, and how fresh it actually is. Surfaced
+    # even when auto_sync is off, so a stale corpus cannot masquerade as a current one.
+    auto_sync: bool = False
+    last_synced_commit_sha: str | None = None
     document_count: int
     created_at: datetime.datetime
 

@@ -296,3 +296,41 @@ class TestSpecialCharsOnlyName:
             json={"name": "!!!", "sdlc_path": str(sdlc_dir)},
         )
         assert response.status_code == 422
+
+
+class TestAutoSyncField:
+    """CR-01KXCAZJ: auto-sync is opt-in, and freshness must be legible."""
+
+    async def test_auto_sync_defaults_off_in_the_response(
+        self, client: AsyncClient, sdlc_dir: Path
+    ) -> None:
+        resp = await client.post(
+            "/api/v1/projects", json={"name": "Auto Off", "sdlc_path": str(sdlc_dir)}
+        )
+        assert resp.status_code == 201
+        assert resp.json()["auto_sync"] is False, "a new project polls itself without being asked"
+
+    async def test_auto_sync_can_be_toggled(self, client: AsyncClient, sdlc_dir: Path) -> None:
+        await client.post(
+            "/api/v1/projects", json={"name": "Toggle Me", "sdlc_path": str(sdlc_dir)}
+        )
+
+        resp = await client.put("/api/v1/projects/toggle-me", json={"auto_sync": True})
+        assert resp.status_code == 200
+        assert resp.json()["auto_sync"] is True
+
+        resp = await client.get("/api/v1/projects/toggle-me")
+        assert resp.json()["auto_sync"] is True
+
+        resp = await client.put("/api/v1/projects/toggle-me", json={"auto_sync": False})
+        assert resp.json()["auto_sync"] is False
+
+    async def test_freshness_is_in_the_response_regardless_of_auto_sync(
+        self, client: AsyncClient, sdlc_dir: Path
+    ) -> None:
+        """The honesty gap exists whether or not polling is on."""
+        await client.post("/api/v1/projects", json={"name": "Fresh", "sdlc_path": str(sdlc_dir)})
+
+        body = (await client.get("/api/v1/projects/fresh")).json()
+        assert "last_synced_at" in body
+        assert "auto_sync" in body

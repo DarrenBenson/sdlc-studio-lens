@@ -80,6 +80,19 @@ class SyncResult:
     deleted: int = 0
     errors: int = 0
 
+    # Did the sync RUN TO COMPLETION - i.e. reach the point where it committed the
+    # corpus for this commit? This is NOT the same as "every file was perfect".
+    #
+    # A sync that processed the repo but skipped one undecodable file sets
+    # sync_status="error" (correctly - it did not fully succeed). But it DID materialise
+    # the corpus at that commit, and re-running it will skip the same file again. A
+    # caller that treats "not synced" as "did not run" - the freshness poller did - will
+    # re-sync that project on every tick, for ever, and never converge.
+    #
+    # False means the sync bailed BEFORE writing anything: a hard error, or the
+    # empty-source guard. Only then is a retry meaningful.
+    completed: bool = False
+
     # Which fetch strategy actually ran, and WHY. A cap or a fallback that quietly
     # diverts work reads to the operator as "this is just how it works" - RETRO-0006:
     # a cap must speak. `fetch_path` is "local", "tarball" or "incremental".
@@ -926,6 +939,8 @@ async def sync_project(
         # the silent-success failure LL0008 forbids: a tool must never report a success it
         # did not achieve. The counts are surfaced in sync_error so the operator can see
         # WHAT was missed, not merely that something was.
+        # The corpus for this commit is now materialised, whatever individual files did.
+        result.completed = True
         project.last_synced_at = datetime.datetime.now(datetime.UTC)
         if result.errors:
             project.sync_status = "error"

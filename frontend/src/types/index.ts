@@ -34,6 +34,9 @@ export interface Project {
   schema_version?: string | null;
   profile?: string | null;
   last_synced_at: string | null;
+  /** Whether this project keeps itself current by polling its branch head (CR-01KXCAZJ). */
+  auto_sync: boolean;
+  last_synced_commit_sha?: string | null;
   document_count: number;
   created_at: string;
 }
@@ -60,6 +63,8 @@ export interface ProjectUpdate {
   repo_path?: string;
   access_token?: string;
   connection_id?: number | null;
+  /** Opt in to background freshness polling (CR-01KXCAZJ). */
+  auto_sync?: boolean;
 }
 
 /** A repository returned by the GitHub repo selector. */

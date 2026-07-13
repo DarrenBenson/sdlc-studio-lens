@@ -71,8 +71,30 @@ def _warn_if_tokens_are_plaintext() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan - startup and shutdown."""
+    from sdlc_lens.services.poller import reset_stuck_syncing, start_poller, stop_poller
+
     _warn_if_tokens_are_plaintext()
-    yield
+
+    # A project left in "syncing" by a hard stop (a container redeploy, an OOM) is locked
+    # out for ever: trigger_sync refuses it and nothing else resets it. A "syncing" status
+    # at startup cannot be real - no sync survived the process running it - so clear it.
+    #
+    # Best-effort by design. This is housekeeping, and housekeeping must never stop the app
+    # from BOOTING: a database that is not ready yet is a reason to log and carry on, not a
+    # reason to take the whole service down.
+    try:
+        await reset_stuck_syncing(app.state.session_factory)
+    except Exception:
+        logger.exception("Could not reset stuck 'syncing' projects at startup; continuing")
+
+    # The freshness poller (CR-01KXCAZJ). Returns None when disabled
+    # (sync_poll_interval_seconds=0), in which case no task exists at all.
+    poller = start_poller(app.state.session_factory)
+    try:
+        yield
+    finally:
+        # Cancel AND await, so shutdown never leaves an orphaned task behind.
+        await stop_poller(poller)
 
 
 def create_app() -> FastAPI:

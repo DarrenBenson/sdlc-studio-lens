@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     # encrypted in the database and transparently decrypted for API calls. When
     # None (default), tokens are stored as plaintext (opt-in, backward compatible).
     token_encryption_key: str | None = None
+    # Seconds between background freshness polls of auto-sync projects. Set to 0 to
+    # DISABLE the poller entirely - no task is created at all, rather than one that idles
+    # (env SDLC_LENS_SYNC_POLL_INTERVAL_SECONDS).
+    sync_poll_interval_seconds: int = 300
+    # Ceiling on the exponential backoff applied to a project that keeps failing its poll,
+    # so an expired token cannot have us hammering GitHub every tick for ever.
+    sync_poll_max_backoff_seconds: int = 3600
 
 
 settings = Settings()

@@ -12,10 +12,10 @@
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 43 |
+| Done | 46 |
 | Not Started | 0 |
 | Superseded | 2 |
-| **Total** | **45** |
+| **Total** | **48** |
 
 ## Stories by Epic
 
@@ -152,6 +152,9 @@
 | [US-01KXCC76](US-01KXCC76-store-a-git-blob-sha-per-document.md) | Store a git blob SHA per document | EP-01KXCCA4 | Done | -- | -- |
 | [US-01KXCCMH](US-01KXCCMH-make-document-content-optional-in-the-sync-manifest.md) | Make document content optional in the sync manifest, so the empty-source guard cannot misfire | EP-01KXCCA4 | Done | -- | -- |
 | [US-01KXCCTV](US-01KXCCTV-fetch-only-changed-blobs-via-trees-and-blobs.md) | Fetch only changed blobs via Trees and Blobs, with a tarball fallback | EP-01KXCCA4 | Done | -- | -- |
+| [US-01KXDD5K](US-01KXDD5K-poll-the-branch-head-sha-one-cheap-call.md) | Poll the branch head SHA: one cheap call, and only advance it on a successful sync | EP-01KXDDG7 | Done | -- | -- |
+| [US-01KXDD0K](US-01KXDD0K-run-the-poller-in-process-isolated-per-project.md) | Run the poller in-process, isolated per project, and shut it down cleanly | EP-01KXDDG7 | Done | -- | -- |
+| [US-01KXDDA0](US-01KXDDA0-make-auto-sync-opt-in-and-make-staleness.md) | Make auto-sync opt-in and make staleness legible in the UI | EP-01KXDDG7 | Done | -- | -- |
 
 ## Notes
 

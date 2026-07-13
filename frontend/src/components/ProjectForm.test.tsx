@@ -790,3 +790,34 @@ describe("TC0339: Edit mode pre-fills GitHub fields", () => {
     await waitFor(() => expect(mockFetchAll).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("CR-01KXCAZJ: auto-sync is opt-in and reachable", () => {
+  it("defaults to OFF for a new project", async () => {
+    const user = userEvent.setup();
+    render(<ProjectForm mode="add" onSubmit={mockOnSubmit} error={null} />);
+
+    await user.click(screen.getByText("GitHub"));
+    await user.click(screen.getByTestId("advanced-toggle"));
+
+    const toggle = screen.getByTestId("auto-sync-toggle") as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+  });
+
+  it("reflects an existing project's setting when editing", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectForm
+        mode="edit"
+        initialSourceType="github"
+        initialRepoUrl="https://github.com/o/r"
+        initialAutoSync={true}
+        onSubmit={mockOnSubmit}
+        error={null}
+      />,
+    );
+
+    await user.click(screen.getByTestId("advanced-toggle"));
+    const toggle = screen.getByTestId("auto-sync-toggle") as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+  });
+});

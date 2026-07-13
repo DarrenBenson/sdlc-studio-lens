@@ -1,12 +1,13 @@
 """Sync service - trigger sync and manage state machine."""
 
+import asyncio
 import logging
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sdlc_lens.db.models.project import Project
-from sdlc_lens.services.sync_engine import sync_project
+from sdlc_lens.services.sync_engine import SyncResult, sync_project
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,9 @@ async def trigger_sync(session: AsyncSession, slug: str) -> Project:
     return project
 
 
-async def run_sync_task(slug: str, session_factory: async_sessionmaker[AsyncSession]) -> None:
+async def run_sync_task(
+    slug: str, session_factory: async_sessionmaker[AsyncSession]
+) -> SyncResult | None:
     """Background task that performs the sync.
 
     Creates its own session since the request session is closed after 202 response.
@@ -68,7 +71,7 @@ async def run_sync_task(slug: str, session_factory: async_sessionmaker[AsyncSess
             project = result.scalar_one_or_none()
             if project is None:
                 logger.warning("Project '%s' deleted during sync", slug)
-                return
+                return None
 
             sync_result = await sync_project(project, session)
             logger.info(
@@ -80,7 +83,13 @@ async def run_sync_task(slug: str, session_factory: async_sessionmaker[AsyncSess
                 sync_result.deleted,
                 sync_result.errors,
             )
-    except Exception as exc:
+            return sync_result
+    except BaseException as exc:
+        # BaseException, not Exception. A CancelledError - which is what an app shutdown
+        # delivers into a poll-triggered sync - is a BaseException, so `except Exception`
+        # let it straight through with the project still marked "syncing". Nothing anywhere
+        # resets a stuck "syncing" and trigger_sync refuses one for ever, so the project was
+        # permanently locked out of syncing - by a routine container redeploy.
         logger.exception("Sync task failed for project '%s'", slug)
         # Recover in a fresh session: the original may be in a bad state
         # (mid-transaction, rolled back, or closed). Never leave "syncing".
@@ -94,3 +103,7 @@ async def run_sync_task(slug: str, session_factory: async_sessionmaker[AsyncSess
                     await recovery.commit()
         except Exception:
             logger.exception("Failed to record sync error for project '%s'", slug)
+        # A cancellation must still propagate, but only AFTER we have unstuck the project.
+        if isinstance(exc, asyncio.CancelledError):
+            raise
+        return None

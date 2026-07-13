@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T08:27:44Z",
+  "generated_at": "2026-07-13T10:11:51Z",
   "dry_run": false,
   "stories": {
     "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every": {
@@ -100,6 +100,56 @@
       "failures": [],
       "flips": [],
       "verified_at": "2026-07-13T08:27:44Z"
+    },
+    "US-01KXDD5K-poll-the-branch-head-sha-one-cheap-call": {
+      "ac_count": 6,
+      "verified": 6,
+      "failed": 0,
+      "stale": 0,
+      "manual": 0,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5",
+        "AC6"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T10:11:43Z"
+    },
+    "US-01KXDD0K-run-the-poller-in-process-isolated-per-project": {
+      "ac_count": 6,
+      "verified": 5,
+      "failed": 0,
+      "stale": 0,
+      "manual": 1,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T10:11:47Z"
+    },
+    "US-01KXDDA0-make-auto-sync-opt-in-and-make-staleness": {
+      "ac_count": 4,
+      "verified": 3,
+      "failed": 0,
+      "stale": 0,
+      "manual": 1,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T10:11:51Z"
     }
   }
 }
