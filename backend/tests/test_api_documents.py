@@ -436,3 +436,8 @@ class TestInvalidSortField:
     async def test_invalid_sort_returns_422(self, client: AsyncClient, project: Project) -> None:
         resp = await client.get(f"/api/v1/projects/{project.slug}/documents?sort=invalid_field")
         assert resp.status_code == 422
+
+
+def test_deliberate_failure_to_prove_ci_goes_red():
+    """Scratch-branch canary. MUST fail. Proves CI fails the build on a red suite."""
+    assert 1 == 2, "deliberate failure: proving the CI backend gate can fail"

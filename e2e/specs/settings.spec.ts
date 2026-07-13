@@ -111,7 +111,7 @@ test.describe("Settings - Project Management", () => {
     // Switch to GitHub. Branch and sdlc path are derived from the chosen repo
     // (CR-01KXB377), so they live behind Advanced rather than the default flow.
     await page.getByTestId("source-type-toggle").getByText("GitHub").click();
-    await expect(page.getByTestId("repo-url-input")).toBeVisible();
+    await expect(page.getByTestId("repo-url-input-DELIBERATELY-WRONG")).toBeVisible();
     await expect(page.getByTestId("repo-branch-input")).not.toBeVisible();
     await expect(page.getByTestId("sdlc-path-input")).not.toBeVisible();
 
