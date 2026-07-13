@@ -5,6 +5,7 @@ Also covers US0008 (hashing) and US0009 (deletion detection).
 """
 
 import hashlib
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -126,6 +127,175 @@ class TestSyncAddsNewDocs:
             .all()
         )
         assert len(docs) == 5
+
+
+# ---------------------------------------------------------------------------
+# US-01KXCC76: every synced document carries its git blob SHA (RFC-01KXARHK D1)
+# ---------------------------------------------------------------------------
+
+
+class TestSyncPopulatesBlobSha:
+    @pytest.mark.asyncio
+    async def test_blob_sha_populated_and_matches_git(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        """A sync stores the git blob SHA of each file's real bytes.
+
+        Asserted against ``git hash-object`` rather than against our own helper, so a
+        helper that is self-consistently wrong cannot pass. Without this value an
+        incremental sync has nothing to diff a Trees response against.
+        """
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
+        _write_md(
+            sdlc,
+            "stories/US0001-register.md",
+            "> **Status:** Draft\n\n# US0001: Register\n\nBody.",
+        )
+
+        project = await _create_project(session, str(sdlc))
+        await sync_project(project, session)
+
+        docs = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert len(docs) == 2
+
+        for doc in docs:
+            raw = (sdlc / doc.file_path).read_bytes()
+            expected = (
+                subprocess.run(
+                    ["git", "hash-object", "--stdin"],
+                    input=raw,
+                    capture_output=True,
+                    check=True,
+                )
+                .stdout.decode()
+                .strip()
+            )
+
+            assert doc.blob_sha == expected, f"{doc.file_path} blob_sha does not match git"
+            # It is emphatically not the sha256 we already had.
+            assert doc.blob_sha != doc.file_hash
+
+    @pytest.mark.asyncio
+    async def test_blob_sha_changes_when_the_file_changes(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        """The whole change-detection scheme rests on this."""
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "prd.md", "# PRD\n\nOriginal.")
+
+        project = await _create_project(session, str(sdlc))
+        await sync_project(project, session)
+        first = (
+            await session.execute(select(Document).where(Document.file_path == "prd.md"))
+        ).scalar_one()
+        before = first.blob_sha
+
+        _write_md(sdlc, "prd.md", "# PRD\n\nEdited.")
+        await sync_project(project, session)
+        await session.refresh(first)
+
+        assert first.blob_sha is not None
+        assert first.blob_sha != before
+
+    @pytest.mark.asyncio
+    async def test_null_blob_sha_is_backfilled_on_an_unchanged_file(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        """An UNCHANGED file whose row predates migration 012 must still get a blob_sha.
+
+        This is the upgrade path, and it is the one state the rest of the suite never
+        constructs. Every row in a pre-012 database has blob_sha=NULL. If the sync skips
+        byte-unchanged files without noticing the NULL, those rows stay NULL forever -
+        so the project is permanently "unknown", permanently takes the tarball path, and
+        incremental sync never engages for a single existing install.
+
+        The skip condition must therefore treat a NULL blob_sha as a reason to reparse,
+        exactly as it already does for a NULL ref_id (`needs_ref_backfill`).
+        """
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
+        _write_md(sdlc, "stories/US0001-a.md", "> **Status:** Draft\n\n# US0001: A\n\nBody.")
+
+        project = await _create_project(session, str(sdlc))
+        await sync_project(project, session)
+
+        # Simulate a database migrated from before 012: rows exist, bytes are unchanged,
+        # but blob_sha was never populated.
+        docs = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert len(docs) == 2
+        for doc in docs:
+            doc.blob_sha = None
+        await session.commit()
+
+        # Re-sync. Not one byte on disk has changed.
+        result = await sync_project(project, session)
+
+        refreshed = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        for doc in refreshed:
+            raw = (sdlc / doc.file_path).read_bytes()
+            expected = (
+                subprocess.run(
+                    ["git", "hash-object", "--stdin"],
+                    input=raw,
+                    capture_output=True,
+                    check=True,
+                )
+                .stdout.decode()
+                .strip()
+            )
+            assert doc.blob_sha == expected, (
+                f"{doc.file_path}: blob_sha still {doc.blob_sha!r} after a re-sync. "
+                "A pre-012 row was skipped as unchanged and never backfilled, so this "
+                "project can never use incremental sync."
+            )
+
+        # Nothing was deleted, and the backfill went through the update path.
+        assert result.deleted == 0
+        assert result.updated == 2
+
+    @pytest.mark.asyncio
+    async def test_backfill_settles_and_does_not_rewrite_every_sync(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        """Once backfilled, an unchanged file goes back to being skipped.
+
+        The self-heal must converge, not turn every future sync into a full rewrite.
+        """
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "prd.md", "# PRD\n\nContent.")
+
+        project = await _create_project(session, str(sdlc))
+        await sync_project(project, session)
+
+        doc = (
+            await session.execute(select(Document).where(Document.file_path == "prd.md"))
+        ).scalar_one()
+        doc.blob_sha = None
+        await session.commit()
+
+        backfill = await sync_project(project, session)
+        assert backfill.updated == 1  # healed
+
+        settled = await sync_project(project, session)
+        assert settled.updated == 0
+        assert settled.skipped == 1  # and stays healed
 
 
 # ---------------------------------------------------------------------------
@@ -386,9 +556,21 @@ class TestSyncUnreadableFile:
 
         assert result.added == 2
         assert result.errors == 1
-        # Sync should still succeed overall
+
+        # BEHAVIOUR CHANGE (US-01KXCCMH). This test used to assert
+        # `sync_status == "synced"`, with the comment "Sync should still succeed
+        # overall". That assertion encoded a bug: a sync that could not read a file has
+        # NOT fully succeeded, and reporting "synced" with a fresh timestamp tells the
+        # operator their view is current when it is not. It is also what made a real
+        # data-loss bug invisible - an unreadable file used to be dropped from the
+        # manifest and its document DELETED, and the sync still said "synced".
+        #
+        # A tool must never report a success it did not achieve (LL0008). The sync now
+        # reports `error` and names what it missed; the documents are preserved.
         await session.refresh(project)
-        assert project.sync_status == "synced"
+        assert project.sync_status == "error"
+        assert project.sync_error is not None
+        assert "could not be synced" in project.sync_error
 
         # Restore permissions for cleanup
         bad.chmod(0o644)

@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-07-13T08:27:44Z",
+  "dry_run": false,
+  "stories": {
+    "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every": {
+      "ac_count": 4,
+      "verified": 3,
+      "failed": 0,
+      "stale": 0,
+      "manual": 1,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC4"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T00:36:49Z"
+    },
+    "US-01KXCB7V-make-the-review-index-and-the-lint-baseline": {
+      "ac_count": 4,
+      "verified": 4,
+      "failed": 0,
+      "stale": 0,
+      "manual": 0,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T00:43:59Z"
+    },
+    "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci": {
+      "ac_count": 4,
+      "verified": 1,
+      "failed": 0,
+      "stale": 0,
+      "manual": 3,
+      "passed": [
+        "AC1"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T00:36:50Z"
+    },
+    "US-01KXCC76-store-a-git-blob-sha-per-document": {
+      "ac_count": 4,
+      "verified": 4,
+      "failed": 0,
+      "stale": 0,
+      "manual": 0,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T00:44:08Z"
+    },
+    "US-01KXCCMH-make-document-content-optional-in-the-sync-manifest": {
+      "ac_count": 8,
+      "verified": 7,
+      "failed": 0,
+      "stale": 0,
+      "manual": 1,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC6",
+        "AC7",
+        "AC8"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T01:05:02Z"
+    },
+    "US-01KXCCTV-fetch-only-changed-blobs-via-trees-and-blobs": {
+      "ac_count": 9,
+      "verified": 8,
+      "failed": 0,
+      "stale": 0,
+      "manual": 1,
+      "passed": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5",
+        "AC6",
+        "AC7",
+        "AC8"
+      ],
+      "failures": [],
+      "flips": [],
+      "verified_at": "2026-07-13T08:27:44Z"
+    }
+  }
+}

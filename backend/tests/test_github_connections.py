@@ -979,7 +979,15 @@ class TestMigration011:
         finally:
             conn.close()
 
-        assert version == "011"
+        # Assert we landed on alembic's ACTUAL head, rather than pinning a literal.
+        # A hardcoded "011" here asserts nothing about migration 011 - it just breaks
+        # every time a later migration is added (it broke on 012). The schema
+        # assertions below are what actually prove 011 applied.
+        from alembic.script import ScriptDirectory
+
+        expected_head = ScriptDirectory.from_config(cfg).get_current_head()
+        assert version == expected_head
+
         assert "github_connections" in tables
         assert "connection_id" in project_cols
         assert {

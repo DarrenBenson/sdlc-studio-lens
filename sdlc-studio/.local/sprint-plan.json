@@ -1,79 +1,82 @@
 {
-  "generated_at": "2026-07-12T09:14:59Z",
-  "kind": "bug+cr",
-  "status": "Open, Proposed",
+  "generated_at": "2026-07-12T23:29:40Z",
+  "kind": "cr",
+  "status": "Proposed",
   "queries": [
-    {
-      "kind": "bug",
-      "status": "Open"
-    },
     {
       "kind": "cr",
       "status": "Proposed"
     }
   ],
-  "order": "priority",
+  "order": "wsjf",
   "batch": [
     {
-      "id": "BG-01KXARHJ",
-      "type": "bug",
-      "status": "Open",
-      "priority": "Medium",
-      "path": "sdlc-studio/bugs/BG-01KXARHJ-byte-unchanged-documents-keep-stale-doc-type-and.md",
+      "id": "CR-01KXCA1Q",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "High",
+      "path": "sdlc-studio/change-requests/CR-01KXCA1Q-wire-ci-to-push-and-pr-and-settle.md",
       "difficulty": {
-        "score": 50,
+        "score": 55,
         "band": "medium",
         "confidence": "low"
-      }
+      },
+      "complexity": 0,
+      "token_budget": 50000
     },
     {
-      "id": "CR-01KXARM8",
+      "id": "CR-01KXCAHV",
+      "type": "cr",
+      "status": "Proposed",
+      "priority": "High",
+      "path": "sdlc-studio/change-requests/CR-01KXCAHV-incremental-github-sync-hybrid-tarball-plus-trees-and.md",
+      "difficulty": {
+        "score": 62,
+        "band": "high",
+        "confidence": "low"
+      },
+      "complexity": 0,
+      "token_budget": 50000
+    },
+    {
+      "id": "CR-01KXCAZJ",
       "type": "cr",
       "status": "Proposed",
       "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KXARM8-enrich-system-health-endpoint-with-readiness-depth-and.md",
+      "path": "sdlc-studio/change-requests/CR-01KXCAZJ-commit-sha-poll-trigger-to-keep-github-projects.md",
       "difficulty": {
-        "score": 50,
-        "band": "medium",
+        "score": 60,
+        "band": "high",
         "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KXAS75",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KXAS75-github-repo-selector-browse-repos-and-orgs-to.md",
-      "difficulty": {
-        "score": 50,
-        "band": "medium",
-        "confidence": "low"
-      }
-    },
-    {
-      "id": "CR-01KXASF9",
-      "type": "cr",
-      "status": "Proposed",
-      "priority": "Medium",
-      "path": "sdlc-studio/change-requests/CR-01KXASF9-prettify-the-read-only-document-view-working-typography.md",
-      "difficulty": {
-        "score": 52,
-        "band": "medium",
-        "confidence": "low"
-      }
+      },
+      "complexity": 0,
+      "token_budget": 50000
     }
   ],
-  "count": 4,
+  "count": 3,
   "waves": [
     [
-      "BG-01KXARHJ",
-      "CR-01KXARM8",
-      "CR-01KXASF9"
+      "CR-01KXCA1Q"
     ],
     [
-      "CR-01KXAS75"
+      "CR-01KXCAHV"
+    ],
+    [
+      "CR-01KXCAZJ"
     ]
   ],
   "deps_declared": true,
-  "seat_provenance": null
+  "seat_provenance": {
+    "file": "sdlc-studio/.local/wsjf-inputs.json",
+    "written_at": null,
+    "age_days": null,
+    "stale_after_days": 7,
+    "stale": false,
+    "scored": [],
+    "unscored": [
+      "CR-01KXCA1Q",
+      "CR-01KXCAHV",
+      "CR-01KXCAZJ"
+    ]
+  }
 }

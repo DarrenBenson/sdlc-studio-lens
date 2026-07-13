@@ -7,9 +7,9 @@
 
 | Status | Count |
 | --- | --- |
-| Draft | 1 |
+| Draft | 0 |
 | In Review | 0 |
-| Accepted | 0 |
+| Accepted | 1 |
 | Superseded | 0 |
 | Withdrawn | 0 |
 | inbox | 0 |
@@ -19,7 +19,7 @@
 
 | ID | Title | Priority | Status | Author | Date | Spawned CRs |
 | --- | --- | --- | --- | --- | --- | --- |
-| [RFC-01KXARHK](RFC-01KXARHK-incremental-github-sync-near-realtime-without-re-downloading.md) | Incremental GitHub sync: near-realtime without re-downloading the repo | Medium | Draft | -- | 2026-07-12 | -- |
+| [RFC-01KXARHK](RFC-01KXARHK-incremental-github-sync-near-realtime-without-re-downloading.md) | Incremental GitHub sync: near-realtime without re-downloading the repo | Medium | Accepted | -- | 2026-07-12 | -- |
 
 ## Notes
 

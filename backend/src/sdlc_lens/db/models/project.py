@@ -40,6 +40,13 @@ class Project(Base):
     profile: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # JSON string of {doc_type: [status, ...]} custom vocabulary from .config.yaml.
     status_vocab: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSON string of {filename: git blob SHA} for the .config.yaml / .version we last
+    # read. An incremental sync gets each config file's blob SHA free in the Trees
+    # response, so this lets it detect a config edit at ZERO API cost - and fetch the
+    # config blob only when it actually moved. Without it, "nothing changed" would either
+    # cost two blob requests every sync, or silently ignore a config change until some
+    # unrelated document happened to change. NULL = unknown: re-read the config.
+    config_blob_shas: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_synced_at: Mapped[datetime.datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         nullable=False, server_default=func.now()

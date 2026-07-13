@@ -1,6 +1,6 @@
 [project]
 name = "sdlc-lens"
-version = "0.5.0"
+version = "0.6.0"
 description = "SDLC Studio Lens - read-only dashboard for sdlc-studio documents"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,7 +21,11 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "httpx>=0.27.0",
     "coverage>=7.0.0",
-    "ruff>=0.8.0",
+    # Bounded on purpose. An unpinned `ruff>=0.8.0` let CI install a newer ruff
+    # than the developer had, so `ruff check` was green locally and red in CI on
+    # a rule the local build had never heard of (UP042). Local and CI must lint
+    # with the same ruff, or the lint gate is advisory noise.
+    "ruff>=0.15.0,<0.16.0",
 ]
 
 [build-system]

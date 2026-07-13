@@ -6,6 +6,7 @@ Test cases: TC0308-TC0316 from TS0030.
 import hashlib
 import inspect
 import io
+import logging
 import tarfile
 import threading
 from pathlib import Path
@@ -20,7 +21,34 @@ from sdlc_lens.db.models.document import Document
 from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.github_source import GitHubSourceError, RepoNotFoundError
 from sdlc_lens.services.project_config import ProjectConfig
-from sdlc_lens.services.sync_engine import SyncResult, collect_local_files, sync_project
+from sdlc_lens.services.sync_engine import (
+    FetchInfo,
+    FileEntry,
+    SyncResult,
+    collect_local_files,
+    sync_project,
+)
+from sdlc_lens.utils.hashing import compute_blob_sha, compute_hash
+
+
+def _entry(content: bytes) -> FileEntry:
+    """Build a manifest entry exactly as a real collector would (US-01KXCCMH).
+
+    A collector always returns a COMPLETE manifest - every live path - and a tarball or
+    local walk always has the bytes, so ``raw`` is set here. Only the incremental
+    Trees+Blobs path omits content, for files it knows are unchanged.
+    """
+    return FileEntry(
+        file_hash=compute_hash(content),
+        raw=content,
+        blob_sha=compute_blob_sha(content),
+    )
+
+
+async def _docs(session: AsyncSession, project_id: int) -> list[Document]:
+    """Every document currently stored for a project."""
+    res = await session.execute(select(Document).where(Document.project_id == project_id))
+    return list(res.scalars().all())
 
 
 def _build_github_tarball(files: dict[str, bytes]) -> bytes:
@@ -96,10 +124,13 @@ class TestCollectLocalFiles:
         assert "stories/US0001-test-story.md" in files
         assert "epics/EP0001-test-epic.md" in files
 
-        for _rel_path, (file_hash, content) in files.items():
-            expected_hash = hashlib.sha256(content).hexdigest()
-            assert file_hash == expected_hash
-            assert isinstance(content, bytes)
+        for _rel_path, entry in files.items():
+            assert entry.file_hash == hashlib.sha256(entry.raw).hexdigest()
+            assert isinstance(entry.raw, bytes)
+            # A local walk always has the bytes, so it is never a contentless entry,
+            # and it carries the git blob SHA like every other collector (US-01KXCCMH).
+            assert entry.raw is not None
+            assert entry.blob_sha == compute_blob_sha(entry.raw)
 
     async def test_excludes_non_md_files(self, tmp_path: Path) -> None:
         sdlc = tmp_path / "sdlc-studio"
@@ -232,19 +263,18 @@ class TestSyncDispatchGitHub:
         project = await _create_github_project(session)
 
         mock_files = {
-            "stories/US0001-test.md": (
-                hashlib.sha256(b"# US0001\n\n> **Status:** Draft\n\nContent").hexdigest(),
-                b"# US0001\n\n> **Status:** Draft\n\nContent",
-            ),
+            "stories/US0001-test.md": _entry(b"# US0001\n\n> **Status:** Draft\n\nContent"),
         }
 
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(mock_files, ProjectConfig()),
+            return_value=(mock_files, ProjectConfig(), FetchInfo()),
         ) as mock_collect:
             result = await sync_project(project, session)
-            mock_collect.assert_called_once_with(project)
+            # The collector is handed what we already hold: it cannot decide between the
+            # tarball and an incremental fetch without it (US-01KXCCTV).
+            mock_collect.assert_called_once_with(project, {})
 
         assert result.added == 1
         assert project.sync_status == "synced"
@@ -535,14 +565,14 @@ class TestEmptySourceGuard:
 
         content = b"# EP0001\n\n> **Status:** Draft\n\nEpic content"
         seed_files = {
-            "epics/EP0001-test-epic.md": (hashlib.sha256(content).hexdigest(), content),
+            "epics/EP0001-test-epic.md": _entry(content),
         }
 
         # First sync: seed one document.
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(seed_files, ProjectConfig()),
+            return_value=(seed_files, ProjectConfig(), FetchInfo()),
         ):
             r1 = await sync_project(project, session)
         assert r1.added == 1
@@ -551,7 +581,7 @@ class TestEmptySourceGuard:
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=({}, ProjectConfig()),
+            return_value=({}, ProjectConfig(), FetchInfo()),
         ):
             r2 = await sync_project(project, session)
 
@@ -577,22 +607,22 @@ class TestEmptySourceGuard:
         c1 = b"# EP0001\n\n> **Status:** Draft\n\nEpic one"
         c2 = b"# US0001\n\n> **Status:** Draft\n\nStory one"
         seed_files = {
-            "epics/EP0001-one.md": (hashlib.sha256(c1).hexdigest(), c1),
-            "stories/US0001-one.md": (hashlib.sha256(c2).hexdigest(), c2),
+            "epics/EP0001-one.md": _entry(c1),
+            "stories/US0001-one.md": _entry(c2),
         }
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(seed_files, ProjectConfig()),
+            return_value=(seed_files, ProjectConfig(), FetchInfo()),
         ):
             await sync_project(project, session)
 
         # Second sync: one of the two files removed, the other unchanged.
-        remaining = {"epics/EP0001-one.md": (hashlib.sha256(c1).hexdigest(), c1)}
+        remaining = {"epics/EP0001-one.md": _entry(c1)}
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(remaining, ProjectConfig()),
+            return_value=(remaining, ProjectConfig(), FetchInfo()),
         ):
             r2 = await sync_project(project, session)
 
@@ -621,13 +651,12 @@ class TestSyncPrebuiltDict:
         project = await _create_github_project(session)
 
         content = b"# EP0001\n\n> **Status:** Draft\n\nEpic content"
-        file_hash = hashlib.sha256(content).hexdigest()
-        mock_files = {"epics/EP0001-test-epic.md": (file_hash, content)}
+        mock_files = {"epics/EP0001-test-epic.md": _entry(content)}
 
         with patch(
             "sdlc_lens.services.sync_engine.collect_github_files",
             new_callable=AsyncMock,
-            return_value=(mock_files, ProjectConfig()),
+            return_value=(mock_files, ProjectConfig(), FetchInfo()),
         ):
             result = await sync_project(project, session)
 
@@ -639,5 +668,313 @@ class TestSyncPrebuiltDict:
         )
         docs = db_result.scalars().all()
         assert len(docs) == 1
-        assert docs[0].file_hash == file_hash
+        assert docs[0].file_hash == compute_hash(content)
         assert docs[0].doc_id == "EP0001-test-epic"
+
+
+# ---------------------------------------------------------------------------
+# US-01KXCCMH: the manifest is complete; only the CONTENT is optional.
+#
+# These pin the contract that makes an incremental sync safe. The dangerous design is
+# to hand sync_project only the CHANGED files: on a no-op sync that dict is empty, the
+# empty-source guard reads it as "the source is empty" (regressing BG-01KX8BFP, a High
+# severity silent-data-loss bug) and the deletion loop considers every document gone.
+#
+# Instead every live path stays in the manifest and unchanged files carry raw=None.
+# ---------------------------------------------------------------------------
+
+
+def _contentless(content: bytes) -> FileEntry:
+    """A manifest entry for a file the fetcher KNOWS is unchanged, so did not download.
+
+    hash and blob_sha still describe the real file - that is precisely how the fetcher
+    knew it was unchanged - but the bytes were never pulled over the wire.
+    """
+    return FileEntry(
+        file_hash=compute_hash(content),
+        raw=None,
+        blob_sha=compute_blob_sha(content),
+    )
+
+
+class TestContentlessManifestEntries:
+    @pytest.mark.asyncio
+    async def test_a_fully_contentless_manifest_deletes_nothing(
+        self, session: AsyncSession
+    ) -> None:
+        """The no-op incremental sync: every file unchanged, so NOTHING was fetched.
+
+        This is the exact shape that would be catastrophic under the naive design. The
+        manifest is full, but not a single entry carries bytes. Nothing may be deleted,
+        the empty-source guard must NOT fire, and the sync must succeed.
+        """
+        project = await _create_github_project(session)
+
+        c1 = b"# EP0001\n\n> **Status:** Draft\n\nEpic one"
+        c2 = b"# US0001\n\n> **Status:** Draft\n\nStory one"
+        paths = {"epics/EP0001-one.md": c1, "stories/US0001-one.md": c2}
+
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=({p: _entry(c) for p, c in paths.items()}, ProjectConfig(), FetchInfo()),
+        ):
+            await sync_project(project, session)
+
+        before = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert len(before) == 2
+        synced_at = {d.file_path: d.synced_at for d in before}
+
+        # Re-sync. Nothing changed, so the fetcher pulled ZERO blobs.
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=(
+                {p: _contentless(c) for p, c in paths.items()},
+                ProjectConfig(),
+                FetchInfo(),
+            ),
+        ):
+            result = await sync_project(project, session)
+
+        assert result.deleted == 0, "a no-op incremental sync deleted documents"
+        assert result.added == 0
+        assert result.updated == 0
+        assert result.errors == 0
+        assert result.skipped == 2
+        assert project.sync_status == "synced", "the empty-source guard fired on a healthy sync"
+
+        after = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert len(after) == 2
+        # Untouched, not merely un-deleted.
+        assert {d.file_path: d.synced_at for d in after} == synced_at
+
+    @pytest.mark.asyncio
+    async def test_deletion_is_keyed_on_the_manifest_not_on_what_was_fetched(
+        self, session: AsyncSession
+    ) -> None:
+        """A file absent from the MANIFEST is deleted; a file merely not FETCHED is not.
+
+        The distinction the whole design turns on.
+        """
+        project = await _create_github_project(session)
+
+        c1 = b"# EP0001\n\n> **Status:** Draft\n\nEpic one"
+        c2 = b"# US0001\n\n> **Status:** Draft\n\nStory one"
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=(
+                {"epics/EP0001-one.md": _entry(c1), "stories/US0001-one.md": _entry(c2)},
+                ProjectConfig(),
+                FetchInfo(),
+            ),
+        ):
+            await sync_project(project, session)
+
+        # US0001 is deleted upstream (gone from the manifest). EP0001 is unchanged, so
+        # it is in the manifest but was not fetched.
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=({"epics/EP0001-one.md": _contentless(c1)}, ProjectConfig(), FetchInfo()),
+        ):
+            result = await sync_project(project, session)
+
+        assert result.deleted == 1
+        assert result.skipped == 1
+        remaining = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert [d.file_path for d in remaining] == ["epics/EP0001-one.md"]
+
+    @pytest.mark.asyncio
+    async def test_a_contentless_entry_that_needs_reparsing_fails_loud(
+        self, session: AsyncSession, caplog
+    ) -> None:
+        """If a document needs a reparse but arrived with no bytes, SAY SO. Never skip.
+
+        This state is a bug in the fetch path (it must supply bytes for anything needing
+        a reparse - RFC-01KXARHK D7). It cannot be repaired by re-parsing the stored
+        `content` column, because that column is body-only: the frontmatter blockquote
+        carrying status/epic/story is stripped before storage (parser.py:183).
+
+        A silent skip here would leave the document on stale derived fields for ever
+        while the sync cheerfully reported success - BG-01KXARHJ, resurrected. A tool
+        must fail loud rather than report a success it did not achieve (LL0008).
+        """
+        project = await _create_github_project(session)
+
+        old = b"# EP0001\n\n> **Status:** Draft\n\nOld"
+        with patch(
+            "sdlc_lens.services.sync_engine.collect_github_files",
+            new_callable=AsyncMock,
+            return_value=({"epics/EP0001-one.md": _entry(old)}, ProjectConfig(), FetchInfo()),
+        ):
+            await sync_project(project, session)
+
+        # A broken fetcher: the file CHANGED (different hash) but no bytes were supplied.
+        new = b"# EP0001\n\n> **Status:** Done\n\nNew"
+        broken = FileEntry(
+            file_hash=compute_hash(new),  # says it changed...
+            raw=None,  # ...but gave us nothing to parse
+            blob_sha=compute_blob_sha(new),
+        )
+        with (
+            caplog.at_level(logging.ERROR),
+            patch(
+                "sdlc_lens.services.sync_engine.collect_github_files",
+                new_callable=AsyncMock,
+                return_value=({"epics/EP0001-one.md": broken}, ProjectConfig(), FetchInfo()),
+            ),
+        ):
+            result = await sync_project(project, session)
+
+        assert result.errors == 1, "a contentless entry needing a reparse was swallowed"
+        assert result.updated == 0
+        assert "needs a reparse but arrived with no content" in caplog.text
+        # And it is NOT deleted - a fetch bug must never cost the user a document.
+        assert result.deleted == 0
+        docs = (
+            (await session.execute(select(Document).where(Document.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        assert len(docs) == 1
+        # The stale row is left exactly as it was rather than half-written.
+        assert docs[0].status == "Draft"
+
+
+# ---------------------------------------------------------------------------
+# BG-01KX8BFP class: a path that EXISTS but cannot be READ is not a deletion.
+#
+# Found by an independent critic, and live on main before this change: the local walker
+# dropped an unreadable file from the manifest, and the deletion loop reads absence from
+# the manifest as "gone upstream" - so a single `chmod 000` DESTROYED the document while
+# the file sat intact on disk, and the sync still reported `synced`.
+# ---------------------------------------------------------------------------
+
+
+class TestUnreadableFileIsNotADeletion:
+    @pytest.mark.asyncio
+    async def test_unreadable_file_keeps_its_document(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "epics/EP0001-one.md", "# EP0001\n\n> **Status:** Draft\n\nEpic one")
+        _write_md(sdlc, "stories/US0001-one.md", "# US0001\n\n> **Status:** Draft\n\nStory one")
+
+        project = await _create_local_project(session, str(sdlc))
+        await sync_project(project, session)
+        assert len({d.file_path for d in (await _docs(session, project.id))}) == 2
+
+        # The file is still there. We simply cannot read it this run.
+        victim = sdlc / "stories" / "US0001-one.md"
+        victim.chmod(0o000)
+        try:
+            result = await sync_project(project, session)
+        finally:
+            victim.chmod(0o644)
+
+        assert victim.exists(), "precondition: the file was never deleted from disk"
+        assert result.deleted == 0, "an UNREADABLE file was treated as a DELETED file"
+
+        paths = {d.file_path for d in (await _docs(session, project.id))}
+        assert paths == {"epics/EP0001-one.md", "stories/US0001-one.md"}, (
+            "the document for an unreadable-but-present file was destroyed"
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_sync_with_errors_does_not_report_success(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        """LL0008: never report a success you did not achieve.
+
+        A sync that could not read a file left that document un-updated. Saying "synced"
+        with a fresh timestamp tells the operator their view is current when it is not -
+        and it is what made the data loss above invisible.
+        """
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "epics/EP0001-one.md", "# EP0001\n\n> **Status:** Draft\n\nEpic one")
+        _write_md(sdlc, "stories/US0001-one.md", "# US0001\n\n> **Status:** Draft\n\nStory one")
+
+        project = await _create_local_project(session, str(sdlc))
+        await sync_project(project, session)
+
+        victim = sdlc / "stories" / "US0001-one.md"
+        victim.chmod(0o000)
+        try:
+            result = await sync_project(project, session)
+        finally:
+            victim.chmod(0o644)
+
+        assert result.errors == 1
+        assert project.sync_status == "error", "a sync that skipped a file claimed success"
+        assert project.sync_error is not None
+        assert "could not be synced" in project.sync_error
+
+    @pytest.mark.asyncio
+    async def test_a_clean_sync_still_reports_synced(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
+        """The converse: no errors, no false alarm."""
+        sdlc = tmp_path / "sdlc-studio"
+        sdlc.mkdir()
+        _write_md(sdlc, "epics/EP0001-one.md", "# EP0001\n\n> **Status:** Draft\n\nEpic one")
+
+        project = await _create_local_project(session, str(sdlc))
+        result = await sync_project(project, session)
+
+        assert result.errors == 0
+        assert project.sync_status == "synced"
+        assert project.sync_error is None
+
+
+class TestManifestBlobShaIsChecked:
+    @pytest.mark.asyncio
+    async def test_a_blob_sha_that_contradicts_its_bytes_is_refused(
+        self, session: AsyncSession, caplog
+    ) -> None:
+        """A source that lies about a blob SHA must not poison the row.
+
+        We store the manifest's blob_sha rather than recomputing it, so an incorrect
+        value would be written verbatim - and the skip condition never revisits a
+        non-NULL blob_sha, so it would be wrong FOR EVER: the path would look changed on
+        every future sync (defeating incremental sync) or unchanged for ever (the
+        document silently never updates again).
+        """
+        project = await _create_github_project(session)
+
+        content = b"# EP0001\n\n> **Status:** Draft\n\nEpic content"
+        liar = FileEntry(
+            file_hash=compute_hash(content),
+            raw=content,
+            blob_sha="0" * 40,  # not this content's blob SHA
+        )
+
+        with (
+            caplog.at_level(logging.ERROR),
+            patch(
+                "sdlc_lens.services.sync_engine.collect_github_files",
+                new_callable=AsyncMock,
+                return_value=({"epics/EP0001-one.md": liar}, ProjectConfig(), FetchInfo()),
+            ),
+        ):
+            result = await sync_project(project, session)
+
+        assert result.added == 0, "a blob_sha contradicting its own bytes was stored"
+        assert result.errors == 1
+        assert "does not match its bytes" in caplog.text
+        assert await _docs(session, project.id) == []

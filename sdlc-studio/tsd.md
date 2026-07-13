@@ -255,6 +255,16 @@ def test_document_list_includes_required_fields(
 
 ### E2E Feature Coverage Matrix
 
+> **Where these run (US-01KXCBHJ).** The E2E suite runs **in CI only**, in the `e2e` job of
+> `.github/workflows/ci.yml`, on every push to `main` and every pull request. It **cannot run on the
+> dev box** - Playwright does not support Ubuntu 26.04 (`playwright install` fails outright), so a
+> local `npx playwright test` is not a check you can perform.
+>
+> Until 2026-07-13 the suite ran in **no** workflow and on no developer machine: 43 tests counted as
+> coverage while executing nowhere. That is how the add-project rewrite silently invalidated
+> `settings.spec.ts` while 976 unit tests stayed green (RETRO-0006). If the `e2e` job is ever removed
+> or allowed to stay red, these 43 tests stop being coverage again - and this table starts lying.
+
 | Feature Area | Spec File | Test Count | Status |
 |--------------|-----------|------------|--------|
 | Dashboard overview | dashboard.spec.ts | 5 | Done |

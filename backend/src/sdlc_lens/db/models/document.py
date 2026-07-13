@@ -38,5 +38,17 @@ class Document(Base):
     parser_epoch: Mapped[int | None] = mapped_column(nullable=True, default=0)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    # sha256 of the raw bytes. Ours, not git's - used to skip a byte-unchanged file.
     file_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # The git blob SHA-1 of the raw bytes: sha1("blob {len}\0" + bytes). This is what
+    # GitHub's Trees API reports per path, so it is what an incremental sync diffs
+    # against to decide which blobs to fetch. Distinct from file_hash (sha256) and not
+    # derivable from `content` (already-decoded text).
+    #
+    # NULL = unknown, i.e. a row written before migration 012. Such a row is backfilled
+    # by sync_engine's `needs_blob_sha_backfill` clause, which makes it ineligible for
+    # the byte-unchanged skip so it gets rewritten once. Note the backfill comes from
+    # THAT clause, not from the tarball merely having the bytes: without it an unchanged
+    # file is skipped and the NULL persists forever (RFC-01KXARHK, D1).
+    blob_sha: Mapped[str | None] = mapped_column(String(40), nullable=True)
     synced_at: Mapped[datetime.datetime] = mapped_column(nullable=False, server_default=func.now())
