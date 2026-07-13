@@ -19,3 +19,4 @@ Registry of sprint/batch retrospectives.
 | [RETRO-0004](RETRO0004-ux-github-ops-sprint-parser-epoch-health-depth.md) | UX + GitHub + ops sprint (parser-epoch, health depth, prettify, repo selector) | 2026-07-12 | -- | -- |
 | [RETRO-0005](RETRO0005-github-connections-sprint-cr-01kxazx9-stored-credentials-plus.md) | GitHub connections sprint (CR-01KXAZX9): stored credentials plus five review fixes | 2026-07-12 | -- | -- |
 | [RETRO-0006](RETRO0006-add-project-overhaul-sprint-browse-every-connection-plus.md) | Add-project overhaul sprint: browse every connection, plus three review fixes | 2026-07-12 | -- | -- |
+| [RETRO-0007](RETRO0007-incremental-sync-sprint-ci-that-gates-and-three.md) | Incremental sync sprint: CI that gates, and three critics that found what green could not | 2026-07-13 | -- | -- |
