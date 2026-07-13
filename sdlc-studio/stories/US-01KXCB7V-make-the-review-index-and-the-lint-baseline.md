@@ -38,21 +38,29 @@ outranks a loud one).
 - **Verify:** shell grep -q "Open Critical Issues | 0" sdlc-studio/reviews/_index.md
 - **Verified:** yes (2026-07-12)
 
-### AC2: The lint baseline is clean
+### AC2: The lint baseline is clean, under the ruff CI actually uses
 
 - **Given** CI must not start life yellow
-- **When** `ruff check` runs over the backend
-- **Then** it reports no findings - the `SortField` hint is either fixed or given a scoped, commented `noqa` explaining why it stands
-- **Verify:** shell cd backend && ruff check src/ tests/
-- **Verified:** yes (2026-07-12)
+- **When** `ruff check` runs over the backend **with the venv's ruff, not one from `$PATH`**
+- **Then** it reports no findings. `SortField` inherited from both `str` and `Enum` (UP042) and is now a `StrEnum` - safe because the only consumer reads `sort.value`, never `str(sort)`
+- **Verify:** shell cd backend && .venv/bin/ruff check src/ tests/
+- **Verified:** yes (2026-07-13)
 
 ### AC3: Formatting is clean
 
 - **Given** the CI lint job will enforce it
-- **When** `ruff format --check` runs
+- **When** `ruff format --check` runs with the venv's ruff
 - **Then** it passes
-- **Verify:** shell cd backend && ruff format --check src/ tests/
-- **Verified:** yes (2026-07-12)
+- **Verify:** shell cd backend && .venv/bin/ruff format --check src/ tests/
+- **Verified:** yes (2026-07-13)
+
+### AC4: Local and CI lint with the same ruff
+
+- **Given** an unbounded `ruff>=0.8.0` let CI install 0.15.x while the developer had 0.14.x on `$PATH`, so `ruff check` was green locally and red in CI on a rule the local build did not know (UP042) - LL0011, an environment gap masquerading as a code defect
+- **When** the dev dependency is bounded and `AGENTS.md` documents the venv's ruff
+- **Then** a fresh install and CI resolve to the same ruff, and the lint gate means one thing
+- **Verify:** shell grep -q 'ruff>=0.15.0,<0.16.0' backend/pyproject.toml && grep -q '.venv/bin/ruff check' AGENTS.md
+- **Verified:** yes (2026-07-13)
 
 ## Revision History
 

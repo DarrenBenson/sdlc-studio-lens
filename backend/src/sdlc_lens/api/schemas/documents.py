@@ -1,12 +1,12 @@
 """Pydantic schemas for document endpoints."""
 
 import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 
-class SortField(str, Enum):
+class SortField(StrEnum):
     title = "title"
     type = "type"
     status = "status"

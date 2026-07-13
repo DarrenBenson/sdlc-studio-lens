@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-12T23:56:23Z",
+  "generated_at": "2026-07-13T00:02:56Z",
   "dry_run": false,
   "stories": {
     "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every": {
@@ -34,23 +34,19 @@
       "verified_at": "2026-07-12T23:56:23Z"
     },
     "US-01KXCB7V-make-the-review-index-and-the-lint-baseline": {
-      "ac_count": 3,
-      "verified": 3,
+      "ac_count": 4,
+      "verified": 4,
       "failed": 0,
       "stale": 0,
       "manual": 0,
       "passed": [
         "AC1",
         "AC2",
-        "AC3"
+        "AC3",
+        "AC4"
       ],
       "failures": [],
       "flips": [
-        {
-          "ac": "AC1",
-          "old_state": "none",
-          "new_state": "yes"
-        },
         {
           "ac": "AC2",
           "old_state": "none",
@@ -60,9 +56,14 @@
           "ac": "AC3",
           "old_state": "none",
           "new_state": "yes"
+        },
+        {
+          "ac": "AC4",
+          "old_state": "none",
+          "new_state": "yes"
         }
       ],
-      "verified_at": "2026-07-12T23:56:23Z"
+      "verified_at": "2026-07-13T00:02:56Z"
     },
     "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci": {
       "ac_count": 4,

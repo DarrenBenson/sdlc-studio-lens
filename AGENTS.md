@@ -74,7 +74,10 @@ code.
 - **Run / build / test:**
   - Backend server: `cd backend && PYTHONPATH=src uvicorn "sdlc_lens.main:create_app" --factory`
   - Backend tests: `cd backend && PYTHONPATH=src python -m pytest`
-  - Backend lint: `cd backend && ruff check src/ tests/` and `ruff format src/ tests/`
+  - Backend lint: `cd backend && .venv/bin/ruff check src/ tests/` and `.venv/bin/ruff format src/ tests/`
+    (**use the venv's ruff, not one on `$PATH`** - a globally-installed ruff is usually an older build
+    and will report a clean tree that CI then fails on a rule it has never heard of. `pyproject.toml`
+    bounds ruff for exactly this reason.)
   - Frontend tests: `cd frontend && npx vitest run`; types: `npx tsc --noEmit`
   - Migrations: `cd backend && PYTHONPATH=src alembic upgrade head`
   - Full stack (Docker): `docker compose up --build` from the project root.
