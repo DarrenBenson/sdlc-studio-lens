@@ -1,6 +1,6 @@
 # US-01KXCB7V: Make the review index and the lint baseline tell the truth
 
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-07-13
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Tomas Reinholt; persona; v3

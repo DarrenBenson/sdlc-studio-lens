@@ -3,3 +3,11 @@
 {"at": "2026-07-12T23:56:23Z", "dry_run": false, "story": "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci", "verified": 1, "failed": 0, "stale": 0, "passed": ["AC1"], "failed_acs": [], "exit": 0}
 {"at": "2026-07-13T00:02:35Z", "dry_run": false, "story": "US-01KXCB7V-make-the-review-index-and-the-lint-baseline", "verified": 3, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3"], "failed_acs": [], "exit": 0}
 {"at": "2026-07-13T00:02:56Z", "dry_run": false, "story": "US-01KXCB7V-make-the-review-index-and-the-lint-baseline", "verified": 4, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:24:52Z", "dry_run": false, "story": "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every", "verified": 3, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:24:52Z", "dry_run": false, "story": "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci", "verified": 1, "failed": 0, "stale": 0, "passed": ["AC1"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:24:52Z", "dry_run": false, "story": "US-01KXCB7V-make-the-review-index-and-the-lint-baseline", "verified": 4, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:24:53Z", "dry_run": false, "story": "US-01KXCC76-store-a-git-blob-sha-per-document", "verified": 0, "failed": 4, "stale": 0, "passed": [], "failed_acs": ["AC1", "AC2", "AC3", "AC4"], "exit": 1}
+{"at": "2026-07-13T00:25:28Z", "dry_run": false, "story": "US-01KXCC76-store-a-git-blob-sha-per-document", "verified": 4, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:36:27Z", "dry_run": false, "story": "US-01KXCC76-store-a-git-blob-sha-per-document", "verified": 4, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC3", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:36:49Z", "dry_run": false, "story": "US-01KXCBB5-run-backend-frontend-types-and-lint-on-every", "verified": 3, "failed": 0, "stale": 0, "passed": ["AC1", "AC2", "AC4"], "failed_acs": [], "exit": 0}
+{"at": "2026-07-13T00:36:50Z", "dry_run": false, "story": "US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci", "verified": 1, "failed": 0, "stale": 0, "passed": ["AC1"], "failed_acs": [], "exit": 0}

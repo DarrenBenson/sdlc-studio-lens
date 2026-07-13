@@ -1,6 +1,6 @@
 # EP-01KXCBC9: CI safety net: run the tests on every change, and stop counting a suite that cannot run
 
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-07-13
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Tomas Reinholt; persona; v3
@@ -26,9 +26,9 @@ Either it runs, or it stops being counted.
 
 ## Story Breakdown
 
-- [ ] [US-01KXCBB5: Run backend, frontend, types and lint on every push and pull request](../stories/US-01KXCBB5-run-backend-frontend-types-and-lint-on-every.md)
-- [ ] [US-01KXCBHJ: Settle the E2E suite: run it in CI so its repairs are proven, not assumed](../stories/US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci.md)
-- [ ] [US-01KXCB7V: Make the review index and the lint baseline tell the truth](../stories/US-01KXCB7V-make-the-review-index-and-the-lint-baseline.md)
+- [x] [US-01KXCBB5: Run backend, frontend, types and lint on every push and pull request](../stories/US-01KXCBB5-run-backend-frontend-types-and-lint-on-every.md)
+- [x] [US-01KXCBHJ: Settle the E2E suite: run it in CI so its repairs are proven, not assumed](../stories/US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci.md)
+- [x] [US-01KXCB7V: Make the review index and the lint baseline tell the truth](../stories/US-01KXCB7V-make-the-review-index-and-the-lint-baseline.md)
 
 ## Acceptance Criteria
 

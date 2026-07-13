@@ -47,8 +47,10 @@ This story removes that possibility structurally, before any incremental fetchin
 change and cannot misfire.
 
 The one thing optional content genuinely forces: a document whose blob is unchanged but whose `parser_epoch`
-is stale has no bytes to parse. It must re-parse from the stored `content` column. Without that, BG-01KXARHJ
-quietly un-fixes itself.
+is stale has no bytes to parse. **It cannot re-parse from the stored `content` column** - `parser.py:183`
+stores body-only text, with the frontmatter blockquote (and therefore `status`, `epic`, `story`,
+`depends_on`, `aliases`) stripped out. A stale epoch instead **forces the tarball path** (RFC D7), so the
+bytes are real. This story simply must not pretend otherwise.
 
 **This story changes no external behaviour.** The tarball and local collectors still supply every byte, so
 `raw` is never actually `None` yet. It is a contract change with the incremental path not yet built.
@@ -60,7 +62,7 @@ quietly un-fixes itself.
 - **Given** this is an internal refactor with no behaviour change
 - **When** the backend suite runs
 - **Then** every test passes **without being edited** - and in particular BG-01KX8BFP's empty-source regression test is untouched. If a test must change to accommodate this refactor, the refactor is wrong
-- **Verify:** shell cd backend && PYTHONPATH=src python -m pytest -q
+- **Verify:** shell cd backend && PYTHONPATH=src .venv/bin/python -m pytest -q
 
 ### AC2: The empty-source guard still fires when the source is genuinely empty
 
@@ -69,12 +71,12 @@ quietly un-fixes itself.
 - **Then** the guard fires: no documents are deleted, and `sync_status` becomes `error` with the existing message
 - **Verify:** pytest backend/tests/services/test_sync_engine.py -k empty_source
 
-### AC3: A stale parser epoch re-parses from stored content, with no bytes supplied
+### AC3: A contentless entry is never parsed, and stored content is never treated as a parseable source
 
-- **Given** a document already in the DB whose manifest entry carries `raw=None` and whose `parser_epoch` is below `PARSER_EPOCH`
-- **When** a sync runs
-- **Then** the document re-parses from its stored `content`, and `doc_type`, `status`, `ref_id`, `epic`, `story`, `depends_on` and `aliases` all recompute
-- **Verify:** pytest backend/tests/services/test_sync_engine.py -k reparse_from_stored_content
+- **Given** `documents.content` is body-only - the frontmatter blockquote carrying `status`, `epic`, `story`, `depends_on` and `aliases` is stripped before storage (`parser.py:183`), so re-parsing it would silently yield a document with no metadata
+- **When** a manifest entry arrives with `raw=None`
+- **Then** the engine **skips** it - it never calls `parse_document` on `doc.content`. A stale epoch is handled upstream by forcing the tarball path (RFC D7), so a document needing a re-parse always arrives with real bytes
+- **Verify:** shell ! grep -qE 'parse_document\(\s*(doc|existing)\.content' backend/src/sdlc_lens/services/sync_engine.py
 
 ### AC4: An unchanged, epoch-current document with no bytes is simply skipped
 

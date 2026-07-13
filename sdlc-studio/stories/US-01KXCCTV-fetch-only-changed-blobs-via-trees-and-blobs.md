@@ -55,7 +55,7 @@ than worse than it.
 ### AC4: Path selection follows the hybrid rules, and the fallback speaks
 
 - **Given** the tarball is the cold start, the backfill and the escape hatch
-- **When** a sync runs on a project that is (a) syncing for the first time, (b) holds any document with a NULL `blob_sha`, or (c) has more changed blobs than the cap
+- **When** a sync runs on a project that is (a) syncing for the first time, (b) holds any document with a NULL `blob_sha`, (c) holds any document below `PARSER_EPOCH` (RFC D7), or (d) has more changed blobs than the cap
 - **Then** the **tarball** path runs, and the sync result **names which path ran and why** - a cap that silently diverts work is a cap that lies (RETRO-0006: "a cap must speak")
 - **Verify:** pytest backend/tests/services/test_sync_engine.py -k hybrid_path_selection
 
@@ -80,12 +80,12 @@ than worse than it.
 - **Then** no Trees call, no blob call, and no blob-SHA diffing occurs; behaviour is byte-for-byte what it was
 - **Verify:** pytest backend/tests/services/test_sync_engine.py -k local_source_unaffected
 
-### AC8: The parser epoch still re-parses unchanged files
+### AC8: A stale parser epoch forces the tarball, so BG-01KXARHJ stays fixed
 
-- **Given** `PARSER_EPOCH` is bumped and no file in the repo has changed
-- **When** an incremental sync runs
-- **Then** every stale document re-parses from stored content, with **zero** blob requests issued - the incremental path did not un-fix BG-01KXARHJ
-- **Verify:** pytest backend/tests/services/test_sync_engine.py -k incremental_epoch_reparse_no_fetch
+- **Given** `PARSER_EPOCH` is bumped by an app upgrade and no file in the repo has changed
+- **When** the next sync runs on a GitHub project
+- **Then** it takes the **tarball** path (not incremental), every document re-parses from real bytes, and the derived fields (`doc_type`, `status`, `ref_id`, `epic`, `story`, `depends_on`, `aliases`) all recompute. The sync after that is incremental again. Stored `content` is body-only and is never used as a re-parse source (RFC D7)
+- **Verify:** pytest backend/tests/services/test_sync_engine.py -k stale_epoch_forces_tarball
 
 ### AC9: The whole thing is mutation-checked
 

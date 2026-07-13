@@ -30,9 +30,11 @@ receives a **manifest** (path → blob_sha) plus content for only the **changed 
 behaviours sit directly in that blast radius:
 
 1. **`PARSER_EPOCH` reparse** (`sync_engine.py:44`, skip logic at ~436-455). A document whose blob is
-   byte-identical but whose `parser_epoch` is stale **must still re-parse**. Under the incremental path it
-   has no fetched bytes - so it must re-parse from the **stored `content` column**, not a re-fetch. This is
-   the mechanism that fixed BG-01KXARHJ; breaking it silently un-fixes that bug.
+   byte-identical but whose `parser_epoch` is stale **must still re-parse**, and under the incremental path
+   it has no fetched bytes. It **cannot** be re-parsed from the stored `content` column: `parser.py:183`
+   stores body-only text with the frontmatter blockquote stripped, so `status`, `epic`, `story`,
+   `depends_on` and `aliases` are not in that column at all. A stale epoch therefore **forces the tarball
+   path** (RFC D7). This is the mechanism that fixed BG-01KXARHJ; getting it wrong silently un-fixes that bug.
 2. **The empty-source guard** ("source returned no documents - refusing to delete existing documents",
    ~line 425). It keys off `fs_files` being empty. Under incremental sync a **clean no-op sync legitimately
    fetches zero files.** A guard that reads that as "the source is empty" either wipes the corpus or throws
@@ -63,7 +65,7 @@ mandatory rather than optional.
 - [ ] **Hybrid path selection** (RFC D3). A **full tarball sync** runs when it is the first sync, *or* any document in the project has a NULL `blob_sha`, *or* a full resync is explicitly requested, *or* the changed-blob count exceeds the cap. **Incremental** runs otherwise. An upgraded install (every `blob_sha` NULL) therefore self-heals via one tarball that backfills every SHA
 - [ ] **MODE - nothing changed: zero blobs fetched, zero documents touched, and critically ZERO DELETED.** The empty-source guard keys off the **manifest**, not the fetched subset (RFC D6). A no-op incremental sync must never be mistaken for an empty source. Proven by a test that **fails** against a fetch-subset-keyed guard. **BG-01KX8BFP's existing regression test must still pass unmodified** - if satisfying this CR requires weakening that test, the design is wrong
 - [ ] **MODE - K files changed:** exactly those K blobs are fetched and exactly those K documents re-parse. Unchanged documents are neither re-parsed nor re-written
-- [ ] **MODE - blob unchanged but `parser_epoch` stale:** the document **re-parses from its stored `content`** with no network fetch, so the BG-01KXARHJ fix survives the contract change. Proven by a test that bumps `PARSER_EPOCH` and asserts the derived fields (`doc_type`, `status`, `ref_id`, `epic`/`story`, `depends_on`, `aliases`) recompute while **zero blob requests** are issued
+- [ ] **MODE - blob unchanged but `parser_epoch` stale:** the project **falls back to a tarball** (RFC D7), so every document re-parses from real bytes and the BG-01KXARHJ fix survives the contract change. Stored `content` is body-only and is never re-parsed. Proven by a test that bumps `PARSER_EPOCH` and asserts the derived fields (`doc_type`, `status`, `ref_id`, `epic`/`story`, `depends_on`, `aliases`) recompute, and that the next sync returns to incremental
 - [ ] **MODE - files deleted upstream:** paths absent from the **manifest** are deleted locally. Deletion is manifest-keyed, never fetch-keyed
 - [ ] **MODE - local source:** entirely unaffected. No manifest, no blob SHA, no Trees call. Regression-tested
 - [ ] **MODE - rate-limited or token revoked mid-sync** (RFC D5): raises the existing `RateLimitError` / `AuthenticationError`, sets `sync_status=error` with a legible message, and **leaves the stored corpus intact**. A throttled fetch never partial-wipes

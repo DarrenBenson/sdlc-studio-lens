@@ -10,14 +10,18 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same branch supersedes an in-flight run.
+# A newer push to the same branch supersedes an in-flight run - but NOT on main.
+# A cancelled run is neither success nor failure, so cancelling on main would let two
+# quick pushes leave the intermediate commit silently unverified, which is the exact
+# hole this workflow exists to close.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -46,6 +50,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -81,6 +86,9 @@ jobs:
     # 976 unit tests stayed green (RETRO-0006). Do not let this job rot back into
     # being skipped: if it is red, fix it or delete the suite - never ignore it.
     runs-on: ubuntu-latest
+    # The Playwright webServer block boots two servers; if either hangs, fail in 20
+    # minutes rather than sitting on the 6-hour default.
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:

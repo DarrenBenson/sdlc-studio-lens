@@ -40,13 +40,29 @@ sync, and every live path is still a key. The failure mode is not defended again
 express. (RETRO-0006: *"Derive, do not store, a value that is a function of a selection... prefer that over
 remembering to clear it."* The same principle, applied to a guard rather than a field.)
 
-What optional content does force us to handle honestly is the **`PARSER_EPOCH` reparse**: a document whose
-blob is unchanged but whose epoch is stale must still re-parse, and now has no fetched bytes. It re-parses
-from the **stored `content` column**. That path must exist, or BG-01KXARHJ silently un-fixes itself.
+## The parser-epoch trap (RFC D7)
+
+What optional content forces us to handle honestly is the **`PARSER_EPOCH` reparse**: a document whose blob
+is unchanged but whose epoch is stale must still re-parse, and now has no fetched bytes.
+
+The obvious answer - "re-parse it from the stored `content` column" - **does not work, and this epic was
+originally specified to do exactly that.** `parser.py:183` sets `body = lines[frontmatter_end:]`, so
+`documents.content` holds only the body *after* the frontmatter blockquote. The title heading and the whole
+`> **Status:** …` block are stripped before storage. `status`, `owner`, `priority`, `epic`, `story`,
+`depends_on` and `aliases` are **not in that column at all**. Re-parsing it recovers nothing.
+
+Building it as first written would have left every document on stale derived fields after an app upgrade -
+**BG-01KXARHJ, resurrected, and silent.** The second data-loss-class regression this epic nearly shipped, and
+like the first it was hiding inside an assumption that read as obviously true.
+
+So: **a stale `parser_epoch` forces the tarball path**, exactly as a NULL `blob_sha` does. One tarball,
+everything re-parses from real bytes, all epochs go current, and the next sync is incremental again. An epoch
+bump only happens on an app upgrade, so steady state is untouched - and we reuse a path that already exists
+instead of inventing one that cannot work.
 
 ## Story Breakdown
 
-- [ ] [US-01KXCC76: Store a git blob SHA per document](../stories/US-01KXCC76-store-a-git-blob-sha-per-document.md)
+- [x] [US-01KXCC76: Store a git blob SHA per document](../stories/US-01KXCC76-store-a-git-blob-sha-per-document.md)
 - [ ] [US-01KXCCMH: Make document content optional in the sync manifest, so the empty-source guard cannot misfire](../stories/US-01KXCCMH-make-document-content-optional-in-the-sync-manifest.md)
 - [ ] [US-01KXCCTV: Fetch only changed blobs via Trees and Blobs, with a tarball fallback](../stories/US-01KXCCTV-fetch-only-changed-blobs-via-trees-and-blobs.md)
 
@@ -59,9 +75,9 @@ US-01KXCCTV starts withholding content. If the suite needs editing before that p
 
 - [ ] A GitHub re-sync where nothing changed costs one Trees call, fetches zero blobs, writes zero documents and **deletes zero documents**
 - [ ] A re-sync where K files changed fetches exactly K blobs and re-parses exactly K documents
-- [ ] A document whose blob is unchanged but whose `parser_epoch` is stale re-parses from stored content, with no network fetch
+- [ ] A project holding any document below `PARSER_EPOCH` takes the **tarball** path, so every document re-parses from real bytes (RFC D7). Stored `content` is never treated as a re-parseable source
 - [ ] BG-01KX8BFP's regression test passes **unmodified** throughout
-- [ ] BG-01KXARHJ's parser-epoch behaviour survives, proven by bumping `PARSER_EPOCH` and asserting derived fields recompute
+- [ ] BG-01KXARHJ's parser-epoch behaviour survives, proven by bumping `PARSER_EPOCH` and asserting derived fields recompute after an incremental-mode project syncs
 - [ ] Local-source projects are untouched
 - [ ] Over the changed-blob cap, or on any NULL `blob_sha`, the sync falls back to a tarball - and **says so** in the result
 - [ ] A rate limit or a revoked token leaves the stored corpus intact
@@ -70,7 +86,7 @@ US-01KXCCTV starts withholding content. If the suite needs editing before that p
 ## Risks
 
 - **This is the highest-stakes file in the product.** A mistake here is not a broken screen, it is a user's corpus deleted. The mitigation is structural (complete manifest, optional content) rather than behavioural (remember to check the right thing).
-- **`parse_document` must behave identically whether fed a fetched blob or a stored `content` string.** The fetched path decodes `utf-8-sig` to strip a BOM; the stored column is already-decoded text. Consistency must be asserted, not assumed.
+- ~~`parse_document` must behave identically whether fed a fetched blob or a stored `content` string.~~ **Resolved by removing the premise:** `content` is body-only and is never re-parsed. See RFC D7 above. The risk register keeps this line because the assumption that produced it looked obviously safe and was not.
 
 ## Revision History
 

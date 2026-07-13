@@ -26,6 +26,17 @@ jobs:
         working-directory: backend
         run: pip install -e ".[dev]"
 
+      # The release gate must not check LESS than CI does, or a tag can ship an image
+      # carrying a red lint or a red E2E suite - the two gates this project added in
+      # CR-01KXCA1Q. Keep this job's checks a superset of ci.yml's.
+      - name: Lint
+        working-directory: backend
+        run: ruff check src/ tests/
+
+      - name: Check formatting
+        working-directory: backend
+        run: ruff format --check src/ tests/
+
       - name: Run backend tests with coverage
         working-directory: backend
         run: PYTHONPATH=src coverage run -m pytest -v && coverage report
@@ -46,6 +57,20 @@ jobs:
       - name: Run frontend tests with coverage
         working-directory: frontend
         run: npx vitest run --coverage
+
+      # E2E runs nowhere but CI (Playwright cannot run on the dev box), so without this
+      # step a tag could ship an image whose end-to-end suite was never executed.
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E suite
+        working-directory: e2e
+        run: npx playwright test
 
   build-and-push:
     runs-on: ubuntu-latest

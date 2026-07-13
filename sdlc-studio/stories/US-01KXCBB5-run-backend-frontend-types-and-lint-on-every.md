@@ -1,6 +1,6 @@
 # US-01KXCBB5: Run backend, frontend, types and lint on every push and pull request
 
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-07-13
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Tomas Reinholt; persona; v3
@@ -48,6 +48,7 @@ possible moment to find it - the release is already in motion.
 - **When** a deliberately failing test is pushed on a scratch branch
 - **Then** the CI run fails, and the failure names the offending test
 - **Verify:** manual push a scratch branch carrying a deliberately failing test, observe CI go red, delete the branch
+- **Verified:** manual (2026-07-13) - PR #3: backend went red naming `test_deliberate_failure_to_prove_ci_goes_red`; frontend stayed green, so the gate fails selectively. Branch deleted.
 
 ### AC4: The release path stays independently gated
 

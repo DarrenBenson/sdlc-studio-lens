@@ -24,7 +24,7 @@ from sdlc_lens.services.project_config import (
     parse_project_config,
     read_local_project_config,
 )
-from sdlc_lens.utils.hashing import compute_hash
+from sdlc_lens.utils.hashing import compute_blob_sha, compute_hash
 from sdlc_lens.utils.inference import infer_type_and_id
 from sdlc_lens.utils.sdlc_ids import extract_ref_id, id_head, norm_id
 from sdlc_lens.utils.sdlc_status import canonical_status
@@ -273,6 +273,7 @@ def _build_doc_attrs(
     file_hash: str,
     project_id: int,
     status_vocab: dict[str, list[str]] | None = None,
+    blob_sha: str | None = None,
 ) -> dict:
     """Build a dict of Document column values from parsed data.
 
@@ -302,6 +303,7 @@ def _build_doc_attrs(
         "content": parsed_body,
         "file_path": file_path,
         "file_hash": file_hash,
+        "blob_sha": blob_sha,
         "parser_epoch": PARSER_EPOCH,
         "synced_at": datetime.datetime.now(datetime.UTC),
     }
@@ -448,11 +450,20 @@ async def sync_project(
             needs_ref_backfill = (
                 doc is not None and doc.ref_id is None and norm_id(id_head(doc.doc_id)) is not None
             )
+            # Same self-heal, for blob_sha. Every row in a database migrated from before
+            # 012 carries blob_sha=NULL. Without this clause a byte-unchanged file is
+            # skipped, so those rows stay NULL FOREVER - the project is permanently
+            # "unknown", permanently takes the tarball path, and incremental sync never
+            # engages for a single existing install. The tarball only "backfills" because
+            # this makes the row eligible to be rewritten; fetching the bytes is not
+            # enough on its own.
+            needs_blob_sha_backfill = doc is not None and doc.blob_sha is None
             if (
                 doc is not None
                 and doc.file_hash == file_hash
                 and not stale_epoch
                 and not needs_ref_backfill
+                and not needs_blob_sha_backfill
             ):
                 # Skip - unchanged content and derived state already current
                 result.skipped += 1
@@ -482,6 +493,11 @@ async def sync_project(
                 file_hash=file_hash,
                 project_id=project_id,
                 status_vocab=config.status_vocab,
+                # Computed from the raw bytes we already hold, on every path. This is
+                # what a later incremental sync diffs a Trees response against, and it
+                # is why the tarball path doubles as the backfill path: one full sync
+                # populates every blob_sha in a single request (RFC-01KXARHK, D1/D3).
+                blob_sha=compute_blob_sha(raw),
             )
 
             if doc is not None:

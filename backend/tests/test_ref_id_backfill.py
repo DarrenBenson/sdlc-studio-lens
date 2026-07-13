@@ -23,6 +23,7 @@ from sdlc_lens.db.models.project import Project
 from sdlc_lens.services.documents import get_related_documents
 from sdlc_lens.services.project_config import ProjectConfig
 from sdlc_lens.services.sync_engine import PARSER_EPOCH, sync_project
+from sdlc_lens.utils.hashing import compute_blob_sha
 from sdlc_lens.utils.sdlc_ids import id_head, norm_id
 
 
@@ -211,6 +212,13 @@ class TestSyncSelfHealsStaleParserEpoch:
             content="Plan body",
             file_path=rel_path,
             file_hash=file_hash,
+            # A fully-current row carries its blob_sha too (US-01KXCC76). Leaving it
+            # NULL here would make the row eligible for the blob_sha self-heal and it
+            # would be reparsed rather than skipped - which is the correct behaviour for
+            # a genuinely NULL row, and is covered by its own test. This test is about
+            # the epoch/ref_id skip, so the fixture must represent a row that is current
+            # in every respect.
+            blob_sha=compute_blob_sha(content),
             synced_at=datetime.datetime.now(tz=datetime.UTC),
         )
         session.add(current)

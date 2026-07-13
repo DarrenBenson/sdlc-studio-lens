@@ -1,6 +1,6 @@
 # US-01KXCBHJ: Settle the E2E suite: run it in CI so its repairs are proven, not assumed
 
-> **Status:** Ready
+> **Status:** Done
 > **Created:** 2026-07-13
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Tomas Reinholt; persona; v3
@@ -49,6 +49,7 @@ the second - what is not permitted is leaving it in the repo, unrun, counted as 
 - **When** the E2E job runs against the built app
 - **Then** all eight specs pass, including `settings.spec.ts`'s Advanced-disclosure assertions; any spec that fails is repaired against the real DOM, not the assumed one
 - **Verify:** manual observe the CI E2E job green on the sprint PR; the run is the first execution this suite has ever had
+- **Verified:** manual (2026-07-13) - PR #2, e2e job green (1m25s), twice. All 8 specs / 43 tests pass. The hand-repair of settings.spec.ts is confirmed: it needed no further change.
 
 ### AC3: E2E failure fails the build
 
@@ -56,6 +57,7 @@ the second - what is not permitted is leaving it in the repo, unrun, counted as 
 - **When** a spec is deliberately broken on a scratch branch
 - **Then** the E2E job fails and the workflow fails with it
 - **Verify:** manual break one assertion on a scratch branch, observe CI go red, delete the branch
+- **Verified:** manual (2026-07-13) - PR #3: e2e went red naming `getByTestId('repo-url-input-DELIBERATELY-WRONG')` at settings.spec.ts:114. Branch deleted.
 
 ### AC4: The coverage claim matches reality
 
@@ -63,6 +65,7 @@ the second - what is not permitted is leaving it in the repo, unrun, counted as 
 - **When** the suite is wired in (or, on fallback, removed)
 - **Then** `tsd.md` and the test-count claims state what is actually executed and where
 - **Verify:** manual confirm the E2E count in tsd.md matches the specs the CI job runs
+- **Verified:** manual (2026-07-13) - 8 specs / 43 tests on disk match tsd.md's matrix. tsd.md now also records WHERE they run (CI only; Playwright cannot run on the dev box), which was the missing half of the claim.
 
 ## Revision History
 

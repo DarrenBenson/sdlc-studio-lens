@@ -31,3 +31,9 @@
 {"id": "BG-01KXB3QF", "type": "bug", "critic_verdict": "PASS"}
 {"id": "CR-01KXB377", "type": "cr", "critic_verdict": "PASS"}
 {"id": "RFC-01KXARHK", "type": "rfc"}
+{"id": "US-01KXCB7V", "type": "story"}
+{"id": "EP-01KXCBC9", "type": "epic"}
+{"id": "CR-01KXCA1Q", "type": "cr"}
+{"id": "US-01KXCC76", "type": "story"}
+{"id": "US-01KXCBB5", "type": "story"}
+{"id": "US-01KXCBHJ", "type": "story"}

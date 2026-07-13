@@ -8,11 +8,11 @@
 | Status | Count |
 |--------|-------|
 | Draft | 0 |
-| Ready | 6 |
+| Ready | 2 |
 | Planned | 0 |
 | In Progress | 0 |
 | Review | 0 |
-| Done | 37 |
+| Done | 41 |
 | Not Started | 0 |
 | Superseded | 2 |
 | **Total** | **45** |
@@ -146,10 +146,10 @@
 | [US0037](US0037-health-check-rules-engine.md) | Health Check Rules Engine | [EP0009](../epics/EP0009-project-health-check.md) | Done | 5 | Darren |
 | [US0038](US0038-health-check-api-endpoint.md) | Health Check API Endpoint | [EP0009](../epics/EP0009-project-health-check.md) | Done | 3 | Darren |
 | [US0039](US0039-health-check-dashboard-page.md) | Health Check Dashboard Page | [EP0009](../epics/EP0009-project-health-check.md) | Done | 5 | Darren |
-| [US-01KXCBB5](US-01KXCBB5-run-backend-frontend-types-and-lint-on-every.md) | Run backend, frontend, types and lint on every push and pull request | EP-01KXCBC9 | Ready | -- | -- |
-| [US-01KXCBHJ](US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci.md) | Settle the E2E suite: run it in CI and repair it against the new add-project card | EP-01KXCBC9 | Ready | -- | -- |
-| [US-01KXCB7V](US-01KXCB7V-make-the-review-index-and-the-lint-baseline.md) | Make the review index and the lint baseline tell the truth | EP-01KXCBC9 | Ready | -- | -- |
-| [US-01KXCC76](US-01KXCC76-store-a-git-blob-sha-per-document.md) | Store a git blob SHA per document | EP-01KXCCA4 | Ready | -- | -- |
+| [US-01KXCBB5](US-01KXCBB5-run-backend-frontend-types-and-lint-on-every.md) | Run backend, frontend, types and lint on every push and pull request | EP-01KXCBC9 | Done | -- | -- |
+| [US-01KXCBHJ](US-01KXCBHJ-settle-the-e2e-suite-run-it-in-ci.md) | Settle the E2E suite: run it in CI and repair it against the new add-project card | EP-01KXCBC9 | Done | -- | -- |
+| [US-01KXCB7V](US-01KXCB7V-make-the-review-index-and-the-lint-baseline.md) | Make the review index and the lint baseline tell the truth | EP-01KXCBC9 | Done | -- | -- |
+| [US-01KXCC76](US-01KXCC76-store-a-git-blob-sha-per-document.md) | Store a git blob SHA per document | EP-01KXCCA4 | Done | -- | -- |
 | [US-01KXCCMH](US-01KXCCMH-make-document-content-optional-in-the-sync-manifest.md) | Make document content optional in the sync manifest, so the empty-source guard cannot misfire | EP-01KXCCA4 | Ready | -- | -- |
 | [US-01KXCCTV](US-01KXCCTV-fetch-only-changed-blobs-via-trees-and-blobs.md) | Fetch only changed blobs via Trees and Blobs, with a tarball fallback | EP-01KXCCA4 | Ready | -- | -- |
 

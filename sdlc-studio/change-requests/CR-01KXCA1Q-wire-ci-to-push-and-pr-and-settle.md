@@ -1,6 +1,6 @@
 # CR-01KXCA1Q: Wire CI to push and PR, and settle the E2E suite
 
-> **Status:** Proposed
+> **Status:** Complete
 > **Verification depth:** functional
 > **Triaged-by:** Darren; human; v3
 > **Created:** 2026-07-13
