@@ -1,6 +1,7 @@
 # CR-01KX8Y6H: Config and schema-version awareness (.config.yaml and .version)
 
 > **Status:** Complete
+> **Size:** M
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KX8Y0M
 > **Created:** 2026-07-11

@@ -1,6 +1,7 @@
 # CR-01KXAS75: GitHub repo selector: browse repos and orgs to add, flagging sdlc-studio workspaces
 
 > **Status:** Complete
+> **Size:** M
 > **Verification depth:** functional
 > **Depends on:** CR-01KXARM8
 > **Triaged-by:** Darren; human; v3

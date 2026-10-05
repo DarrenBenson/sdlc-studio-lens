@@ -6,6 +6,7 @@
 > **Owner:** Darren
 > **Reviewer:** -
 > **Created:** 2026-02-17
+> **Supersedes:** US0025, US0027
 
 ## User Story
 

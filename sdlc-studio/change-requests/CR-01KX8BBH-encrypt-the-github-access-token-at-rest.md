@@ -1,6 +1,7 @@
 # CR-01KX8BBH: Encrypt the GitHub access token at rest
 
 > **Status:** Complete
+> **Size:** M
 > **Depends on:** BG-01KX8BJY
 > **Triaged-by:** Darren; human; v3
 > **Priority:** Medium

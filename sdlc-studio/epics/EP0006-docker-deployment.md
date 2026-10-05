@@ -1,6 +1,7 @@
 # EP0006: Docker Deployment
 
 > **Status:** Done
+> **Size:** L
 > **Raised-by:** Darren; human; v1 (inferred)
 > **Owner:** Darren
 > **Created:** 2026-02-17

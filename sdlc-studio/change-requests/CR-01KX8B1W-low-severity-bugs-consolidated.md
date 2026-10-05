@@ -1,6 +1,7 @@
 # CR-01KX8B1W: Low-severity bugs (consolidated)
 
 > **Status:** Complete
+> **Size:** S
 > **Triaged-by:** Darren; human; v3
 > **Priority:** Low
 > **Type:** Improvement

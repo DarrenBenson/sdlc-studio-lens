@@ -1,5 +1,5 @@
 # SDLC Studio Project Version (sdlc-studio/.version)
 schema_version: 3
-upgraded_from: null
-upgraded_at: 2026-07-11
-skill_version: "4.0.0"
+upgraded_from: 4.0.0
+upgraded_at: 2026-10-05
+skill_version: "6.1.0"

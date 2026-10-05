@@ -1,12 +1,15 @@
 # RFC-01KXDCKH: Make the lens a delivery-evidence viewer: surface AC verification, critic verdicts and the sprint itself
 
-> **Status:** Draft
+> **Status:** Superseded
 > **Triaged-by:** Darren; human; v3
 > **Raised-by:** Darren; human; v3
 > **Priority:** High
 > **Created:** 2026-07-13
 > **Created-by:** sdlc-studio new
 > **Related:** RETRO-0007 (the sprint whose evidence is invisible), CR-01KXCAHV (the sync contract this would extend)
+> **Superseded By:** RFC-01M46B5Y
+
+> **Supersession Note:** Superseded 2026-10-05. This RFC assumed `.local/` is committed and built on `verify-report.json`; a reader without a harness has neither. RFC-01M46B5Y takes its valid findings (critic-verdict table, per-criterion Verify lines, retros linked to their sprint) and builds on the committed reports and run records instead.
 
 ## Summary
 

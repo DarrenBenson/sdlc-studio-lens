@@ -1,26 +1,27 @@
 # RFC Registry – Design Exploration
 
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-10-05
 **TRD Reference:** [Technical Requirements Document](../trd.md)
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| Draft | 1 |
+| Draft | 0 |
 | In Review | 0 |
 | Accepted | 1 |
-| Superseded | 0 |
+| Superseded | 1 |
 | Withdrawn | 0 |
-| inbox | 0 |
-| **Total** | **2** |
+| inbox | 1 |
+| **Total** | **3** |
 
 ## All RFCs
 
 | ID | Title | Priority | Status | Author | Date | Spawned CRs |
 | --- | --- | --- | --- | --- | --- | --- |
 | [RFC-01KXARHK](RFC-01KXARHK-incremental-github-sync-near-realtime-without-re-downloading.md) | Incremental GitHub sync: near-realtime without re-downloading the repo | Medium | Accepted | -- | 2026-07-12 | -- |
-| [RFC-01KXDCKH](RFC-01KXDCKH-make-the-lens-a-delivery-evidence-viewer-surface.md) | Make the lens a delivery-evidence viewer: surface AC verification, critic verdicts and the sprint itself | Medium | Draft | -- | 2026-07-13 | -- |
+| [RFC-01KXDCKH](RFC-01KXDCKH-make-the-lens-a-delivery-evidence-viewer-surface.md) | Make the lens a delivery-evidence viewer: surface AC verification, critic verdicts and the sprint itself | High | Superseded | -- | 2026-07-13 | -- |
+| [RFC-01M46B5Y](RFC-01M46B5Y-make-the-lens-a-delivery-observability-plane-for.md) | Make the lens a delivery-observability plane for project managers | High | inbox | Claude Opus 5.5 | 2026-10-05 | -- |
 
 ## Notes
 

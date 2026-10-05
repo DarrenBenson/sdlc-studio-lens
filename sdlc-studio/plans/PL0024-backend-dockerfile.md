@@ -6,6 +6,7 @@
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17
 > **Language:** Dockerfile / Bash
+> **Supersedes:** PL0025, PL0027
 
 ## Overview
 
