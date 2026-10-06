@@ -106,6 +106,13 @@ code.
   be fully mocked in jsdom; `vi.mock` of the API client must list ALL exports. RTL v16 + Vitest v4
   need explicit cleanup in `frontend/test/setup.ts`. Uvicorn log-level must be lowercase.
 
+## Cursor Cloud specific instructions
+
+- `install` builds `backend/.venv` with Python 3.12 via `uv`, then `npm ci` in `frontend/` and `e2e/`. `uvicorn` and `alembic` on `PATH` are symlinks into that venv: Playwright's webServer and `e2e/global-setup.ts` call them by name, which is how CI behaves after a global `pip install`. Keep lint and pytest on `.venv/bin/ruff` and `.venv/bin/python`.
+- `start` migrates `backend/data/db/sdlc_lens.db` and serves the API at http://127.0.0.1:8000 and Vite at http://127.0.0.1:5173. Vite proxies `/api` to the API. Health is `GET /api/v1/system/health`.
+- Register this repo's `sdlc-studio/` directory as a local project to exercise sync and search. That path does not need a GitHub token.
+- `cd e2e && npx playwright test` starts its own API and Vite on ports 8000 and 5173 against `/tmp/sdlc-lens-e2e.db`. Stop the `lens-api` and `lens-web` tmux sessions first. With `CI` unset, Playwright reuses whatever is already bound to those ports and then talks to the dev database.
+
 ## Don't
 
 - Don't grow this file with per-ship narrative - that is what `git log` and
