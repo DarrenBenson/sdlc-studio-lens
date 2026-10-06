@@ -1,6 +1,7 @@
 # CR-01M46BT9: Lessons, decisions and retros view
 
-> **Status:** inbox
+> **Status:** Proposed
+> **Triaged-by:** Darren Benson; human; v1
 > **Created:** 2026-10-05
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Claude Opus 5.5; agent; v1

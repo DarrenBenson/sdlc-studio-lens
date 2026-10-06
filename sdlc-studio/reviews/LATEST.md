@@ -14,9 +14,9 @@ harness.
 
 ## What is owed
 
-- **Triage:** 15 new tickets sit in `inbox` and need a seat other than their raiser to triage them (RFC-01M46B5Y,
-  CR-01M46BAX, CR-01M46BQ8, CR-01M46BEX, CR-01M46BKF, CR-01M46B00, CR-01M46B9P, CR-01M46BFX, CR-01M46BPJ,
-  CR-01M46B04, CR-01M46BT9, CR-01M46BZJ, CR-01M46BC2, CR-01M46B36, BG-01M46B27).
+- **Triaged 2026-10-06 by Darren Benson:** RFC-01M46B5Y (Draft), 13 CRs (Proposed), BG-01M46B27 and
+  BG-01M46XRK (Open). BG-01M46XRK's fix (`sqlalchemy[asyncio]`) is merged in PR #13; it moves to Fixed once
+  reviewed.
 - **Migration debt** (CR-01M46BAX): `validate.py check` still reports 33 errors (32 unfilled Story Points tokens,
   one unanswered Open Question on EP0005); AGENTS.md needs refreshing from the 6.1 template; 13 shipped bugs would
   fail the engagement-floor lane.

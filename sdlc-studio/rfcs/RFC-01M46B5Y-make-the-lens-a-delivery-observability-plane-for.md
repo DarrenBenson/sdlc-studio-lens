@@ -1,6 +1,7 @@
 # RFC-01M46B5Y: Make the lens a delivery-observability plane for project managers
 
-> **Status:** inbox
+> **Status:** Draft
+> **Triaged-by:** Darren Benson; human; v1
 > **Created:** 2026-10-05
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Claude Opus 5.5; agent; v1

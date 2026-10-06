@@ -1,6 +1,7 @@
 # CR-01M46BQ8: PRD v2.0: the lens as an observability plane, with a project-manager persona
 
-> **Status:** inbox
+> **Status:** Proposed
+> **Triaged-by:** Darren Benson; human; v1
 > **Created:** 2026-10-05
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Claude Opus 5.5; agent; v1

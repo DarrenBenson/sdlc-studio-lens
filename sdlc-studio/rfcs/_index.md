@@ -7,12 +7,12 @@
 
 | Status | Count |
 | --- | --- |
-| Draft | 0 |
+| Draft | 1 |
 | In Review | 0 |
 | Accepted | 1 |
 | Superseded | 1 |
 | Withdrawn | 0 |
-| inbox | 1 |
+| inbox | 0 |
 | **Total** | **3** |
 
 ## All RFCs
@@ -21,7 +21,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | [RFC-01KXARHK](RFC-01KXARHK-incremental-github-sync-near-realtime-without-re-downloading.md) | Incremental GitHub sync: near-realtime without re-downloading the repo | Medium | Accepted | -- | 2026-07-12 | -- |
 | [RFC-01KXDCKH](RFC-01KXDCKH-make-the-lens-a-delivery-evidence-viewer-surface.md) | Make the lens a delivery-evidence viewer: surface AC verification, critic verdicts and the sprint itself | High | Superseded | -- | 2026-07-13 | -- |
-| [RFC-01M46B5Y](RFC-01M46B5Y-make-the-lens-a-delivery-observability-plane-for.md) | Make the lens a delivery-observability plane for project managers | High | inbox | Claude Opus 5.5 | 2026-10-05 | -- |
+| [RFC-01M46B5Y](RFC-01M46B5Y-make-the-lens-a-delivery-observability-plane-for.md) | Make the lens a delivery-observability plane for project managers | High | Draft | Claude Opus 5.5 | 2026-10-05 | -- |
 
 ## Notes
 

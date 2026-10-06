@@ -1,6 +1,7 @@
 # CR-01M46BZJ: Sign in with GitHub and scope every view to what the viewer can read
 
-> **Status:** inbox
+> **Status:** Proposed
+> **Triaged-by:** Darren Benson; human; v1
 > **Created:** 2026-10-05
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Claude Opus 5.5; agent; v1

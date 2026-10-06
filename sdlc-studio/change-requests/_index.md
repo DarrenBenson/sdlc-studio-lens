@@ -7,13 +7,13 @@
 
 | Status | Count |
 | --- | --- |
-| Proposed | 0 |
+| Proposed | 13 |
 | Approved | 0 |
 | In Progress | 0 |
 | Complete | 22 |
 | Rejected | 0 |
 | Deferred | 0 |
-| inbox | 13 |
+| inbox | 0 |
 | **Total** | **35** |
 
 ## By Priority
@@ -47,19 +47,19 @@
 | [CR-01KXCA1Q](CR-01KXCA1Q-wire-ci-to-push-and-pr-and-settle.md) | Wire CI to push and PR, and settle the E2E suite | High | Complete | Improvement | -- | 2026-07-13 |
 | [CR-01KXCAHV](CR-01KXCAHV-incremental-github-sync-hybrid-tarball-plus-trees-and.md) | Incremental GitHub sync: hybrid tarball plus Trees and Blobs re-sync | High | Complete | Feature | -- | 2026-07-13 |
 | [CR-01KXCAZJ](CR-01KXCAZJ-commit-sha-poll-trigger-to-keep-github-projects.md) | Commit-SHA poll trigger to keep GitHub projects fresh | Medium | Complete | Feature | -- | 2026-07-13 |
-| [CR-01M46BAX](CR-01M46BAX-migrate-the-lens-workspace-to-skill-6-1.md) | Migrate the lens workspace to skill 6.1 and re-baseline it | High | inbox | Maintenance | -- | 2026-10-05 |
-| [CR-01M46BQ8](CR-01M46BQ8-prd-v2-0-the-lens-as-an-observability.md) | PRD v2.0: the lens as an observability plane, with a project-manager persona | High | inbox | Documentation | -- | 2026-10-05 |
-| [CR-01M46BEX](CR-01M46BEX-read-a-skill-6-1-workspace-correctly-from.md) | Read a skill 6.1 workspace correctly, from one vocabulary source | High | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46BKF](CR-01M46BKF-ingest-allow-listed-structured-records-alongside-the-markdown.md) | Ingest allow-listed structured records alongside the markdown | High | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46B00](CR-01M46B00-extract-structure-from-the-tracked-markdown-evidence.md) | Extract structure from the tracked markdown evidence | Medium | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46B9P](CR-01M46B9P-sprints-and-reports-view.md) | Sprints and reports view | High | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46BFX](CR-01M46BFX-cost-and-estimation-view.md) | Cost and estimation view | High | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46BPJ](CR-01M46BPJ-dora-and-flow-view.md) | DORA and flow view | Medium | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46B04](CR-01M46B04-quality-evidence-view.md) | Quality evidence view | Medium | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46BT9](CR-01M46BT9-lessons-decisions-and-retros-view.md) | Lessons, decisions and retros view | Medium | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46BZJ](CR-01M46BZJ-sign-in-with-github-and-scope-every-view.md) | Sign in with GitHub and scope every view to what the viewer can read | High | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46BC2](CR-01M46BC2-portfolio-roll-up-across-projects.md) | Portfolio roll-up across projects | Medium | inbox | Feature | -- | 2026-10-05 |
-| [CR-01M46B36](CR-01M46B36-plain-language-export-and-print-for-non-technical.md) | Plain language, export and print for non-technical readers | Medium | inbox | Feature | -- | 2026-10-05 |
+| [CR-01M46BAX](CR-01M46BAX-migrate-the-lens-workspace-to-skill-6-1.md) | Migrate the lens workspace to skill 6.1 and re-baseline it | High | Proposed | Maintenance | -- | 2026-10-05 |
+| [CR-01M46BQ8](CR-01M46BQ8-prd-v2-0-the-lens-as-an-observability.md) | PRD v2.0: the lens as an observability plane, with a project-manager persona | High | Proposed | Documentation | -- | 2026-10-05 |
+| [CR-01M46BEX](CR-01M46BEX-read-a-skill-6-1-workspace-correctly-from.md) | Read a skill 6.1 workspace correctly, from one vocabulary source | High | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46BKF](CR-01M46BKF-ingest-allow-listed-structured-records-alongside-the-markdown.md) | Ingest allow-listed structured records alongside the markdown | High | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46B00](CR-01M46B00-extract-structure-from-the-tracked-markdown-evidence.md) | Extract structure from the tracked markdown evidence | Medium | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46B9P](CR-01M46B9P-sprints-and-reports-view.md) | Sprints and reports view | High | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46BFX](CR-01M46BFX-cost-and-estimation-view.md) | Cost and estimation view | High | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46BPJ](CR-01M46BPJ-dora-and-flow-view.md) | DORA and flow view | Medium | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46B04](CR-01M46B04-quality-evidence-view.md) | Quality evidence view | Medium | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46BT9](CR-01M46BT9-lessons-decisions-and-retros-view.md) | Lessons, decisions and retros view | Medium | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46BZJ](CR-01M46BZJ-sign-in-with-github-and-scope-every-view.md) | Sign in with GitHub and scope every view to what the viewer can read | High | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46BC2](CR-01M46BC2-portfolio-roll-up-across-projects.md) | Portfolio roll-up across projects | Medium | Proposed | Feature | -- | 2026-10-05 |
+| [CR-01M46B36](CR-01M46B36-plain-language-export-and-print-for-non-technical.md) | Plain language, export and print for non-technical readers | Medium | Proposed | Feature | -- | 2026-10-05 |
 
 ## Dependencies
 
