@@ -1,6 +1,7 @@
 # CR-01KX9WMA: Update CI actions to Node-24-native versions (Node 20 deprecation)
 
 > **Status:** Complete
+> **Size:** S
 > **Triaged-by:** Darren; human; v3
 > **Created:** 2026-07-12
 > **Created-by:** sdlc-studio new

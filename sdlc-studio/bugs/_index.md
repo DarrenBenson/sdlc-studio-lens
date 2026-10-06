@@ -6,14 +6,14 @@
 
 | Status | Count |
 | -------- | ------- |
-| Open | 0 |
+| Open | 2 |
 | In Progress | 0 |
 | Fixed | 16 |
 | Verified | 0 |
 | Closed | 0 |
 | Won't Fix | 0 |
-| inbox | 1 |
-| **Total** | **17** |
+| inbox | 0 |
+| **Total** | **18** |
 
 ## By Severity
 
@@ -40,7 +40,8 @@
 | [BG-01KXCG98](BG-01KXCG98-unreadable-local-file-is-treated-as-deleted-its.md) | Unreadable local file is treated as deleted: its document is destroyed and the sync reports success | High | Medium | Fixed | -- | -- | 2026-07-13 |
 | [BG-01KXDFGD](BG-01KXDFGD-a-project-interrupted-mid-sync-is-stuck-in.md) | A project interrupted mid-sync is stuck in syncing for ever and can never sync again | High | Medium | Fixed | -- | -- | 2026-07-13 |
 | [BG-01KXDGA1](BG-01KXDGA1-no-application-log-line-ever-reaches-stdout-every.md) | No application log line ever reaches stdout: every logger call in the app is silently discarded | High | Medium | Fixed | -- | -- | 2026-07-13 |
-| [BG-01M46XRK](BG-01M46XRK-backend-cannot-start-on-a-fresh-install-sqlalchemy.md) | Backend cannot start on a fresh install: SQLAlchemy 2.1 no longer installs greenlet | High | High | inbox | -- | -- | 2026-10-05 |
+| [BG-01M46B27](BG-01M46B27-production-compose-file-pins-a-stale-image-tag.md) | Production compose file pins a stale image tag | Medium | Medium | Open | -- | -- | 2026-10-05 |
+| [BG01M46XRK](BG-01M46XRK-backend-cannot-start-on-a-fresh-install-sqlalchemy.md) | BG-01M46XRK | High | Medium | Open | -- | -- | 2026-10-05 |
 
 ## Notes
 

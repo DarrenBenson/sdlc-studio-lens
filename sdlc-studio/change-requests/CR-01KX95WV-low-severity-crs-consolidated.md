@@ -1,6 +1,7 @@
 # CR-01KX95WV: Low-severity crs (consolidated)
 
 > **Status:** Complete
+> **Size:** M
 > **Depends on:** BG-01KX95DB, BG-01KX95QP, CR-01KX95FH
 > **Triaged-by:** Darren; human; v3
 > **Priority:** Low

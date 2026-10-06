@@ -1,10 +1,12 @@
 # TS0026: Docker Compose Orchestration
 
-> **Status:** Draft
+> **Status:** Superseded
 > **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0006: Docker Deployment](../epics/EP0006-docker-deployment.md)
 > **Created:** 2026-02-17
 > **Last Updated:** 2026-02-18
+
+> **Supersession Note:** Retired 2026-10-05 in the skill 6.1 migration. These Docker integration cases were never automated; the image is built and pushed by `.github/workflows/release.yml` on every tag, which is the only check now in force. A container smoke test, if wanted, is a new bug or CR, not this spec.
 
 ## Overview
 

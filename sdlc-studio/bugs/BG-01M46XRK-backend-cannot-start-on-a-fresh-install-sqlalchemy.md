@@ -1,6 +1,7 @@
 # BG-01M46XRK: Backend cannot start on a fresh install: SQLAlchemy 2.1 no longer installs greenlet
 
-> **Status:** inbox
+> **Status:** Open
+> **Triaged-by:** Darren Benson; human; v1
 > **Created:** 2026-10-05
 > **Created-by:** sdlc-studio new
 > **Raised-by:** Claude Opus 5.5; agent; v1

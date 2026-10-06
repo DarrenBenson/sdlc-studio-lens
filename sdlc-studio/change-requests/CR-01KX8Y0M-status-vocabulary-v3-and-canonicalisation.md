@@ -1,6 +1,7 @@
 # CR-01KX8Y0M: Status vocabulary v3 and canonicalisation
 
 > **Status:** Complete
+> **Size:** M
 > **Triaged-by:** Darren; human; v3
 > **Depends on:** CR-01KX8Y2G
 > **Created:** 2026-07-11

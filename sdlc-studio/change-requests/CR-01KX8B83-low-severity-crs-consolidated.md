@@ -1,6 +1,7 @@
 # CR-01KX8B83: Low-severity crs (consolidated)
 
 > **Status:** Complete
+> **Size:** M
 > **Depends on:** CR-01KX8BBH, BG-01KX8BY1
 > **Triaged-by:** Darren; human; v3
 > **Priority:** Low

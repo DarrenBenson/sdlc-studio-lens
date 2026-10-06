@@ -1,6 +1,7 @@
 # CR-01KXASF9: Prettify the read-only document view: working typography plus sdlc-studio-aware presentation
 
 > **Status:** Complete
+> **Size:** M
 > **Verification depth:** functional
 > **Triaged-by:** Darren; human; v3
 > **Created:** 2026-07-12

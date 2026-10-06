@@ -1,6 +1,7 @@
 # CR-01KXARM8: Enrich system health endpoint with readiness depth and single-source the version
 
 > **Status:** Complete
+> **Size:** S
 > **Verification depth:** functional
 > **Triaged-by:** Darren; human; v3
 > **Created:** 2026-07-12

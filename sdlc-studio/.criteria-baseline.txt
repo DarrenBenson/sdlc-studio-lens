@@ -1,0 +1,16 @@
+# Captured from `validate.py check --emit-baseline` on 2026-10-05T15:39:11Z - do not hand-edit.
+# Pre-existing findings recorded as known debt. Removing a line is one-way:
+# the check errors on it from then on, so the count can only fall.
+BG01KX8B04
+BG01KX8B82
+BG01KX8BE8
+BG01KX8BFP
+BG01KX8BJY
+BG01KX8BY1
+BG01KX95AZ
+BG01KX95CR
+BG01KX95DB
+BG01KX95QP
+BG01KX95WX
+BG01KXARHJ
+BG01KXB3QF

@@ -1,6 +1,6 @@
 # TS0002: Project List and Management API
 
-> **Status:** Draft
+> **Status:** Complete
 > **Raised-by:** Darren; human; v1 (inferred)
 > **Epic:** [EP0001: Project Management](../epics/EP0001-project-management.md)
 > **Created:** 2026-02-17
